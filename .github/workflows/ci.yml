@@ -48,8 +48,10 @@ jobs:
       - name: Run integration tests
         run: npm run test:integration
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      # E2E tests require Kubernetes + observability stack (Loki/Prometheus/Tempo)
+      # These are only run locally, not in CI
+      # - name: Run E2E tests
+      #   run: npm run test:e2e
 
       - name: Verify build artifacts
         run: |
