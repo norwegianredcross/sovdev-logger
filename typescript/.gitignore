@@ -1,0 +1,23 @@
+# Build output
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Test logs
+logs/
+logs-*/
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

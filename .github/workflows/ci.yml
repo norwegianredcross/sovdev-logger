@@ -1,0 +1,174 @@
+name: CI - TypeScript
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'typescript/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'typescript/**'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+jobs:
+  test-typescript:
+    name: Test TypeScript Library
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./typescript
+
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: typescript/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Verify build artifacts
+        run: |
+          echo "✅ Verifying build artifacts..."
+          ls -la dist/
+          test -f dist/index.js || (echo "❌ Missing dist/index.js" && exit 1)
+          test -f dist/index.d.ts || (echo "❌ Missing dist/index.d.ts" && exit 1)
+          echo "✅ All build artifacts present"
+
+      - name: Test package installation
+        run: |
+          echo "✅ Testing package installation..."
+          npm pack
+          PACKAGE=$(ls *.tgz)
+          echo "Package created: $PACKAGE"
+
+          # Test installation in clean directory
+          mkdir -p /tmp/test-install
+          cp $PACKAGE /tmp/test-install/
+          cd /tmp/test-install
+          npm init -y
+          npm install ./$PACKAGE
+
+          # Verify import works
+          node -e "const logger = require('@sovdev/logger'); console.log('✅ Package imports successfully');"
+
+      - name: Upload build artifacts
+        if: matrix.node-version == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-build
+          path: typescript/dist/
+          retention-days: 7
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./typescript
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: typescript/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check TypeScript compilation
+        run: npx tsc --noEmit
+
+      - name: Check for TODO/FIXME in production code
+        run: |
+          echo "🔍 Checking for TODO/FIXME in production code..."
+          if grep -r "TODO\|FIXME" src/ --exclude-dir=node_modules --exclude-dir=dist; then
+            echo "⚠️  Found TODO/FIXME comments in production code"
+            echo "Note: These should be resolved before release"
+            # Don't fail the build for now, just warn
+          else
+            echo "✅ No TODO/FIXME found in production code"
+          fi
+
+      - name: Verify package.json metadata
+        run: |
+          echo "✅ Verifying package.json metadata..."
+          node -e "
+          const pkg = require('./package.json');
+          const required = ['name', 'version', 'description', 'main', 'types', 'license', 'repository'];
+          const missing = required.filter(field => !pkg[field]);
+          if (missing.length > 0) {
+            console.error('❌ Missing required fields:', missing);
+            process.exit(1);
+          }
+          console.log('✅ All required package.json fields present');
+          "
+
+  # This job will be used later when we have multiple languages
+  summary:
+    name: CI Summary
+    needs: [test-typescript, code-quality]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "# sovdev-logger CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## TypeScript Library" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.test-typescript.result }}" == "success" ]]; then
+            echo "✅ **Tests**: Passed (Node 18, 20, 22)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tests**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ needs.code-quality.result }}" == "success" ]]; then
+            echo "✅ **Code Quality**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Code Quality**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "_Note: This workflow is designed to support multi-language testing in the future_" >> $GITHUB_STEP_SUMMARY
+
+      - name: Set final status
+        run: |
+          if [[ "${{ needs.test-typescript.result }}" == "success" && "${{ needs.code-quality.result }}" == "success" ]]; then
+            echo "✅ All checks passed!"
+            exit 0
+          else
+            echo "❌ Some checks failed"
+            exit 1
+          fi

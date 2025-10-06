@@ -1,0 +1,25 @@
+# Source files - only publish compiled dist
+src/
+tsconfig.json
+.npmignore
+
+# Development
+node_modules/
+*.log
+.DS_Store
+.env
+.env.*
+
+# Examples and tests - don't publish to npm
+examples/
+tests/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
