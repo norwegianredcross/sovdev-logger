@@ -1,5 +1,5 @@
 {
-  "name": "@sovdev/logger",
+  "name": "@norwegianredcross/sovdev-logger",
   "version": "1.0.0",
   "description": "Structured logging library for OpenTelemetry with Loggeloven compliance - Norwegian Red Cross standards",
   "main": "dist/index.js",
@@ -37,10 +37,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/terchris/sovdev-logger"
+    "url": "https://github.com/norwegianredcross/sovdev-logger"
   },
-  "bugs": "https://github.com/terchris/sovdev-logger/issues",
-  "homepage": "https://github.com/terchris/sovdev-logger#readme",
+  "bugs": "https://github.com/norwegianredcross/sovdev-logger/issues",
+  "homepage": "https://github.com/norwegianredcross/sovdev-logger#readme",
   "author": "Terje Christensen",
   "license": "MIT",
   "dependencies": {
