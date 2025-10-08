@@ -95,7 +95,8 @@ function getServiceVersion(): string {
 interface StructuredLogEntry {
   // Required fields
   timestamp: string;
-  level: string;
+  level?: string; // Optional - Winston will set this based on .log(level, entry)
+  originalLevel?: string; // Preserved level for OTLP transport
 
   // OTEL standard resource attributes
   "service.name": string;      // Service identifier (OTEL standard)
@@ -139,8 +140,9 @@ class OpenTelemetryWinstonTransport extends TransportStream {
   }
 
   log(info: any, callback: Function) {
-    // Map Winston levels to OpenTelemetry severity
+    // Map log levels to OpenTelemetry severity (lowercase to match SOVDEV_LOGLEVELS)
     const severityMap: { [key: string]: SeverityNumber } = {
+      'trace': SeverityNumber.DEBUG,
       'debug': SeverityNumber.DEBUG,
       'info': SeverityNumber.INFO,
       'warn': SeverityNumber.WARN,
@@ -149,6 +151,9 @@ class OpenTelemetryWinstonTransport extends TransportStream {
     };
 
     try {
+      // Use originalLevel (preserved before Winston overwrites it) or fall back to Winston's level
+      const logLevel = info.originalLevel || info.level;
+
       // Build attributes object with OTEL standard fields
       const attributes: any = {
         "service.name": info["service.name"],
@@ -189,10 +194,10 @@ class OpenTelemetryWinstonTransport extends TransportStream {
         }
       }
 
-      // Emit log record to OpenTelemetry
+      // Emit log record to OpenTelemetry using original level
       this.otelLogger.emit({
-        severityNumber: severityMap[info.level] || SeverityNumber.INFO,
-        severityText: info.level.toUpperCase(),
+        severityNumber: severityMap[logLevel] || SeverityNumber.INFO,
+        severityText: logLevel.toUpperCase(), // Use uppercase for consistency
         body: info.message,
         attributes
       });
@@ -398,9 +403,10 @@ class InternalSovdevLogger {
     }
 
     // Create the complete log entry with OTEL standard fields
+    // NOTE: Do NOT include 'level' field here - Winston will add it based on .log(level, entry)
     const logEntry: StructuredLogEntry = {
       timestamp: new Date().toISOString(),
-      level,
+      // level field omitted - Winston will set it
       "service.name": this.serviceName,
       "service.version": this.serviceVersion,
       "peer.service": resolvedPeerService,
@@ -545,8 +551,9 @@ class InternalSovdevLogger {
       }
 
       // Send to Winston - Winston will handle all transports including OTLP
-      const winstonLevel = this.mapToWinstonLevel(level);
-      baseLogger.log(winstonLevel, logEntry);
+      // IMPORTANT: Preserve original level for OTLP transport before Winston sets its own level
+      logEntry['originalLevel'] = level; // Preserve uppercase level for OTLP transport
+      baseLogger.log(this.mapToWinstonLevel(level), logEntry);
 
       // Record operation duration and decrement active operations
       if (globalMetrics) {
@@ -857,6 +864,12 @@ let otelSDK: NodeSDK | null = null;
  * Global OpenTelemetry LoggerProvider instance for flushing
  */
 let globalLoggerProvider: LoggerProvider | null = null;
+
+/**
+ * Global session ID - generated once per application execution
+ * Groups all logs, metrics, and traces from this run
+ */
+let globalSessionId: string | null = null;
 
 /**
  * Initialize the Sovdev logger with system identifier and OpenTelemetry SDK

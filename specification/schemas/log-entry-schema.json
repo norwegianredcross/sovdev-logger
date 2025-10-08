@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovdev.no/schemas/log-entry-file.json",
+  "title": "Sovdev Logger - File Log Entry Schema (Flexible)",
+  "description": "JSON Schema for validating file log entries produced by sovdev-logger. Accepts both flat dotted notation (TypeScript) and nested object notation (Python).",
+  "type": "object",
+  "required": [
+    "timestamp",
+    "message"
+  ],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp with timezone"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["trace", "debug", "info", "warn", "error", "fatal", "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
+      "description": "Log level (lowercase or uppercase)"
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable log message"
+    },
+    "eventId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Unique event identifier (UUID v4, flat notation)"
+    },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Trace identifier (UUID v4, flat notation)"
+    },
+    "functionName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Function name (flat notation)"
+    },
+    "logType": {
+      "type": "string",
+      "enum": ["transaction", "job.status", "job.progress"],
+      "description": "Log type (flat notation)"
+    },
+    "log_type": {
+      "type": "string",
+      "enum": ["transaction", "job.status", "job.progress"],
+      "description": "Log type (snake_case notation)"
+    },
+    "peer.service": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Peer service (dotted notation)"
+    },
+    "service.name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Service name (dotted notation)"
+    },
+    "service.version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Service version (dotted notation)"
+    },
+    "service": {
+      "type": "object",
+      "description": "Service info (nested notation)",
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"}
+      }
+    },
+    "trace": {
+      "type": "object",
+      "description": "Trace info (nested notation)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "description": "Event info (nested notation)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "function": {
+      "type": "object",
+      "description": "Function info (nested notation)",
+      "properties": {
+        "name": {"type": "string", "minLength": 1}
+      }
+    },
+    "peer": {
+      "type": "object",
+      "description": "Peer info (nested notation)",
+      "properties": {
+        "service": {"type": "string", "minLength": 1}
+      }
+    },
+    "session": {
+      "type": "object",
+      "description": "Session info (nested notation)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "inputJSON": {
+      "description": "Input data (flat notation)",
+      "oneOf": [{"type": "object"}, {"type": "null"}]
+    },
+    "responseJSON": {
+      "description": "Response data (flat notation)",
+      "oneOf": [{"type": "object"}, {"type": "null"}]
+    },
+    "input": {
+      "description": "Input data (nested notation)",
+      "type": "object"
+    },
+    "response": {
+      "description": "Response data (nested notation)",
+      "type": "object"
+    },
+    "exception.type": {
+      "type": "string",
+      "const": "Error",
+      "description": "Exception type (dotted notation)"
+    },
+    "exception.message": {
+      "type": "string",
+      "description": "Exception message (dotted notation)"
+    },
+    "exception.stack": {
+      "type": "string",
+      "maxLength": 350,
+      "description": "Stack trace (dotted notation, max 350 chars)"
+    },
+    "exception": {
+      "type": "object",
+      "description": "Exception info (nested notation)",
+      "properties": {
+        "type": {"type": "string", "const": "Error"},
+        "message": {"type": "string"},
+        "stack": {"type": "string", "maxLength": 350}
+      }
+    }
+  },
+  "additionalProperties": true
+}

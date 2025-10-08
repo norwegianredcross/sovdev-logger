@@ -1,6 +1,13 @@
 # Development Environment Rules
 
-This document defines how Claude Code should work with the sovdev-logger development environment.
+**File**: `.terchris/rules-environment.md`
+**Purpose**: Define patterns for working with DevContainer Toolbox and cross-platform development
+**Target Audience**: LLM assistants, developers setting up local environment
+**Last Updated**: October 07, 2025
+
+## 📋 Overview
+
+This document establishes rules for working with the sovdev-logger development environment, including DevContainer Toolbox usage, file system access patterns, and network connectivity to host services.
 
 ## Environment Architecture
 

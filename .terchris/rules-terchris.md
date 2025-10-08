@@ -1,11 +1,16 @@
 # Terchris Workflow Rules
 
-## Purpose
+**File**: `.terchris/rules-terchris.md`
+**Purpose**: Define workflow rules for personal workspace organization and LLM collaboration patterns
+**Target Audience**: LLM assistants, developers working with terchris
+**Last Updated**: October 07, 2025
 
-This document defines workflow rules for working on this repository, including LLM assistant guidelines and personal workspace organization.
+## 📋 Overview
 
-**Location:** `.terchris/rules-terchris.md` (tracked in git)
-**Personal workspace:** `terchris/` directory (never tracked by git)
+This document establishes workflow rules for working on the sovdev-logger repository, including LLM assistant guidelines, personal workspace organization, and git hygiene practices.
+
+**Location**: `.terchris/rules-terchris.md` (tracked in git)
+**Personal workspace**: `terchris/` directory (never tracked by git)
 
 ## Rules for LLMs Working on This Repository
 
@@ -242,6 +247,7 @@ ls terchris/plans-archive/   # Should contain implementation-stages.md
 5. **Ask user before deleting files from `terchris/`**
 6. **Keep `0summary-plan.md` up to date** - update whenever plans change
 7. **Archive completed plans** - move to plans-archive/ and update both summaries
+8. **Never add Claude Code attribution to commits** - do NOT include "🤖 Generated with [Claude Code]" or "Co-Authored-By: Claude" in commit messages
 
 ## Repository Context
 
