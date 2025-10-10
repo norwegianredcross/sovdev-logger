@@ -516,9 +516,9 @@ Initialize the logger with service information and peer system mappings. **Must 
 
 ```typescript
 // .env file:
-// SYSTEM_ID=my-company-lookup-service     ← Your service name
-// BRREG_SYSTEM_ID=INT1001234              ← External system ID
-// ALTINN_SYSTEM_ID=INT1005678             ← External system ID
+// OTEL_SERVICE_NAME=my-company-lookup-service     ← Your service name (OpenTelemetry standard)
+// BRREG_SYSTEM_ID=INT1001234                      ← External system ID
+// ALTINN_SYSTEM_ID=INT1005678                     ← External system ID
 
 // Define which external systems (peer services) your app calls
 const PEER_SERVICES = createPeerServices({
@@ -529,9 +529,9 @@ const PEER_SERVICES = createPeerServices({
 
 // Initialize with YOUR service name and peer services
 sovdevInitialize(
-  process.env.SYSTEM_ID!,       // 'my-company-lookup-service'
-  '1.0.0',                      // Your version
-  PEER_SERVICES.mappings        // INTERNAL auto-added as 'my-company-lookup-service'
+  process.env.OTEL_SERVICE_NAME!,   // 'my-company-lookup-service' (OpenTelemetry standard)
+  '1.0.0',                          // Your version
+  PEER_SERVICES.mappings            // INTERNAL auto-added as 'my-company-lookup-service'
 );
 
 // Now you can use PEER_SERVICES.INTERNAL in your logs!
@@ -1045,8 +1045,8 @@ If you see errors during init, the OTLP endpoint is likely unreachable.
 This library implements "Loggeloven av 2025" requirements:
 
 - ✅ Structured JSON format
-- ✅ Required fields: service.name, functionName, timestamp, traceId
-- ✅ camelCase field naming
+- ✅ Required fields: service_name, function_name, timestamp, trace_id
+- ✅ snake_case field naming convention
 - ✅ ERROR/FATAL levels trigger ServiceNow incidents
 - ✅ Security: Credentials removed from logs
 - ✅ OpenTelemetry trace correlation

@@ -357,11 +357,10 @@ export OTEL_EXPORTER_OTLP_HEADERS='{"Host":"otel.localhost"}'
 
 **Service Identification:**
 ```bash
-# Service name (appears in Grafana)
-export SYSTEM_ID="sovdev-test-company-lookup-typescript"
+# Service name (OpenTelemetry standard - appears in Grafana)
+export OTEL_SERVICE_NAME="sovdev-test-company-lookup-typescript"
 
-# Or use SERVICE_NAME
-export SERVICE_NAME="my-service"
+# Service version (optional)
 export SERVICE_VERSION="1.0.0"
 ```
 
@@ -484,7 +483,7 @@ let file_appender = RollingFileAppender::new(
 
 ```bash
 # Service Configuration
-SYSTEM_ID=sovdev-test-company-lookup-typescript
+OTEL_SERVICE_NAME=sovdev-test-company-lookup-typescript
 SERVICE_VERSION=1.0.0
 
 # OTLP Configuration (DevContainer → Host → Kubernetes)
@@ -504,7 +503,7 @@ NODE_ENV=development
 
 ```bash
 # Service Configuration
-SYSTEM_ID=sovdev-test-company-lookup-python
+OTEL_SERVICE_NAME=sovdev-test-company-lookup-python
 SERVICE_VERSION=1.0.0
 
 # OTLP Configuration

@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovdev.no/schemas/tempo-response-v1.json",
+  "title": "Tempo Search API Response Schema",
+  "description": "JSON Schema for validating Tempo trace search API responses. Ensures traces are properly stored and retrievable.",
+  "type": "object",
+  "required": ["traces"],
+  "properties": {
+    "traces": {
+      "type": "array",
+      "description": "Array of trace summaries matching the search query",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/definitions/trace"
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Query execution metrics",
+      "properties": {
+        "inspectedTraces": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "string", "pattern": "^[0-9]+$"}
+          ],
+          "description": "Number of traces inspected during search"
+        },
+        "inspectedSpans": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "string", "pattern": "^[0-9]+$"}
+          ],
+          "description": "Number of spans inspected during search"
+        },
+        "inspectedBytes": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "string", "pattern": "^[0-9]+$"}
+          ],
+          "description": "Bytes inspected during search"
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "trace": {
+      "type": "object",
+      "description": "A single trace summary from Tempo",
+      "required": ["traceID", "rootServiceName", "startTimeUnixNano"],
+      "properties": {
+        "traceID": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 32,
+          "pattern": "^[0-9a-f]{16,32}$",
+          "description": "Unique trace identifier (16-32 char hex, may omit leading zeros)"
+        },
+        "rootServiceName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the root service that initiated the trace"
+        },
+        "rootTraceName": {
+          "type": "string",
+          "description": "Name of the root span/operation"
+        },
+        "startTimeUnixNano": {
+          "type": "string",
+          "pattern": "^[0-9]{19}$",
+          "description": "Trace start time in nanoseconds since Unix epoch"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total trace duration in milliseconds"
+        },
+        "spanSet": {
+          "type": "object",
+          "description": "Optional span set with matching spans",
+          "properties": {
+            "spans": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/span"
+              }
+            },
+            "matched": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of spans that matched the query"
+            }
+          }
+        },
+        "spanSets": {
+          "type": "array",
+          "description": "Multiple span sets (alternative format)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "spans": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/span"
+                }
+              },
+              "matched": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "Service name (may be present in some responses)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "span": {
+      "type": "object",
+      "description": "A span within a trace",
+      "properties": {
+        "spanID": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 16,
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "Unique span identifier (16-char hex)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Span operation name"
+        },
+        "startTimeUnixNano": {
+          "type": "string",
+          "pattern": "^[0-9]{19}$",
+          "description": "Span start time in nanoseconds"
+        },
+        "durationNanos": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Span duration in nanoseconds"
+        },
+        "attributes": {
+          "type": "array",
+          "description": "Span attributes (key-value pairs)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "oneOf": [
+                  {"type": "string"},
+                  {"type": "object"}
+                ]
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

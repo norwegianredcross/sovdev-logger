@@ -1,27 +1,84 @@
 #!/bin/bash
-
-###############################################################################
-# run-company-lookup.sh
+# filename: specification/tools/run-company-lookup.sh
+# description: Run company-lookup E2E test for any language implementation
 #
-# Purpose: Run company-lookup example test for a language implementation
-#          Executes test/e2e/company-lookup/run-test.sh inside devcontainer
-#          This runs the application and sends telemetry to OTLP endpoints
-#          For complete E2E verification with backend queries, use run-company-lookup-validate.sh
+# Purpose:
+#   Orchestrates the company-lookup example test for a specific language
+#   implementation (TypeScript, Python, Go, etc.). This script:
+#   1. Checks that devcontainer-toolbox is running
+#   2. Verifies the language has a test/e2e/company-lookup/run-test.sh
+#   3. Executes the test inside the devcontainer
+#   4. Returns the test exit code
 #
-# Usage:   ./run-company-lookup.sh <language>
-# Example: ./run-company-lookup.sh python
-#          ./run-company-lookup.sh typescript
+#   The test application:
+#   - Looks up Norwegian companies via Brønnøysund registry API
+#   - Demonstrates job status tracking, progress logging, error handling
+#   - Sends telemetry (logs, metrics, traces) to OTLP endpoints
+#   - Generates local log files (dev.log, error.log) for validation
 #
-# Requirements:
-# - devcontainer-toolbox container must be running
-# - Language implementation must have test/e2e/company-lookup/run-test.sh
+#   For COMPLETE E2E verification including backend queries (Loki, Prometheus,
+#   Tempo), use run-company-lookup-validate.sh instead.
 #
-# Exit codes:
-# 0   = Test passed
-# 1   = Test failed
-# 2   = Usage error (missing parameter)
-# 3   = Devcontainer not running
-# 4   = Test script not found
+# Usage:
+#   ./run-company-lookup.sh <language>
+#
+#   From sovdev-logger root:
+#     ./specification/tools/run-company-lookup.sh typescript
+#     ./specification/tools/run-company-lookup.sh python
+#     ./specification/tools/run-company-lookup.sh go
+#
+# Arguments:
+#   language    Implementation language (typescript, python, go, etc.)
+#
+# Environment:
+#   - Must run from HOST (not inside devcontainer)
+#   - Requires devcontainer-toolbox container running
+#   - Each language must have: <language>/test/e2e/company-lookup/run-test.sh
+#   - Test uses .env file in test directory for configuration
+#
+# What the Test Does:
+#   1. Cleans old log files
+#   2. Loads environment variables from .env
+#   3. Runs company-lookup application (looks up 4 Norwegian companies)
+#   4. Validates generated log files for snake_case compliance
+#   5. Returns exit code (0 = success, non-zero = failure)
+#
+# Exit Codes:
+#   0 - Test passed (logs generated and validated)
+#   1 - Test failed (execution error or validation failed)
+#   2 - Usage error (missing language parameter)
+#   3 - Devcontainer not running
+#   4 - Test script not found (language not implemented yet)
+#
+# Output:
+#   - Colored output showing test progress
+#   - Logs generated in: <language>/test/e2e/company-lookup/logs/
+#     - dev.log: All log levels
+#     - error.log: Error logs only
+#   - Validation results for both log files
+#
+# Examples:
+#   # Run TypeScript test
+#   ./run-company-lookup.sh typescript
+#
+#   # Run Python test
+#   ./run-company-lookup.sh python
+#
+#   # Run from any directory
+#   cd /path/to/sovdev-logger
+#   ./specification/tools/run-company-lookup.sh typescript
+#
+# CI/CD Integration:
+#   - Returns proper exit codes for pipeline integration
+#   - Auto-validates log format (snake_case)
+#   - Can be run in parallel for multiple languages
+#   - Self-contained (doesn't require backend queries)
+#
+# Related Scripts:
+#   - run-company-lookup-validate.sh: Full E2E with backend verification
+#   - validate-log-format.sh: Standalone log validation
+#   - <language>/test/e2e/company-lookup/run-test.sh: Language-specific test
+#
 ###############################################################################
 
 set -e  # Exit on error

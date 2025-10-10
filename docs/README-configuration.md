@@ -14,9 +14,9 @@ All sovdev-logger implementations require service identification using OpenTelem
 
 | Parameter | Description | Required | Example |
 |----------|-------------|----------|---------|
-| `serviceName` | Your service identifier | Yes | `company-lookup-service` |
-| `serviceVersion` | Service version | No* | `1.0.0` |
-| `peerServices` | External systems mapping | No | See below |
+| `service_name` | Your service identifier | Yes | `company-lookup-service` |
+| `service_version` | Service version | No* | `1.0.0` |
+| `peer_services` | External systems mapping | No | See below |
 
 \* **Auto-detected** from package.json if not provided
 
@@ -98,10 +98,15 @@ sovdevLog(
 **Log Output:**
 ```json
 {
-  "service.name": "company-lookup-service",
-  "service.version": "1.0.0",
-  "peer.service": "SYS1234567",
-  "message": "Looking up company"
+  "service_name": "company-lookup-service",
+  "service_version": "1.0.0",
+  "session_id": "18df09dd-c321-43d8-aa24-19dd7c149a56",
+  "peer_service": "SYS1234567",
+  "function_name": "lookupCompany",
+  "message": "Looking up company",
+  "trace_id": "3f43a369-9cc2-4351-a472-c5d050ab9cbf",
+  "event_id": "29319322-17a6-40bc-8ea6-ac0fc9771177",
+  "log_type": "transaction"
 }
 ```
 
@@ -245,7 +250,7 @@ Colored, human-readable output with timestamps:
 Structured JSON output for log aggregation:
 
 ```json
-{"timestamp":"2025-10-03T12:34:56.789Z","level":"INFO","service.name":"my-service","service.version":"1.0.0","peer.service":"INTERNAL","functionName":"myFunction","message":"Operation completed","traceId":"uuid-here","eventId":"uuid-here"}
+{"timestamp":"2025-10-03T12:34:56.789Z","level":"info","service_name":"my-service","service_version":"1.0.0","session_id":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer_service":"INTERNAL","function_name":"myFunction","message":"Operation completed","trace_id":"uuid-here","event_id":"uuid-here","log_type":"transaction","input_json":"null","response_json":"null"}
 ```
 
 ## File Logging Features

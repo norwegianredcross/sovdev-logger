@@ -4,6 +4,37 @@
 
 This document defines **every field** that must appear in log entries across all three output destinations (OTLP, console, file). Field names, types, and formats must be **identical** across all language implementations.
 
+## Field Naming Convention
+
+**All field names use underscore notation (snake_case) for consistency across all outputs.**
+
+### Rationale
+- **Cross-language consistency**: Python, Go, Rust, PHP all use snake_case
+- **Code-to-log alignment**: Variable names match log field names exactly
+- **No transformations**: Same field names in code, file logs, OTLP export, and backend storage
+- **Future-proof**: Easy to add new languages without naming conflicts
+
+### Standard Fields
+
+| Field Name | Type | Description | Required |
+|------------|------|-------------|----------|
+| service_name | string | Service identifier | Yes |
+| service_version | string | Service version | Yes |
+| session_id | string | Session grouping ID (UUID for entire execution) | Yes |
+| peer_service | string | Target system identifier | Yes |
+| function_name | string | Function/method name | Yes |
+| log_type | string | Log classification (transaction, session, error, etc.) | Yes |
+| message | string | Log message | Yes |
+| trace_id | string | Transaction correlation ID (UUID) | Yes |
+| event_id | string | Unique log entry ID (UUID) | Yes |
+| timestamp | string | When log entry was created (ISO 8601) | Yes |
+| level | string | Log level (lowercase: info, error, etc.) | Yes (file/console) |
+| input_json | object/string | Input parameters | Optional |
+| response_json | object/string | Output data | Optional |
+| exception | object | Exception details (type, message, stack) | Optional (ERROR/FATAL only) |
+
+**Note**: All fields use snake_case in code, file logs, OTLP export, and backend storage. No transformations applied.
+
 ---
 
 ## Core Fields (All Log Types)
@@ -12,8 +43,8 @@ This document defines **every field** that must appear in log entries across all
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **service.name** | string | SERVICE_NAME env var or init param | "sovdev-test-app" | ✅ | ✅ | ✅ | OpenTelemetry semantic convention |
-| **service.version** | string | SERVICE_VERSION env var or init param (default "1.0.0") | "1.0.0" | ✅ | ✅ | ✅ | OpenTelemetry semantic convention |
+| **service_name** | string | SERVICE_NAME env var or init param | "sovdev-test-app" | ✅ | ✅ | ✅ | Service identifier |
+| **service_version** | string | SERVICE_VERSION env var or init param (default "1.0.0") | "1.0.0" | ✅ | ✅ | ✅ | Service version |
 | **scope_name** | string | service name (NOT module name) | "sovdev-test-app" | ✅ | ❌ | ❌ | OpenTelemetry instrumentation scope |
 | **scope_version** | string | hardcoded "1.0.0" | "1.0.0" | ✅ | ❌ | ❌ | Library version |
 
@@ -23,9 +54,11 @@ This document defines **every field** that must appear in log entries across all
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **traceId** | string | UUID v4 (lowercase, 36 chars) | "c3d75d26-d783-48a2-96c3-1e62a37419c7" | ✅ | ✅ | ✅ | Business transaction correlation |
-| **eventId** | string | UUID v4 (lowercase, 36 chars) | "dca7f112-1c94-478f-88f2-ec9805574190" | ✅ | ❌ | ✅ | Unique log entry identifier |
-| **session_id** | string | UUID v4 generated at init | "18df09dd-c321-43d8-aa24-19dd7c149a56" | ✅ | ✅ | ✅ | Execution correlation |
+| **trace_id** | string | UUID v4 (lowercase, 36 chars) | "c3d75d26-d783-48a2-96c3-1e62a37419c7" | ✅ | ✅ | ✅ | Business transaction correlation |
+| **event_id** | string | UUID v4 (lowercase, 36 chars) | "dca7f112-1c94-478f-88f2-ec9805574190" | ✅ | ❌ | ✅ | Unique log entry identifier |
+| **session_id** | string | UUID v4 generated at init | "18df09dd-c321-43d8-aa24-19dd7c149a56" | ✅ | ✅ | ✅ | Execution correlation (groups all logs/metrics/traces from same run) |
+
+**Note**: All UUIDs use lowercase letters with hyphens (standard UUID v4 format)
 
 ### Timestamps
 
@@ -58,17 +91,17 @@ This document defines **every field** that must appear in log entries across all
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **functionName** | string | provided by developer | "lookupCompany" | ✅ | ✅ | ✅ | Function where logging occurs |
+| **function_name** | string | provided by developer | "lookupCompany" | ✅ | ✅ | ✅ | Function where logging occurs |
 | **message** | string | provided by developer | "Looking up company 123456789" | ✅ | ✅ | ✅ | Human-readable log message |
-| **logType** | string | "transaction", "job.status", "job.progress" | "transaction" | ✅ | ❌ | ✅ | Type of log entry |
-| **peer.service** | string | peer service ID or INTERNAL | "SYS1234567" | ✅ | ❌ | ✅ | Target system identifier |
+| **log_type** | string | "transaction", "job.status", "job.progress" | "transaction" | ✅ | ❌ | ✅ | Type of log entry |
+| **peer_service** | string | peer service ID or INTERNAL | "SYS1234567" | ✅ | ❌ | ✅ | Target system identifier |
 
 ### Data Fields
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **inputJSON** | string | JSON.stringify(input) or "null" | '{"organisasjonsnummer":"123456789"}' | ✅ | ❌ | ✅ | Request/input data (serialized) |
-| **responseJSON** | string | JSON.stringify(response) or "null" | '{"name":"Company AS"}' | ✅ | ❌ | ✅ | Response/output data (serialized) |
+| **input_json** | string | JSON.stringify(input) or "null" | '{"organisasjonsnummer":"123456789"}' | ✅ | ❌ | ✅ | Request/input data (serialized) |
+| **response_json** | string | JSON.stringify(response) or "null" | '{"name":"Company AS"}' | ✅ | ❌ | ✅ | Response/output data (serialized) |
 
 **Critical**: Both fields MUST ALWAYS be present, even when no data exists (value "null" as string).
 
@@ -85,62 +118,62 @@ This document defines **every field** that must appear in log entries across all
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **exceptionType** | string | ALWAYS "Error" | "Error" | ✅ | ❌ | ❌ | Standardized across languages |
-| **exceptionMessage** | string | exception message | "HTTP 404:" | ✅ | ✅ | ✅ | Exception message |
-| **exceptionStack** | string | stack trace (max 350 chars) | "Traceback (most recent call last):\n  File..." | ✅ | ✅ | ✅ | Stack trace with security cleanup |
+| **exception_type** | string | ALWAYS "Error" | "Error" | ✅ | ❌ | ❌ | Standardized across languages |
+| **exception_message** | string | exception message | "HTTP 404:" | ✅ | ✅ | ✅ | Exception message |
+| **exception_stack** | string | stack trace (max 350 chars) | "Traceback (most recent call last):\n  File..." | ✅ | ✅ | ✅ | Stack trace with security cleanup |
 | **exception.type** | string | ALWAYS "Error" | "Error" | ❌ | ❌ | ✅ | File format uses nested structure |
 | **exception.message** | string | exception message | "HTTP 404:" | ❌ | ❌ | ✅ | File format uses nested structure |
 | **exception.stack** | string | stack trace (max 350 chars) | "Traceback..." | ❌ | ❌ | ✅ | File format uses nested structure |
 
 **Critical Standardization**:
-- **exceptionType**: MUST be "Error" for ALL languages (not "Exception", "Throwable", etc.)
+- **exception_type**: MUST be "Error" for ALL languages (not "Exception", "Throwable", etc.)
 - **Security**: Stack traces MUST have credentials removed (auth headers, passwords, tokens)
 - **Limit**: Stack traces MUST be truncated to 350 characters maximum
 
 ---
 
-## Job Status Fields (logType: "job.status")
+## Job Status Fields (log_type: "job.status")
 
-Additional fields present in `inputJSON` for job status logs:
+Additional fields present in `input_json` for job status logs:
 
 | Field | Type | Example | Notes |
 |-------|------|---------|-------|
-| **jobName** | string | "CompanyLookupBatch" | Human-readable job name |
-| **jobStatus** | string | "Started", "Completed", "Failed" | Job status |
+| **job_name** | string | "CompanyLookupBatch" | Human-readable job name |
+| **job_status** | string | "Started", "Completed", "Failed" | Job status |
 
-**Message Format**: `"Job {jobStatus}: {jobName}"`
+**Message Format**: `"Job {job_status}: {job_name}"`
 
-Example inputJSON:
+Example input_json:
 ```json
 {
-  "jobName": "CompanyLookupBatch",
-  "jobStatus": "Started",
-  "totalCompanies": 4
+  "job_name": "CompanyLookupBatch",
+  "job_status": "Started",
+  "total_companies": 4
 }
 ```
 
 ---
 
-## Job Progress Fields (logType: "job.progress")
+## Job Progress Fields (log_type: "job.progress")
 
-Additional fields present in `inputJSON` for job progress logs:
+Additional fields present in `input_json` for job progress logs:
 
 | Field | Type | Example | Notes |
 |-------|------|---------|-------|
-| **itemId** | string | "971277882" | Identifier for current item |
-| **currentItem** | integer | 25 | Current item number (1-based) |
-| **totalItems** | integer | 100 | Total number of items |
-| **progressPercentage** | integer | 25 | Math.round((current/total) * 100) |
+| **item_id** | string | "971277882" | Identifier for current item |
+| **current_item** | integer | 25 | Current item number (1-based) |
+| **total_items** | integer | 100 | Total number of items |
+| **progress_percentage** | integer | 25 | Math.round((current/total) * 100) |
 
-**Message Format**: `"Processing {itemId} ({currentItem}/{totalItems})"`
+**Message Format**: `"Processing {item_id} ({current_item}/{total_items})"`
 
-Example inputJSON:
+Example input_json:
 ```json
 {
-  "itemId": "971277882",
-  "currentItem": 25,
-  "totalItems": 100,
-  "progressPercentage": 25,
+  "item_id": "971277882",
+  "current_item": 25,
+  "total_items": 100,
+  "progress_percentage": 25,
   "organisasjonsnummer": "971277882"
 }
 ```
@@ -172,11 +205,12 @@ Example inputJSON:
 {
   "timestamp": "2025-10-07T08:34:22.398784+00:00",
   "level": "error",
-  "service": "sovdev-test-company-lookup-python",
-  "functionName": "lookupCompany",
+  "service_name": "sovdev-test-company-lookup-python",
+  "service_version": "1.0.0",
+  "session_id": "18df09dd-c321-43d8-aa24-19dd7c149a56",
+  "function_name": "lookupCompany",
   "message": "Failed to lookup company 974652846",
-  "traceId": "50ba0e1d-c46d-4dee-98d3-a0d3913f74ee",
-  "sessionId": "18df09dd-c321-43d8-aa24-19dd7c149a56",
+  "trace_id": "50ba0e1d-c46d-4dee-98d3-a0d3913f74ee",
   "exception": {
     "type": "Error",
     "message": "HTTP 404:",
@@ -189,22 +223,22 @@ Example inputJSON:
 
 ## File Output Format (JSON Lines)
 
-Each log entry is a single line of JSON:
+Each log entry is a single line of JSON with snake_case field names:
 
 ```json
-{"timestamp":"2025-10-07T08:34:22.398784+00:00","level":"error","service":{"name":"sovdev-test-company-lookup-python","version":"1.0.0"},"function":{"name":"lookupCompany"},"exception":{"type":"Error","message":"HTTP 404:","stack":"Traceback..."},"traceId":"50ba0e1d-c46d-4dee-98d3-a0d3913f74ee","sessionId":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer":{"service":"SYS1234567"},"input":{"organisasjonsnummer":"974652846"},"logType":"transaction"}
+{"timestamp":"2025-10-07T08:34:22.398784+00:00","level":"error","service_name":"sovdev-test-company-lookup-python","service_version":"1.0.0","session_id":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer_service":"SYS1234567","function_name":"lookupCompany","log_type":"transaction","message":"Failed to lookup company 974652846","trace_id":"50ba0e1d-c46d-4dee-98d3-a0d3913f74ee","event_id":"cf115688-513e-48fe-8049-538a515f608d","input_json":{"organisasjonsnummer":"974652846"},"response_json":null,"exception":{"type":"Error","message":"HTTP 404:","stack":"Traceback..."}}
 ```
 
 **Format Rules**:
 - **JSON Lines**: One log entry per line (newline-delimited JSON)
-- **Nested Objects**: Use nested structure for service, function, exception, peer, input
+- **snake_case**: All field names use underscores
 - **No Pretty Printing**: Compact JSON (no whitespace)
 
 ---
 
 ## OTLP Output Format
 
-Logs are sent to OpenTelemetry Collector via OTLP protocol. Field structure in Loki:
+Logs are sent to OpenTelemetry Collector via OTLP protocol using snake_case field names. Field structure in Loki:
 
 ```json
 {
@@ -215,17 +249,17 @@ Logs are sent to OpenTelemetry Collector via OTLP protocol. Field structure in L
   "severity_text": "ERROR",
   "service_name": "sovdev-test-company-lookup-python",
   "service_version": "1.0.0",
-  "functionName": "lookupCompany",
-  "peer_service": "SYS1234567",
-  "traceId": "50ba0e1d-c46d-4dee-98d3-a0d3913f74ee",
   "session_id": "18df09dd-c321-43d8-aa24-19dd7c149a56",
-  "eventId": "cf115688-513e-48fe-8049-538a515f608d",
-  "inputJSON": "{\"organisasjonsnummer\":\"974652846\"}",
-  "responseJSON": "null",
-  "exceptionType": "Error",
-  "exceptionMessage": "HTTP 404:",
-  "exceptionStack": "Traceback...",
-  "logType": "transaction",
+  "peer_service": "SYS1234567",
+  "function_name": "lookupCompany",
+  "log_type": "transaction",
+  "trace_id": "50ba0e1d-c46d-4dee-98d3-a0d3913f74ee",
+  "event_id": "cf115688-513e-48fe-8049-538a515f608d",
+  "input_json": "{\"organisasjonsnummer\":\"974652846\"}",
+  "response_json": "null",
+  "exception_type": "Error",
+  "exception_message": "HTTP 404:",
+  "exception_stack": "Traceback...",
   "telemetry_sdk_language": "python",
   "telemetry_sdk_version": "1.37.0"
 }
@@ -233,8 +267,10 @@ Logs are sent to OpenTelemetry Collector via OTLP protocol. Field structure in L
 
 **Format Rules**:
 - **Flat Structure**: All fields at root level (no nesting)
-- **Underscores**: Use underscores for OpenTelemetry semantic conventions (service_name, peer_service, session_id)
-- **Dots**: Use dots only for nested attributes in OpenTelemetry (service.name becomes service_name in Loki)
+- **snake_case**: All field names use underscores (service_name, peer_service, session_id, function_name, log_type, etc.)
+- **No Transformations**: OTLP Collector receives fields as-is and passes them through unchanged to Loki
+
+**Migration Note**: Previous versions used dot notation (`service.name`) and camelCase (`functionName`). Version 2.0.0+ uses snake_case everywhere for consistency.
 
 ---
 
@@ -244,27 +280,27 @@ Summary of which fields appear in which outputs:
 
 | Field | OTLP | Console | File | Always Present |
 |-------|------|---------|------|----------------|
-| service.name | ✅ | ✅ | ✅ | ✅ |
-| service.version | ✅ | ✅ | ✅ | ✅ |
+| service_name | ✅ | ✅ | ✅ | ✅ |
+| service_version | ✅ | ✅ | ✅ | ✅ |
 | scope_name | ✅ | ❌ | ❌ | ✅ (OTLP only) |
 | scope_version | ✅ | ❌ | ❌ | ✅ (OTLP only) |
-| traceId | ✅ | ✅ | ✅ | ✅ |
-| eventId | ✅ | ❌ | ✅ | ✅ |
+| trace_id | ✅ | ✅ | ✅ | ✅ |
+| event_id | ✅ | ❌ | ✅ | ✅ |
 | session_id | ✅ | ✅ | ✅ | ✅ |
 | timestamp | ✅ | ✅ | ✅ | ✅ |
 | observed_timestamp | ✅ | ❌ | ❌ | ✅ (OTLP only) |
 | level | ❌ | ✅ | ✅ | ✅ |
 | severity_text | ✅ | ❌ | ❌ | ✅ (OTLP only) |
 | severity_number | ✅ | ❌ | ❌ | ✅ (OTLP only) |
-| functionName | ✅ | ✅ | ✅ | ✅ |
+| function_name | ✅ | ✅ | ✅ | ✅ |
 | message | ✅ | ✅ | ✅ | ✅ |
-| logType | ✅ | ❌ | ✅ | ✅ |
-| peer.service | ✅ | ❌ | ✅ | ✅ |
-| inputJSON | ✅ | ❌ | ✅ | ✅ (even when "null") |
-| responseJSON | ✅ | ❌ | ✅ | ✅ (even when "null") |
-| exceptionType | ✅ | ❌ | ❌ | ❌ (ERROR/FATAL only) |
-| exceptionMessage | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
-| exceptionStack | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
+| log_type | ✅ | ❌ | ✅ | ✅ |
+| peer_service | ✅ | ❌ | ✅ | ✅ |
+| input_json | ✅ | ❌ | ✅ | ✅ (even when "null") |
+| response_json | ✅ | ❌ | ✅ | ✅ (even when "null") |
+| exception_type | ✅ | ❌ | ❌ | ❌ (ERROR/FATAL only) |
+| exception_message | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
+| exception_stack | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
 
 ---
 
@@ -272,14 +308,14 @@ Summary of which fields appear in which outputs:
 
 ### Required Field Validation
 All implementations MUST validate that these fields are present in every log entry:
-- service.name, service.version
-- traceId, eventId, session_id
+- service_name, service_version
+- trace_id, event_id, session_id
 - timestamp, observed_timestamp (OTLP)
 - level (console/file) OR severity_text + severity_number (OTLP)
-- functionName, message, logType
-- peer.service
-- inputJSON (even if "null")
-- responseJSON (even if "null")
+- function_name, message, log_type
+- peer_service
+- input_json (even if "null")
+- response_json (even if "null")
 
 ### Format Validation
 - **UUID Fields**: Must match regex `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
@@ -288,8 +324,13 @@ All implementations MUST validate that these fields are present in every log ent
 - **Severity Text**: Must be uppercase version of log level
 - **Severity Number**: Must map correctly to log level
 
+### Naming Convention Validation
+- **snake_case**: All field names MUST use underscores (service_name, function_name, log_type, etc.)
+- **No dots**: Dot notation (service.name, peer.service) is NOT allowed
+- **No camelCase**: camelCase notation (functionName, logType, traceId) is NOT allowed
+
 ---
 
-**Document Status**: Complete field definitions based on TypeScript and Python implementations
-**Last Updated**: 2025-10-07
-**Specification Version**: 1.0.0
+**Document Status**: Updated for snake_case naming convention (v2.0.0)
+**Last Updated**: 2025-10-08
+**Specification Version**: 2.0.0

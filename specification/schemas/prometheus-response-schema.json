@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovdev-logger.redcross.no/schemas/prometheus-response-schema.json",
+  "title": "Prometheus Query Response Schema",
+  "description": "JSON Schema for Prometheus query API responses. Validates structure and ensures metric labels use snake_case naming convention.",
+  "type": "object",
+  "required": ["status", "data"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "error"],
+      "description": "Query execution status"
+    },
+    "data": {
+      "type": "object",
+      "required": ["resultType", "result"],
+      "properties": {
+        "resultType": {
+          "type": "string",
+          "enum": ["vector", "matrix", "scalar", "string"],
+          "description": "Type of result returned"
+        },
+        "result": {
+          "type": "array",
+          "description": "Array of metric results",
+          "items": {
+            "$ref": "#/definitions/metric_result"
+          }
+        }
+      }
+    },
+    "error": {
+      "type": "string",
+      "description": "Error message if status is 'error'"
+    },
+    "errorType": {
+      "type": "string",
+      "description": "Type of error if status is 'error'"
+    }
+  },
+  "definitions": {
+    "metric_result": {
+      "type": "object",
+      "required": ["metric", "value"],
+      "properties": {
+        "metric": {
+          "type": "object",
+          "description": "Metric labels (must use snake_case)",
+          "properties": {
+            "__name__": {
+              "type": "string",
+              "description": "Metric name"
+            },
+            "service_name": {
+              "type": "string",
+              "description": "Service name (snake_case)"
+            },
+            "log_type": {
+              "type": "string",
+              "description": "Log type (snake_case)"
+            },
+            "log_level": {
+              "type": "string",
+              "description": "Log level (snake_case)"
+            },
+            "peer_service": {
+              "type": "string",
+              "description": "Peer service name (snake_case)"
+            },
+            "service_version": {
+              "type": "string",
+              "description": "Service version (snake_case)"
+            },
+            "job": {
+              "type": "string",
+              "description": "Prometheus job name"
+            }
+          },
+          "additionalProperties": true
+        },
+        "value": {
+          "type": "array",
+          "description": "Timestamp and metric value [timestamp, value]",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "type": "number",
+              "description": "Unix timestamp"
+            },
+            {
+              "type": "string",
+              "description": "Metric value as string"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

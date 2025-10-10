@@ -29,7 +29,7 @@ Every log entry MUST identify where the error occurred by including:
 - Relevant context variables
 
 ### §7 - Correlation Support
-Log entries MUST include correlation identifiers (sessionId, correlationId, requestId) to enable tracing across multiple systems and services.
+Log entries MUST include correlation identifiers (session_id, trace_id, event_id) to enable tracing across multiple systems and services.
 
 ### §8 - Field Name Consistency
 Systems SHOULD strive for consistent field names across the organization when possible. When integrating with external systems, original field names MAY be preserved, but systems SHOULD provide mapping or transformation to organizational standards where feasible. The same entity SHOULD use consistent field names in internally developed systems (e.g., prefer "userId" over varying names like "employee" or "employmentId").
@@ -222,11 +222,11 @@ The same information in a structured format:
 
 ### Consistent Naming Conventions
 
-We use **camelCase** for all field names to ensure consistency across systems. This makes logs easier to process and correlate.
+We use **snake_case** for all field names in sovdev-logger to ensure consistency across systems and programming languages. This makes logs easier to process and correlate.
 
 ### Consistent Field Names
 
-We need a consistent set of field names used across all systems. If a field represents a user, it should always be called `userId`, not `employee` or `employmentId`. This consistency allows easy correlation of logs across systems.
+We need a consistent set of field names used across all systems. If a field represents a user, it should always be called `user_id`, not `employee` or `employment_id`. This consistency allows easy correlation of logs across systems.
 
 **TODO**: Create a list of common field names that should be used across all systems.
 

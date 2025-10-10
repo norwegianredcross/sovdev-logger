@@ -9,7 +9,8 @@
     "prebuild": "npm run clean",
     "build": "tsc",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "cd test/e2e/company-lookup && ./run-test.sh"
   },
   "files": [
     "dist",

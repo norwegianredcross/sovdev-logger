@@ -143,36 +143,30 @@ class LogValidator:
         else:
             self.print_warning("No trace IDs found in logs")
 
-        # Rule 2: Exception fields for error logs (flexible field names)
+        # Rule 2: Exception fields for error logs (snake_case)
         for i, log in enumerate(logs, start=1):
             level = log.get("level", log.get("severity", "")).lower()
             if level in ["error", "fatal"]:
-                # Check for either exception.type or exceptionType
-                has_exception_type = "exception.type" in log or "exceptionType" in log
-                has_exception_msg = "exception.message" in log or "exceptionMessage" in log
-                has_exception_stack = "exception.stack" in log or "exceptionStack" in log or "stackTrace" in log
+                # Check for snake_case exception fields (project standard)
+                has_exception_type = "exception_type" in log
+                has_exception_msg = "exception_message" in log
+                has_exception_stack = "exception_stacktrace" in log
 
                 if not has_exception_type:
-                    self.print_warning(f"Line {i}: ERROR log missing exception type field")
+                    self.print_warning(f"Line {i}: ERROR log missing exception_type field")
 
                 if not has_exception_msg:
-                    self.print_warning(f"Line {i}: ERROR log missing exception message field")
+                    self.print_warning(f"Line {i}: ERROR log missing exception_message field")
 
                 if not has_exception_stack:
-                    self.print_warning(f"Line {i}: ERROR log missing stack trace field")
+                    self.print_warning(f"Line {i}: ERROR log missing exception_stacktrace field")
 
-                # Validate exception type is "Error"
-                exc_type = log.get("exception.type") or log.get("exceptionType")
-                if exc_type and exc_type != "Error":
-                    valid = False
-                    self.print_error(
-                        f"Line {i}: exception type is '{exc_type}' but must be 'Error' "
-                        "for cross-language consistency"
-                    )
+                # Note: exception_type can be any exception class name (Error, TypeError, etc.)
+                # No validation of specific exception type value needed
 
-        # Rule 3: Stack trace length limit (check all possible field names)
+        # Rule 3: Stack trace length limit
         for i, log in enumerate(logs, start=1):
-            stack = log.get("exception.stack") or log.get("exceptionStack") or log.get("stackTrace")
+            stack = log.get("exception_stacktrace")
             if stack:
                 stack_len = len(stack)
                 if stack_len > 350:
@@ -199,12 +193,12 @@ class LogValidator:
         return valid
 
     def _extract_session_ids(self, logs: List[Dict[str, Any]]) -> Set[str]:
-        """Extract unique sessionIds from logs"""
-        return {log.get("sessionId") for log in logs if "sessionId" in log}
+        """Extract unique session_ids from logs"""
+        return {log.get("session_id") for log in logs if "session_id" in log}
 
     def _extract_trace_ids(self, logs: List[Dict[str, Any]]) -> Set[str]:
-        """Extract unique traceIds from logs"""
-        return {log.get("traceId") for log in logs if "traceId" in log}
+        """Extract unique trace_ids from logs"""
+        return {log.get("trace_id") for log in logs if "trace_id" in log}
 
     def _count_severities(self, logs: List[Dict[str, Any]]) -> Dict[str, int]:
         """Count logs by severity"""
@@ -215,10 +209,10 @@ class LogValidator:
         return counts
 
     def _count_log_types(self, logs: List[Dict[str, Any]]) -> Dict[str, int]:
-        """Count logs by logType"""
+        """Count logs by log_type"""
         counts = {}
         for log in logs:
-            log_type = log.get("logType", "unknown")
+            log_type = log.get("log_type", "unknown")
             counts[log_type] = counts.get(log_type, 0) + 1
         return counts
 

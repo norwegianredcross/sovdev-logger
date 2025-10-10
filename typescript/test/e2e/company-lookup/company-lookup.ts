@@ -9,20 +9,19 @@
  */
 
 import {
-  sovdevInitialize,
-  sovdevLog,
-  sovdevLogJobStatus,
-  sovdevLogJobProgress,
-  sovdevFlush,
-  sovdevGenerateTraceId,
+  sovdev_initialize,
+  sovdev_log,
+  sovdev_log_job_status,
+  sovdev_log_job_progress,
+  sovdev_flush,
   SOVDEV_LOGLEVELS,
-  createPeerServices
+  create_peer_services
 } from '../../../dist/index.js';
 
 import https from 'https';
 
 // Define peer services - INTERNAL is auto-generated
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   BRREG: 'SYS1234567'  // External system (Norwegian company registry)
 });
 
@@ -58,20 +57,16 @@ async function fetchCompanyData(orgNumber: string): Promise<CompanyData> {
 /**
  * Process a single company lookup with logging
  */
-async function lookupCompany(orgNumber: string, traceId?: string): Promise<void> {
+async function lookupCompany(orgNumber: string): Promise<void> {
   const FUNCTIONNAME = 'lookupCompany';
-  const txnTraceId = traceId || sovdevGenerateTraceId();  // Use provided or generate new
   const input = { organisasjonsnummer: orgNumber };
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     `Looking up company ${orgNumber}`,
     PEER_SERVICES.BRREG,
-    input,
-    null,
-    null,
-    txnTraceId  // Same traceId for related logs
+    input
   );
 
   try {
@@ -81,26 +76,23 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
       organisasjonsform: companyData.organisasjonsform?.beskrivelse
     };
 
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,
       `Company found: ${companyData.navn}`,
       PEER_SERVICES.BRREG,
       input,
-      response,
-      null,
-      txnTraceId  // SAME traceId links request and response
+      response
     );
   } catch (error) {
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.ERROR,
       FUNCTIONNAME,
       `Failed to lookup company ${orgNumber}`,
       PEER_SERVICES.BRREG,
       input,
       null,
-      error,
-      txnTraceId  // SAME traceId for error
+      error
     );
   }
 }
@@ -111,18 +103,16 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
 async function batchLookup(orgNumbers: string[]): Promise<void> {
   const jobName = 'CompanyLookupBatch';
   const FUNCTIONNAME = 'batchLookup';
-  const batchTraceId = sovdevGenerateTraceId();  // Generate ONE traceId for entire batch job
   const jobStartInput = { totalCompanies: orgNumbers.length };
 
   // Log job start - internal job
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     jobName,
     'Started',
     PEER_SERVICES.INTERNAL,
-    jobStartInput,
-    batchTraceId  // All job logs share this traceId
+    jobStartInput
   );
 
   let successful = 0;
@@ -131,36 +121,33 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
   // Process each company
   for (let i = 0; i < orgNumbers.length; i++) {
     const orgNumber = orgNumbers[i];
-    const itemTraceId = sovdevGenerateTraceId();  // Generate unique traceId for each company lookup
     const progressInput = { organisasjonsnummer: orgNumber };
 
     // Log progress - tracking BRREG processing
-    sovdevLogJobProgress(
+    sovdev_log_job_progress(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,
       orgNumber,
       i + 1,
       orgNumbers.length,
       PEER_SERVICES.BRREG,
-      progressInput,
-      batchTraceId  // Progress logs use batch traceId
+      progressInput
     );
 
     try {
-      await lookupCompany(orgNumber, itemTraceId);  // Pass itemTraceId to link request/response
+      await lookupCompany(orgNumber);
       successful++;
     } catch (error) {
       failed++;
       const errorInput = { organisasjonsnummer: orgNumber, itemNumber: i + 1 };
-      sovdevLog(
+      sovdev_log(
         SOVDEV_LOGLEVELS.ERROR,
         FUNCTIONNAME,
         `Batch item ${i + 1} failed`,
         PEER_SERVICES.BRREG,
         errorInput,
         null,
-        error,
-        itemTraceId  // Error uses same itemTraceId
+        error
       );
     }
 
@@ -175,14 +162,13 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
     failed: failed,
     successRate: `${Math.round((successful / orgNumbers.length) * 100)}%`
   };
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     jobName,
     'Completed',
     PEER_SERVICES.INTERNAL,
-    jobCompleteInput,
-    batchTraceId  // Completion uses batch traceId
+    jobCompleteInput
   );
 }
 
@@ -190,16 +176,16 @@ async function main() {
   const FUNCTIONNAME = 'main';
 
   // Initialize logger with service info and system mapping
-  // Use SYSTEM_ID env var (e.g., "sovdev-test-company-lookup-typescript") or default
-  const systemId = process.env.SYSTEM_ID || "company-lookup-service";
+  // Use OTEL_SERVICE_NAME env var (OpenTelemetry standard) or default
+  const systemId = process.env.OTEL_SERVICE_NAME || "company-lookup-service";
 
-  sovdevInitialize(
+  sovdev_initialize(
     systemId,
     "1.0.0",
     PEER_SERVICES.mappings
   );
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Company Lookup Service started',
@@ -217,7 +203,7 @@ async function main() {
 
   await batchLookup(companies);
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Company Lookup Service finished',
@@ -228,12 +214,12 @@ async function main() {
   // CRITICAL: OpenTelemetry batches logs for performance. Without flushing,
   // the final batch of logs (including job completion status) will be lost
   // when the application exits. This ensures all logs reach the OTLP collector.
-  await sovdevFlush();
+  await sovdev_flush();
 }
 
 main().catch(async (error) => {
   console.error('Fatal error:', error);
   // IMPORTANT: Flush logs even on error to ensure error logs are sent!
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(1);
 });

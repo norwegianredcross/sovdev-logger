@@ -157,8 +157,9 @@ QUERY_RAW=$(kubectl run curl-prometheus-query --image=curlimages/curl --rm -i --
     exit 1
 }
 
-# Filter out kubectl pod deletion messages (appended to JSON without newline)
-QUERY_RESULT=$(echo "$QUERY_RAW" | sed 's/pod ".*" deleted//g' | sed 's/If you don.*//g')
+# Filter out kubectl pod messages (appended to JSON without newline)
+# Common kubectl messages: pod deletion, namespace info, warnings, etc.
+QUERY_RESULT=$(echo "$QUERY_RAW" | sed 's/pod ".*" deleted//g' | sed 's/If you don.*//g' | sed 's/ from monitoring namespace//g' | sed 's/Error from server.*//g')
 
 # Check if query was successful
 if ! echo "$QUERY_RESULT" | jq -e '.status == "success"' &> /dev/null; then

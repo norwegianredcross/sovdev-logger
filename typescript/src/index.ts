@@ -6,21 +6,20 @@
  * @packageDocumentation
  */
 
-// Export main logging functions (with sovdev* prefix for consistency)
+// Export main logging functions (with sovdev_ prefix for consistency with Python implementation)
 export {
-  sovdevInitialize,
-  sovdevFlush,
-  sovdevGenerateTraceId,
-  sovdevLog,
-  sovdevLogJobStatus,
-  sovdevLogJobProgress
+  sovdev_initialize,
+  sovdev_flush,
+  sovdev_log,
+  sovdev_log_job_status,
+  sovdev_log_job_progress
 } from './logger';
 
 // Export log levels
 export { SOVDEV_LOGLEVELS } from './logLevels';
 
 // Export peer service helper
-export { createPeerServices } from './peerServices';
+export { create_peer_services } from './peerServices';
 
 // Export TypeScript types
 export type { SovdevLogLevel } from './logLevels';

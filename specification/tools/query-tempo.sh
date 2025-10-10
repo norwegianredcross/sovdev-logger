@@ -47,6 +47,13 @@
 
 set -euo pipefail
 
+# Configure kubectl to use kubeconfig from workspace (devcontainer)
+if [ -f "/workspace/topsecret/.kube/config" ]; then
+    export KUBECONFIG="/workspace/topsecret/.kube/config"
+elif [ -f "$HOME/.kube/config" ]; then
+    export KUBECONFIG="$HOME/.kube/config"
+fi
+
 # Colors for human-readable output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -149,8 +156,9 @@ SEARCH_RAW=$(kubectl run curl-tempo-search --image=curlimages/curl --rm -i --res
     exit 1
 }
 
-# Filter out kubectl pod deletion messages (appended to JSON without newline)
-SEARCH_RESULT=$(echo "$SEARCH_RAW" | sed 's/pod ".*" deleted//g' | sed 's/If you don.*//g')
+# Filter out kubectl pod messages (appended to JSON without newline)
+# Common kubectl messages: pod deletion, namespace info, warnings, etc.
+SEARCH_RESULT=$(echo "$SEARCH_RAW" | sed 's/pod ".*" deleted//g' | sed 's/If you don.*//g' | sed 's/ from monitoring namespace//g' | sed 's/Error from server.*//g')
 
 # Check if query returned traces
 TRACE_COUNT=$(echo "$SEARCH_RESULT" | jq -r '.traces | length' 2>/dev/null || echo "0")

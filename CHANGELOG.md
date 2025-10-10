@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING**: All field names changed from camelCase to snake_case for OpenTelemetry compatibility
+  - `serviceName` → `service_name`
+  - `serviceVersion` → `service_version`
+  - `logType` → `log_type`
+  - `logLevel` → `log_level`
+  - `peerService` → `peer_service`
+  - `functionName` → `function_name`
+  - `traceId` → `trace_id`
+  - `eventId` → `event_id`
+- Updated Grafana dashboards to use snake_case field names
+- Enhanced validation suite with Prometheus schema validation and metrics consistency checks
+
+### Added
+- Full validation suite with 7 automated validation steps (A-F)
+- Prometheus response schema validation (`specification/schemas/prometheus-response-schema.json`)
+- Prometheus response validator (`specification/tests/validate-prometheus-response.py`)
+- Metrics consistency validator (`specification/tests/validate-metrics-consistency.py`)
+- Cross-validation between file logs and Prometheus metrics
+- Tempo verification documentation (skipped in automation due to performance)
+
+### Fixed
+- Loki cross-validation now handles Loki response format correctly
+- Prometheus query script filtering of kubectl status messages
+- Grafana dashboards updated with correct snake_case field references
+
 ## [1.0.0] - 2025-10-06
 
 ### Initial Release

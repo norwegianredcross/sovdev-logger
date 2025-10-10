@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * // Define your peer services with CMDB mappings (always include INTERNAL)
- * export const PEER_SERVICES = createPeerServices({
+ * export const PEER_SERVICES = create_peer_services({
  *   INTERNAL: 'INTERNAL',  // For internal operations
  *   PAYMENT_GATEWAY: 'SYS2034567',
  *   DATABASE: 'SYS2012345',
@@ -15,11 +15,11 @@
  * });
  *
  * // Initialize with the mappings
- * sovdevInitialize('my-service', '1.0.0', PEER_SERVICES.mappings);
+ * sovdev_initialize('my-service', '1.0.0', PEER_SERVICES.mappings);
  *
  * // Use type-safe constants in logging
- * sovdevLog(INFO, FUNCTIONNAME, 'Payment processed', PEER_SERVICES.PAYMENT_GATEWAY, ...);
- * sovdevLog(INFO, FUNCTIONNAME, 'Internal operation', PEER_SERVICES.INTERNAL, ...);
+ * sovdev_log(INFO, FUNCTIONNAME, 'Payment processed', PEER_SERVICES.PAYMENT_GATEWAY, ...);
+ * sovdev_log(INFO, FUNCTIONNAME, 'Internal operation', PEER_SERVICES.INTERNAL, ...);
  * ```
  */
 
@@ -27,11 +27,11 @@
  * Create type-safe peer service constants
  *
  * @param definitions - Object mapping peer service names to system IDs (INTERNAL is auto-generated)
- * @returns Object with both constants (including INTERNAL) and mappings for sovdevInitialize
+ * @returns Object with both constants (including INTERNAL) and mappings for sovdev_initialize
  *
  * @example
  * ```typescript
- * const PEER_SERVICES = createPeerServices({
+ * const PEER_SERVICES = create_peer_services({
  *   BRREG: 'SYS1234567',
  *   ALTINN: 'SYS1005678'
  * });
@@ -39,10 +39,10 @@
  * // PEER_SERVICES.INTERNAL === 'INTERNAL' (auto-generated, always available)
  * // PEER_SERVICES.BRREG === 'BRREG' (constant for logging)
  * // PEER_SERVICES.mappings === { BRREG: 'SYS1234567', ALTINN: 'SYS1005678' }
- * // (INTERNAL is auto-added during sovdevInitialize)
+ * // (INTERNAL is auto-added during sovdev_initialize)
  * ```
  */
-export function createPeerServices<T extends Record<string, string>>(
+export function create_peer_services<T extends Record<string, string>>(
   definitions: T
 ): { [K in keyof T]: K } & { INTERNAL: 'INTERNAL' } & { mappings: T } {
   const constants = {} as { [K in keyof T]: K };

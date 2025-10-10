@@ -90,37 +90,36 @@ function getServiceVersion(): string {
 
 /**
  * Complete structured log entry format - complies with "Loggeloven av 2025"
- * Uses OpenTelemetry/Elastic ECS standard field names for correlation
+ * Uses snake_case field names for consistency across all languages
  */
 interface StructuredLogEntry {
   // Required fields
   timestamp: string;
   level?: string; // Optional - Winston will set this based on .log(level, entry)
-  originalLevel?: string; // Preserved level for OTLP transport
 
-  // OTEL standard resource attributes
-  "service.name": string;      // Service identifier (OTEL standard)
-  "service.version": string;   // Service version (OTEL standard)
-  "peer.service": string;      // Target system/service (OTEL standard)
+  // Service identification fields (standard names without dots)
+  service_name: string;      // Service identifier
+  service_version: string;   // Service version
+  peer_service: string;      // Target system/service
 
-  functionName: string;
+  function_name: string;
   message: string;
 
-  // Correlation fields (OpenTelemetry/ECS standard)
-  traceId: string;      // Business transaction identifier (links related operations)
-  eventId: string;      // Unique identifier for this log entry
+  // Correlation fields (snake_case for consistency)
+  trace_id: string;      // Business transaction identifier (links related operations)
+  event_id: string;      // Unique identifier for this log entry
 
   // Log classification
-  logType: string;      // Type of log: "transaction", "job.status", "job.progress"
+  log_type: string;      // Type of log: "transaction", "job.status", "job.progress"
 
   // Context fields
-  inputJSON?: any;
-  responseJSON?: any;
-  exception?: {
-    type: string;
-    message: string;
-    stack?: string;
-  };
+  input_json?: any;
+  response_json?: any;
+
+  // Exception fields (snake_case - project standard)
+  exception_type?: string;
+  exception_message?: string;
+  exception_stacktrace?: string;
 }
 
 // =============================================================================
@@ -141,7 +140,7 @@ class OpenTelemetryWinstonTransport extends TransportStream {
 
   log(info: any, callback: Function) {
     // Map log levels to OpenTelemetry severity (lowercase to match SOVDEV_LOGLEVELS)
-    const severityMap: { [key: string]: SeverityNumber } = {
+    const severity_map: { [key: string]: SeverityNumber } = {
       'trace': SeverityNumber.DEBUG,
       'debug': SeverityNumber.DEBUG,
       'info': SeverityNumber.INFO,
@@ -151,53 +150,55 @@ class OpenTelemetryWinstonTransport extends TransportStream {
     };
 
     try {
-      // Use originalLevel (preserved before Winston overwrites it) or fall back to Winston's level
-      const logLevel = info.originalLevel || info.level;
+      // Winston now correctly maps levels with toLowerCase() - use level directly
+      const log_level = info.level;
 
-      // Build attributes object with OTEL standard fields
+      // Build attributes object with snake_case fields
       const attributes: any = {
-        "service.name": info["service.name"],
-        "service.version": info["service.version"],
-        "peer.service": info["peer.service"],
-        functionName: info.functionName,
+        service_name: info.service_name,
+        service_version: info.service_version,
+        peer_service: info.peer_service,
+        function_name: info.function_name,
         timestamp: info.timestamp
       };
 
-      // Add correlation fields (OpenTelemetry/ECS standard)
-      if (info.traceId) {
-        attributes.traceId = info.traceId;
+      // Add correlation fields (snake_case for consistency)
+      if (info.trace_id) {
+        attributes.trace_id = info.trace_id;
       }
-      if (info.eventId) {
-        attributes.eventId = info.eventId;
+      if (info.event_id) {
+        attributes.event_id = info.event_id;
       }
 
       // Add log classification
-      if (info.logType) {
-        attributes.logType = info.logType;
+      if (info.log_type) {
+        attributes.log_type = info.log_type;
       }
 
-      // Serialize inputJSON and responseJSON as JSON strings for OTLP
-      if (info.inputJSON !== undefined) {
-        attributes.inputJSON = JSON.stringify(info.inputJSON);
+      // Serialize input_json and response_json as JSON strings for OTLP
+      if (info.input_json !== undefined) {
+        attributes.input_json = JSON.stringify(info.input_json);
       }
 
-      if (info.responseJSON !== undefined) {
-        attributes.responseJSON = JSON.stringify(info.responseJSON);
+      if (info.response_json !== undefined) {
+        attributes.response_json = JSON.stringify(info.response_json);
       }
 
-      // Add exception details if present
-      if (info.exception) {
-        attributes.exceptionType = info.exception.type;
-        attributes.exceptionMessage = info.exception.message;
-        if (info.exception.stack) {
-          attributes.exceptionStack = info.exception.stack;
-        }
+      // Add exception details if present (snake_case - project standard)
+      if (info.exception_type) {
+        attributes.exception_type = info.exception_type;
+      }
+      if (info.exception_message) {
+        attributes.exception_message = info.exception_message;
+      }
+      if (info.exception_stacktrace) {
+        attributes.exception_stacktrace = info.exception_stacktrace;
       }
 
       // Emit log record to OpenTelemetry using original level
       this.otelLogger.emit({
-        severityNumber: severityMap[logLevel] || SeverityNumber.INFO,
-        severityText: logLevel.toUpperCase(), // Use uppercase for consistency
+        severityNumber: severity_map[log_level] || SeverityNumber.INFO,
+        severityText: log_level.toUpperCase(), // Use uppercase for consistency
         body: info.message,
         attributes
       });
@@ -240,8 +241,8 @@ function createTransports(serviceName?: string): winston.transport[] {
             winston.format.colorize({ all: true }),
             winston.format.timestamp({ format: 'HH:mm:ss' }),
             winston.format.printf((info) => {
-              const serviceName = info["service.name"] || 'unknown';
-              return `${info.timestamp} [${info.level}] ${serviceName}:${info.functionName} - ${info.message}`;
+              const service_name = info.service_name || 'unknown';
+              return `${info.timestamp} [${info.level}] ${service_name}:${info.function_name} - ${info.message}`;
             })
           )
         })
@@ -341,125 +342,130 @@ function initializeWinstonLogger(serviceName: string): void {
  * IMPROVED: No manual trace injection - relies on OpenTelemetry auto-instrumentation
  */
 class InternalSovdevLogger {
-  private readonly serviceName: string;
-  private readonly serviceVersion: string;
-  private readonly systemIdsMapping: Record<string, string>;
+  private readonly service_name: string;
+  private readonly service_version: string;
+  private readonly system_ids_mapping: Record<string, string>;
 
-  constructor(serviceName: string, serviceVersion: string, systemIds: Record<string, string> = {}) {
-    this.serviceName = serviceName;
-    this.serviceVersion = serviceVersion;
-    this.systemIdsMapping = systemIds;
+  constructor(service_name: string, service_version: string, system_ids: Record<string, string> = {}) {
+    this.service_name = service_name;
+    this.service_version = service_version;
+    this.system_ids_mapping = system_ids;
   }
 
   /**
    * Resolve friendly name to CMDB ID or service name for internal operations
    */
-  private resolvePeerService(friendlyName?: string): string {
+  private resolve_peer_service(friendly_name?: string): string {
     // Default to INTERNAL if no peer service provided
-    const effectiveName = friendlyName || "INTERNAL";
+    const effective_name = friendly_name || "INTERNAL";
 
     // If INTERNAL, use the service's own name
-    if (effectiveName === "INTERNAL") {
-      return this.serviceName;
+    if (effective_name === "INTERNAL") {
+      return this.service_name;
     }
 
     // Try to resolve from mapping
-    const resolvedId = this.systemIdsMapping[effectiveName];
-    if (!resolvedId) {
-      console.warn(`⚠️ Unknown peer service: ${effectiveName}. Available: ${Object.keys(this.systemIdsMapping).join(', ')} or INTERNAL`);
-      return effectiveName; // Use as-is if not found
+    const resolved_id = this.system_ids_mapping[effective_name];
+    if (!resolved_id) {
+      console.warn(`⚠️ Unknown peer service: ${effective_name}. Available: ${Object.keys(this.system_ids_mapping).join(', ')} or INTERNAL`);
+      return effective_name; // Use as-is if not found
     }
-    return resolvedId;
+    return resolved_id;
   }
 
   /**
    * Create a complete structured log entry with all required fields
-   * Uses OpenTelemetry/ECS standard field names for correlation
+   * Uses snake_case field names for consistency across all languages
    */
-  private createLogEntry(
+  private create_log_entry(
     level: SovdevLogLevel,
-    functionName: string,
+    function_name: string,
     message: string,
-    peerService?: string,
-    exceptionObject?: any,
-    inputJSON?: any,
-    responseJSON?: any,
-    traceId?: string,
-    logType?: string
+    peer_service?: string,
+    exception_object?: any,
+    input_json?: any,
+    response_json?: any,
+    trace_id?: string,
+    log_type?: string
   ): StructuredLogEntry {
     // Generate unique event ID for this log entry
-    const eventId = uuidv4();
+    const event_id = uuidv4();
 
-    // Use provided traceId or generate new one
-    const finalTraceId = traceId || uuidv4();
+    // Use provided trace_id or generate new one in OpenTelemetry format (32 hex chars, no dashes)
+    const final_trace_id = trace_id || uuidv4().replace(/-/g, '');
 
-    // Resolve friendly name to CMDB ID (defaults to service.name for INTERNAL)
-    const resolvedPeerService = this.resolvePeerService(peerService);
+    // Resolve friendly name to CMDB ID (defaults to service_name for INTERNAL)
+    const resolved_peer_service = this.resolve_peer_service(peer_service);
 
-    // Process exception object if provided
-    let processedException;
-    if (exceptionObject) {
-      processedException = this.processException(exceptionObject);
-    }
+    // Process exception object if provided (returns flat fields with dot notation)
+    const processed_exception = this.process_exception(exception_object);
 
-    // Create the complete log entry with OTEL standard fields
+    // Create the complete log entry with snake_case fields
     // NOTE: Do NOT include 'level' field here - Winston will add it based on .log(level, entry)
-    const logEntry: StructuredLogEntry = {
+    const log_entry: StructuredLogEntry = {
       timestamp: new Date().toISOString(),
       // level field omitted - Winston will set it
-      "service.name": this.serviceName,
-      "service.version": this.serviceVersion,
-      "peer.service": resolvedPeerService,
-      functionName,
+      service_name: this.service_name,
+      service_version: this.service_version,
+      peer_service: resolved_peer_service,
+      function_name,
       message,
-      traceId: finalTraceId,
-      eventId: eventId,
-      logType: logType || 'transaction',  // Default to transaction if not specified
-      inputJSON,
-      responseJSON,
-      exception: processedException
+      trace_id: final_trace_id,
+      event_id: event_id,
+      log_type: log_type || 'transaction',  // Default to transaction if not specified
+      input_json,
+      response_json,
+      // Spread exception fields at top level (exception_type, exception_message, exception_stacktrace)
+      ...processed_exception
     };
 
     // Remove undefined fields for cleaner JSON
-    return this.removeUndefinedFields(logEntry);
+    return this.remove_undefined_fields(log_entry);
   }
 
   /**
    * Process exception objects with security cleanup and standardization
+   * Returns flat fields using snake_case (exception_type, exception_message, exception_stacktrace)
    */
-  private processException(exceptionObject: any): { type: string; message: string; stack?: string } {
-    let cleanException = exceptionObject;
-    
+  private process_exception(exception_object: any): { exception_type: string; exception_message: string; exception_stacktrace?: string } | undefined {
+    if (!exception_object) {
+      return undefined;
+    }
+
+    let clean_exception = exception_object;
+
     // Security: Remove sensitive data from axios errors
-    if (typeof exceptionObject === 'object' && exceptionObject !== null) {
-      if (exceptionObject.config?.auth) {
-        cleanException = { ...exceptionObject };
-        delete cleanException.config.auth;
+    if (typeof exception_object === 'object' && exception_object !== null) {
+      if (exception_object.config?.auth) {
+        clean_exception = { ...exception_object };
+        delete clean_exception.config.auth;
       }
-      if (exceptionObject.config?.headers?.Authorization) {
-        cleanException = { ...cleanException };
-        delete cleanException.config.headers.Authorization;
+      if (exception_object.config?.headers?.Authorization) {
+        clean_exception = { ...clean_exception };
+        delete clean_exception.config.headers.Authorization;
       }
     }
 
     // Extract exception information
-    if (typeof cleanException === 'object' && cleanException !== null) {
-      let stackTrace = cleanException.stack || '';
-      
+    if (typeof clean_exception === 'object' && clean_exception !== null) {
+      let stack_trace = clean_exception.stack || '';
+
       // Limit stack trace to 350 characters
-      if (stackTrace.length > 350) {
-        stackTrace = stackTrace.substring(0, 350);
+      if (stack_trace.length > 350) {
+        stack_trace = stack_trace.substring(0, 350);
       }
 
+      // Return flat fields with snake_case (project standard)
       return {
-        type: cleanException.constructor?.name || cleanException.name || 'Error',
-        message: cleanException.message || String(cleanException),
-        stack: stackTrace
+        exception_type: clean_exception.constructor?.name || clean_exception.name || 'Error',
+        exception_message: clean_exception.message || String(clean_exception),
+        exception_stacktrace: stack_trace
       };
     } else {
+      // For non-object exceptions (strings, numbers, etc.)
       return {
-        type: 'Unknown',
-        message: String(cleanException)
+        exception_type: 'Unknown',
+        exception_message: String(clean_exception)
       };
     }
   }
@@ -467,7 +473,7 @@ class InternalSovdevLogger {
   /**
    * Remove undefined fields for cleaner JSON output
    */
-  private removeUndefinedFields(obj: any): any {
+  private remove_undefined_fields(obj: any): any {
     return Object.fromEntries(
       Object.entries(obj).filter(([_, value]) => value !== undefined)
     );
@@ -475,63 +481,20 @@ class InternalSovdevLogger {
 
   /**
    * Write log entry using Winston (multiple transports including OTLP)
-   * IMPROVED: Automatically emit metrics AND trace spans for complete observability
+   * IMPROVED: Automatically emit metrics for complete observability
    */
-  private writeLog(level: string, logEntry: StructuredLogEntry): void {
-    const startTime = Date.now();
-    let span: Span | undefined;
+  private write_log(level: string, log_entry: StructuredLogEntry): void {
+    const start_time = Date.now();
 
     try {
-      // Create automatic trace span (zero developer effort)
-      if (globalTracerProvider) {
-        const tracer = trace.getTracer(logEntry['service.name'], logEntry['service.version']);
-
-        // Create span with operation name from function + log type
-        const spanName = `${logEntry.functionName} [${logEntry.logType}]`;
-        span = tracer.startSpan(spanName, {
-          attributes: {
-            'service.name': logEntry['service.name'],
-            'service.version': logEntry['service.version'],
-            'peer.service': logEntry['peer.service'],
-            'log.level': level,
-            'log.type': logEntry.logType,
-            'function.name': logEntry.functionName,
-            'trace.id': logEntry.traceId,
-            'event.id': logEntry.eventId
-          }
-        });
-
-        // Add input/response data as span events
-        if (logEntry.inputJSON) {
-          span.addEvent('input', { 'input.data': JSON.stringify(logEntry.inputJSON) });
-        }
-        if (logEntry.responseJSON) {
-          span.addEvent('response', { 'response.data': JSON.stringify(logEntry.responseJSON) });
-        }
-
-        // Mark span as error if exception present
-        if (logEntry.exception) {
-          span.setStatus({ code: SpanStatusCode.ERROR, message: logEntry.exception.message });
-          span.recordException({
-            name: logEntry.exception.type,
-            message: logEntry.exception.message,
-            stack: logEntry.exception.stack
-          });
-        } else if (level === 'ERROR' || level === 'FATAL') {
-          span.setStatus({ code: SpanStatusCode.ERROR, message: logEntry.message });
-        } else {
-          span.setStatus({ code: SpanStatusCode.OK });
-        }
-      }
-
       // Emit metrics automatically (zero developer effort)
       if (globalMetrics) {
         const attributes = {
-          'service.name': logEntry['service.name'],
-          'service.version': logEntry['service.version'],
-          'peer.service': logEntry['peer.service'],
-          'log.level': level,
-          'log.type': logEntry.logType
+          'service_name': log_entry.service_name,
+          'service_version': log_entry.service_version,
+          'peer_service': log_entry.peer_service,
+          'log_level': level,
+          'log_type': log_entry.log_type
         };
 
         // Increment active operations
@@ -541,58 +504,45 @@ class InternalSovdevLogger {
         globalMetrics.operationCounter.add(1, attributes);
 
         // Track errors separately
-        if (level === 'ERROR' || level === 'FATAL' || logEntry.exception) {
-          const errorAttributes = {
+        if (level === 'ERROR' || level === 'FATAL' || log_entry.exception_type) {
+          const error_attributes = {
             ...attributes,
-            'exception.type': logEntry.exception?.type || 'Unknown'
+            exception_type: log_entry.exception_type || 'Unknown'
           };
-          globalMetrics.errorCounter.add(1, errorAttributes);
+          globalMetrics.errorCounter.add(1, error_attributes);
         }
       }
 
       // Send to Winston - Winston will handle all transports including OTLP
-      // IMPORTANT: Preserve original level for OTLP transport before Winston sets its own level
-      logEntry['originalLevel'] = level; // Preserve uppercase level for OTLP transport
-      baseLogger.log(this.mapToWinstonLevel(level), logEntry);
+      baseLogger.log(this.map_to_winston_level(level), log_entry);
 
       // Record operation duration and decrement active operations
       if (globalMetrics) {
-        const duration = Date.now() - startTime;
+        const duration = Date.now() - start_time;
         const attributes = {
-          'service.name': logEntry['service.name'],
-          'service.version': logEntry['service.version'],
-          'peer.service': logEntry['peer.service'],
-          'log.level': level,
-          'log.type': logEntry.logType
+          'service_name': log_entry.service_name,
+          'service_version': log_entry.service_version,
+          'peer_service': log_entry.peer_service,
+          'log_level': level,
+          'log_type': log_entry.log_type
         };
         globalMetrics.operationDuration.record(duration, attributes);
         globalMetrics.activeOperations.add(-1, attributes);
       }
 
-      // End the span
-      if (span) {
-        span.end();
-      }
-
     } catch (err) {
       // Fallback - logging should never break the application
       console.error('Sovdev Logger failed:', err);
-      console.log(JSON.stringify(logEntry));
-
-      // Mark span as error and end it
-      if (span) {
-        span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
-        span.end();
-      }
+      console.log(JSON.stringify(log_entry));
 
       // Decrement active operations on error
       if (globalMetrics) {
         const attributes = {
-          'service.name': logEntry['service.name'],
-          'service.version': logEntry['service.version'],
-          'peer.service': logEntry['peer.service'],
-          'log.level': level,
-          'log.type': logEntry.logType
+          'service_name': log_entry.service_name,
+          'service_version': log_entry.service_version,
+          'peer_service': log_entry.peer_service,
+          'log_level': level,
+          'log_type': log_entry.log_type
         };
         globalMetrics.activeOperations.add(-1, attributes);
       }
@@ -602,16 +552,16 @@ class InternalSovdevLogger {
 
   /**
    * Map custom log levels to Winston levels
-   * IMPROVED: Better level mapping strategy
+   * FIXED: Accept lowercase levels from SOVDEV_LOGLEVELS constants
    */
-  private mapToWinstonLevel(level: string): string {
-    switch (level) {
-      case 'TRACE': return 'debug';  // Winston doesn't have trace, map to debug
-      case 'DEBUG': return 'debug';
-      case 'INFO': return 'info';
-      case 'WARN': return 'warn';
-      case 'ERROR': return 'error';
-      case 'FATAL': return 'error';  // Winston doesn't have fatal, map to error
+  private map_to_winston_level(level: string): string {
+    switch (level.toLowerCase()) {
+      case 'trace': return 'debug';  // Winston doesn't have trace, map to debug
+      case 'debug': return 'debug';
+      case 'info': return 'info';
+      case 'warn': return 'warn';
+      case 'error': return 'error';
+      case 'fatal': return 'error';  // Winston doesn't have fatal, map to error
       default: return 'info';
     }
   }
@@ -622,67 +572,67 @@ class InternalSovdevLogger {
    */
   public log(
     level: SovdevLogLevel,
-    functionName: string,
+    function_name: string,
     message: string,
-    peerService: string,
-    inputJSON?: any,
-    responseJSON?: any,
-    exceptionObject?: any,
-    traceId?: string
+    peer_service: string,
+    input_json?: any,
+    response_json?: any,
+    exception_object?: any,
+    trace_id?: string
   ): void {
-    const logEntry = this.createLogEntry(level, functionName, message, peerService, exceptionObject, inputJSON, responseJSON, traceId, 'transaction');
-    this.writeLog(level, logEntry);
+    const log_entry = this.create_log_entry(level, function_name, message, peer_service, exception_object, input_json, response_json, trace_id, 'transaction');
+    this.write_log(level, log_entry);
   }
 
   /**
    * Job status logging - for batch job start/complete/failed events
    */
-  public logJobStatus(
+  public log_job_status(
     level: SovdevLogLevel,
-    functionName: string,
-    jobName: string,
+    function_name: string,
+    job_name: string,
     status: string,
-    peerService: string,
-    inputJSON?: any,
-    traceId?: string
+    peer_service: string,
+    input_json?: any,
+    trace_id?: string
   ): void {
-    const message = `Job ${status}: ${jobName}`;
-    const contextInput = {
-      jobName,
-      jobStatus: status,
-      ...inputJSON
+    const message = `Job ${status}: ${job_name}`;
+    const context_input = {
+      job_name,
+      job_status: status,
+      ...input_json
     };
 
-    const logEntry = this.createLogEntry(level, functionName, message, peerService, null, contextInput, null, traceId, 'job.status');
-    this.writeLog(level, logEntry);
+    const log_entry = this.create_log_entry(level, function_name, message, peer_service, null, context_input, null, trace_id, 'job.status');
+    this.write_log(level, log_entry);
   }
 
   /**
    * Job progress logging - for tracking batch processing progress (X of Y)
    */
-  public logJobProgress(
+  public log_job_progress(
     level: SovdevLogLevel,
-    functionName: string,
-    jobName: string,
-    itemId: string,
+    function_name: string,
+    job_name: string,
+    item_id: string,
     current: number,
     total: number,
-    peerService: string,
-    inputJSON?: any,
-    traceId?: string
+    peer_service: string,
+    input_json?: any,
+    trace_id?: string
   ): void {
-    const message = `Processing ${itemId} (${current}/${total})`;
-    const contextInput = {
-      jobName,
-      itemId,
-      currentItem: current,
-      totalItems: total,
-      progressPercentage: Math.round((current / total) * 100),
-      ...inputJSON
+    const message = `Processing ${item_id} (${current}/${total})`;
+    const context_input = {
+      job_name,
+      item_id,
+      current_item: current,
+      total_items: total,
+      progress_percentage: Math.round((current / total) * 100),
+      ...input_json
     };
 
-    const logEntry = this.createLogEntry(level, functionName, message, peerService, null, contextInput, null, traceId, 'job.progress');
-    this.writeLog(level, logEntry);
+    const log_entry = this.create_log_entry(level, function_name, message, peer_service, null, context_input, null, trace_id, 'job.progress');
+    this.write_log(level, log_entry);
   }
 }
 
@@ -694,17 +644,17 @@ class InternalSovdevLogger {
  * Configure OpenTelemetry Metrics
  * Creates automatic metrics for operations, errors, duration, and active operations
  */
-function configureMetrics(serviceName: string, serviceVersion: string, sessionId: string): MeterProvider | null {
+function configure_metrics(service_name: string, service_version: string, session_id: string): MeterProvider | null {
   try {
     const resource = new Resource({
-      [ATTR_SERVICE_NAME]: serviceName,
-      [ATTR_SERVICE_VERSION]: serviceVersion,
+      [ATTR_SERVICE_NAME]: service_name,
+      [ATTR_SERVICE_VERSION]: service_version,
       [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
-      'session.id': sessionId  // OTEL semantic convention for execution grouping
+      'session_id': session_id  // Session grouping for execution tracking
     });
 
     // Configure metric exporter with cumulative temporality for Prometheus compatibility
-    const metricExporter = new OTLPMetricExporter({
+    const metric_exporter = new OTLPMetricExporter({
       url: process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || 'http://localhost:4318/v1/metrics',
       headers: process.env.OTEL_EXPORTER_OTLP_HEADERS ?
         JSON.parse(process.env.OTEL_EXPORTER_OTLP_HEADERS) : {},
@@ -712,22 +662,22 @@ function configureMetrics(serviceName: string, serviceVersion: string, sessionId
     });
 
     // Create periodic metric reader (export every 10 seconds)
-    const metricReader = new PeriodicExportingMetricReader({
-      exporter: metricExporter,
+    const metric_reader = new PeriodicExportingMetricReader({
+      exporter: metric_exporter,
       exportIntervalMillis: 10000, // 10 seconds
     });
 
     // Create MeterProvider
-    const meterProvider = new MeterProvider({
+    const meter_provider = new MeterProvider({
       resource,
-      readers: [metricReader],
+      readers: [metric_reader],
     });
 
     // Set global meter provider
-    metrics.setGlobalMeterProvider(meterProvider);
+    metrics.setGlobalMeterProvider(meter_provider);
 
     // Create meter and metrics
-    const meter = meterProvider.getMeter(serviceName, serviceVersion);
+    const meter = meter_provider.getMeter(service_name, service_version);
 
     globalMetrics = {
       operationCounter: meter.createCounter('sovdev.operations.total', {
@@ -755,7 +705,7 @@ function configureMetrics(serviceName: string, serviceVersion: string, sessionId
     console.log('📊 Metrics: operations.total, errors.total, operation.duration, operations.active');
     console.log('📊 Temporality: CUMULATIVE (Prometheus compatible)');
 
-    return meterProvider;
+    return meter_provider;
 
   } catch (error) {
     console.warn('⚠️  Metrics configuration failed:', error);
@@ -767,57 +717,57 @@ function configureMetrics(serviceName: string, serviceVersion: string, sessionId
  * Configure OpenTelemetry with both trace AND log exporters
  * IMPROVED: Full OTLP integration for complete observability
  */
-function configureOpenTelemetry(serviceName: string, serviceVersion: string, sessionId: string): { sdk: NodeSDK | null, loggerProvider: LoggerProvider | null, tracerProvider: BasicTracerProvider | null } {
+function configure_opentelemetry(service_name: string, service_version: string, session_id: string): { sdk: NodeSDK | null, loggerProvider: LoggerProvider | null, tracerProvider: BasicTracerProvider | null } {
   try {
     const resource = new Resource({
-      [ATTR_SERVICE_NAME]: serviceName,
-      [ATTR_SERVICE_VERSION]: serviceVersion,
+      [ATTR_SERVICE_NAME]: service_name,
+      [ATTR_SERVICE_VERSION]: service_version,
       [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
-      'session.id': sessionId  // OTEL semantic convention for execution grouping
+      'session_id': session_id  // Session grouping for execution tracking
     });
 
     // Configure exporters based on environment
     const environment = process.env.NODE_ENV || 'development';
 
     // TRACE EXPORTER AND PROVIDER
-    let tracerProvider: BasicTracerProvider | null = null;
-    const traceEndpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+    let tracer_provider: BasicTracerProvider | null = null;
+    const trace_endpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
                          process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
                          'http://localhost:4318/v1/traces';
 
-    const traceExporter = new OTLPTraceExporter({
-      url: traceEndpoint,
+    const trace_exporter = new OTLPTraceExporter({
+      url: trace_endpoint,
       headers: process.env.OTEL_EXPORTER_OTLP_HEADERS ?
         JSON.parse(process.env.OTEL_EXPORTER_OTLP_HEADERS) : {},
     });
 
     // Create BasicTracerProvider with BatchSpanProcessor
-    tracerProvider = new BasicTracerProvider({
+    tracer_provider = new BasicTracerProvider({
       resource
     });
-    tracerProvider.addSpanProcessor(new BatchSpanProcessor(traceExporter));
+    tracer_provider.addSpanProcessor(new BatchSpanProcessor(trace_exporter));
 
     // Set global tracer provider
-    trace.setGlobalTracerProvider(tracerProvider);
-    console.log('🔍 OTLP Trace exporter configured for:', traceEndpoint);
+    trace.setGlobalTracerProvider(tracer_provider);
+    console.log('🔍 OTLP Trace exporter configured for:', trace_endpoint);
 
     // LOG EXPORTER (NEW - IMPROVED)
-    let loggerProvider: LoggerProvider | null = null;
-    const logEndpoint = process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT;
-    
-    if (logEndpoint || environment === 'development') {
-      const logExporter = new OTLPLogExporter({
-        url: logEndpoint || 'http://localhost:4318/v1/logs',
-        headers: process.env.OTEL_EXPORTER_OTLP_HEADERS ? 
+    let logger_provider: LoggerProvider | null = null;
+    const log_endpoint = process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT;
+
+    if (log_endpoint || environment === 'development') {
+      const log_exporter = new OTLPLogExporter({
+        url: log_endpoint || 'http://localhost:4318/v1/logs',
+        headers: process.env.OTEL_EXPORTER_OTLP_HEADERS ?
           JSON.parse(process.env.OTEL_EXPORTER_OTLP_HEADERS) : {},
       });
-      
-      const logRecordProcessor = new BatchLogRecordProcessor(logExporter);
-      loggerProvider = new LoggerProvider({
+
+      const log_record_processor = new BatchLogRecordProcessor(log_exporter);
+      logger_provider = new LoggerProvider({
         resource
       });
-      loggerProvider.addLogRecordProcessor(logRecordProcessor);
-      console.log('📡 OTLP Log exporter configured for:', logEndpoint || 'http://localhost:4318/v1/logs');
+      logger_provider.addLogRecordProcessor(log_record_processor);
+      console.log('📡 OTLP Log exporter configured for:', log_endpoint || 'http://localhost:4318/v1/logs');
       console.log('📡 BatchLogRecordProcessor added to LoggerProvider');
     }
 
@@ -835,10 +785,10 @@ function configureOpenTelemetry(serviceName: string, serviceVersion: string, ses
       ],
     });
 
-    console.log('🔗 OpenTelemetry SDK initialized for', serviceName);
+    console.log('🔗 OpenTelemetry SDK initialized for', service_name);
     console.log('🔍 Auto-instrumentation includes Winston integration');
 
-    return { sdk, loggerProvider, tracerProvider };
+    return { sdk, loggerProvider: logger_provider, tracerProvider: tracer_provider };
 
   } catch (error) {
     console.warn('⚠️  OpenTelemetry SDK configuration failed:', error);
@@ -875,44 +825,44 @@ let globalSessionId: string | null = null;
  * Initialize the Sovdev logger with system identifier and OpenTelemetry SDK
  * Must be called once at application startup
  *
- * @param serviceName Service name (e.g., "company-lookup-integration")
- * @param serviceVersion Service version (optional, auto-detected from package.json)
- * @param peerServices Mapping of peer service names to system IDs (use PEER_SERVICES.mappings)
+ * @param service_name Service name (e.g., "company-lookup-integration")
+ * @param service_version Service version (optional, auto-detected from package.json)
+ * @param peer_services Mapping of peer service names to system IDs (use PEER_SERVICES.mappings)
  */
-function initializeSovdevLogger(
-  serviceName: string,
-  serviceVersion?: string,
-  peerServices: Record<string, string> = {}
+function initialize_sovdev_logger(
+  service_name: string,
+  service_version?: string,
+  peer_services: Record<string, string> = {}
 ): void {
-  const effectiveServiceName = serviceName;
-  const effectiveServiceVersion = serviceVersion || getServiceVersion();
+  const effective_service_name = service_name;
+  const effective_service_version = service_version || getServiceVersion();
 
   // Automatically add INTERNAL peer service pointing to this service
-  const effectiveSystemIds = {
-    INTERNAL: serviceName,  // Always auto-generated
-    ...peerServices
+  const effective_system_ids = {
+    INTERNAL: service_name,  // Always auto-generated
+    ...peer_services
   };
 
-  if (!effectiveServiceName || effectiveServiceName.trim() === '') {
+  if (!effective_service_name || effective_service_name.trim() === '') {
     throw new Error(
-      'Sovdev Logger: serviceName is required. ' +
-      'Example: initializeSovdevLogger("company-lookup-integration", "1.2.3", {...})'
+      'Sovdev Logger: service_name is required. ' +
+      'Example: initialize_sovdev_logger("company-lookup-integration", "1.2.3", {...})'
     );
   }
 
-  // Generate session ID once for this execution (OTEL semantic convention)
+  // Generate session ID once for this execution
   // This automatically groups all logs, metrics, and traces from this run
-  const sessionId = uuidv4();
-  console.log(`🔑 Session ID: ${sessionId}`);
+  const session_id = uuidv4();
+  console.log(`🔑 Session ID: ${session_id}`);
 
   // Initialize OpenTelemetry Metrics FIRST (before SDK)
   if (!globalMeterProvider) {
-    globalMeterProvider = configureMetrics(effectiveServiceName, effectiveServiceVersion, sessionId);
+    globalMeterProvider = configure_metrics(effective_service_name, effective_service_version, session_id);
   }
 
   // Initialize OpenTelemetry SDK with full configuration
   if (!otelSDK) {
-    const { sdk, loggerProvider, tracerProvider } = configureOpenTelemetry(effectiveServiceName, effectiveServiceVersion, sessionId);
+    const { sdk, loggerProvider, tracerProvider } = configure_opentelemetry(effective_service_name, effective_service_version, session_id);
     otelSDK = sdk;
     globalLoggerProvider = loggerProvider;
     globalTracerProvider = tracerProvider;
@@ -935,34 +885,34 @@ function initializeSovdevLogger(
     }
   }
 
-  // Initialize Winston logger with serviceName for OpenTelemetry transport
+  // Initialize Winston logger with service_name for OpenTelemetry transport
   // This must happen AFTER global LoggerProvider is set
-  initializeWinstonLogger(effectiveServiceName.trim());
+  initializeWinstonLogger(effective_service_name.trim());
 
   globalLogger = new InternalSovdevLogger(
-    effectiveServiceName.trim(),
-    effectiveServiceVersion,
-    effectiveSystemIds
+    effective_service_name.trim(),
+    effective_service_version,
+    effective_system_ids
   );
 
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  const hasOtlpEndpoint = !!process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT;
-  const logToConsole = process.env.LOG_TO_CONSOLE !== undefined
+  const is_development = process.env.NODE_ENV !== 'production';
+  const has_otlp_endpoint = !!process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT;
+  const log_to_console = process.env.LOG_TO_CONSOLE !== undefined
     ? process.env.LOG_TO_CONSOLE === 'true'
-    : !hasOtlpEndpoint;
-  const logToFile = process.env.LOG_TO_FILE !== undefined
+    : !has_otlp_endpoint;
+  const log_to_file = process.env.LOG_TO_FILE !== undefined
     ? process.env.LOG_TO_FILE === 'true'
     : true;
 
   console.log('🚀 Sovdev Logger initialized:');
-  console.log(`   ├── Service: ${effectiveServiceName}`);
-  console.log(`   ├── Version: ${effectiveServiceVersion}`);
-  console.log(`   ├── Systems: ${Object.keys(effectiveSystemIds).join(', ') || 'None configured'}`);
-  console.log(`   ├── Console: ${logToConsole ? (isDevelopment ? 'Colored (dev)' : 'JSON (prod)') : 'Disabled'}`);
-  console.log(`   ├── File: ${logToFile ? 'Enabled' : 'Disabled'}`);
-  console.log(`   └── OTLP: ${hasOtlpEndpoint ? 'Configured' : '⚠️  Not configured (using localhost:4318)'}`);
+  console.log(`   ├── Service: ${effective_service_name}`);
+  console.log(`   ├── Version: ${effective_service_version}`);
+  console.log(`   ├── Systems: ${Object.keys(effective_system_ids).join(', ') || 'None configured'}`);
+  console.log(`   ├── Console: ${log_to_console ? (is_development ? 'Colored (dev)' : 'JSON (prod)') : 'Disabled'}`);
+  console.log(`   ├── File: ${log_to_file ? 'Enabled' : 'Disabled'}`);
+  console.log(`   └── OTLP: ${has_otlp_endpoint ? 'Configured' : '⚠️  Not configured (using localhost:4318)'}`);
 
-  if (!hasOtlpEndpoint && !logToConsole && !logToFile) {
+  if (!has_otlp_endpoint && !log_to_console && !log_to_file) {
     console.warn('⚠️  WARNING: All logging outputs are disabled!');
     console.warn('   Set OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, LOG_TO_CONSOLE=true, or LOG_TO_FILE=true');
   }
@@ -971,10 +921,10 @@ function initializeSovdevLogger(
 /**
  * Ensure logger is initialized before use
  */
-function ensureLogger(): InternalSovdevLogger {
+function ensure_logger(): InternalSovdevLogger {
   if (!globalLogger) {
     throw new Error(
-      'Sovdev Logger not initialized. Call initializeSovdevLogger(systemId) at application startup.'
+      'Sovdev Logger not initialized. Call sovdev_initialize(service_name) at application startup.'
     );
   }
   return globalLogger;
@@ -988,71 +938,71 @@ function ensureLogger(): InternalSovdevLogger {
  * General purpose logging function
  *
  * @param level Log level from SOVDEV_LOGLEVELS constants
- * @param functionName Name of the function where logging occurs
+ * @param function_name Name of the function where logging occurs
  * @param message Human-readable description of what happened
- * @param peerService Peer service identifier (use PEER_SERVICE_INTERNAL for internal operations)
- * @param inputJSON Valid JSON object containing function input parameters (optional)
- * @param responseJSON Valid JSON object containing function output/response data (optional)
- * @param exceptionObject Exception/error object (optional, null if no exception)
- * @param traceId OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
+ * @param peer_service Peer service identifier (use PEER_SERVICES.INTERNAL for internal operations)
+ * @param input_json Valid JSON object containing function input parameters (optional)
+ * @param response_json Valid JSON object containing function output/response data (optional)
+ * @param exception_object Exception/error object (optional, null if no exception)
+ * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
-export function sovdevLog(
+export function sovdev_log(
   level: SovdevLogLevel,
-  functionName: string,
+  function_name: string,
   message: string,
-  peerService: string,
-  inputJSON?: any,
-  responseJSON?: any,
-  exceptionObject?: any,
-  traceId?: string
+  peer_service: string,
+  input_json?: any,
+  response_json?: any,
+  exception_object?: any,
+  trace_id?: string
 ): void {
-  ensureLogger().log(level, functionName, message, peerService, inputJSON, responseJSON, exceptionObject, traceId);
+  ensure_logger().log(level, function_name, message, peer_service, input_json, response_json, exception_object, trace_id);
 }
 
 /**
  * Log job lifecycle events (start, completion, failure)
  *
  * @param level Log level from SOVDEV_LOGLEVELS constants
- * @param functionName Name of the function managing the job
- * @param jobName Name of the job being tracked
+ * @param function_name Name of the function managing the job
+ * @param job_name Name of the job being tracked
  * @param status Job status (e.g., "Started", "Completed", "Failed")
- * @param inputJSON Additional job context variables (optional)
- * @param traceId OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
+ * @param input_json Additional job context variables (optional)
+ * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
-export function sovdevLogJobStatus(
+export function sovdev_log_job_status(
   level: SovdevLogLevel,
-  functionName: string,
-  jobName: string,
+  function_name: string,
+  job_name: string,
   status: string,
-  peerService: string,
-  inputJSON?: any,
-  traceId?: string
+  peer_service: string,
+  input_json?: any,
+  trace_id?: string
 ): void {
-  ensureLogger().logJobStatus(level, functionName, jobName, status, peerService, inputJSON, traceId);
+  ensure_logger().log_job_status(level, function_name, job_name, status, peer_service, input_json, trace_id);
 }
 
 /**
  * Log processing progress for batch operations
  *
  * @param level Log level from SOVDEV_LOGLEVELS constants
- * @param functionName Name of the function doing the processing
- * @param itemId Identifier for the item being processed
+ * @param function_name Name of the function doing the processing
+ * @param item_id Identifier for the item being processed
  * @param current Current item number (1-based)
  * @param total Total number of items to process
- * @param inputJSON Additional context variables for this item (optional)
- * @param traceId OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
+ * @param input_json Additional context variables for this item (optional)
+ * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
-export function sovdevLogJobProgress(
+export function sovdev_log_job_progress(
   level: SovdevLogLevel,
-  functionName: string,
-  itemId: string,
+  function_name: string,
+  item_id: string,
   current: number,
   total: number,
-  peerService: string,
-  inputJSON?: any,
-  traceId?: string
+  peer_service: string,
+  input_json?: any,
+  trace_id?: string
 ): void {
-  ensureLogger().logJobProgress(level, functionName, "BatchProcessing", itemId, current, total, peerService, inputJSON, traceId);
+  ensure_logger().log_job_progress(level, function_name, "BatchProcessing", item_id, current, total, peer_service, input_json, trace_id);
 }
 
 // Export types for TypeScript consumers
@@ -1094,7 +1044,7 @@ export type { SovdevLogLevel, StructuredLogEntry };
  * Flush OpenTelemetry logs, metrics, and traces to ensure they are sent to OTLP collector
  * Call this before application exit to ensure all telemetry is exported
  */
-async function flushSovdevLogs(): Promise<void> {
+async function flush_sovdev_logs(): Promise<void> {
   try {
     if (globalTracerProvider) {
       console.log('🔄 Flushing OpenTelemetry traces...');
@@ -1137,28 +1087,28 @@ async function flushSovdevLogs(): Promise<void> {
 }
 
 // =============================================================================
-// CONSISTENT NAMING ALIASES (sovdev* prefix for all functions)
+// EXPORT ALIASES FOR CONSISTENCY
 // =============================================================================
 
 /**
  * Initialize the Sovdev logger with service name, version, and system ID mappings
  * Must be called once at application startup
  *
- * @param serviceName Service name (e.g., "company-lookup-integration")
- * @param serviceVersion Service version (optional, auto-detected from package.json)
- * @param systemIds Mapping of friendly names to CMDB IDs (optional)
+ * @param service_name Service name (e.g., "company-lookup-integration")
+ * @param service_version Service version (optional, auto-detected from package.json)
+ * @param system_ids Mapping of friendly names to CMDB IDs (optional)
  *
  * @example
  * ```typescript
- * import { sovdevInitialize } from '@sovdev/logger';
+ * import { sovdev_initialize } from '@sovdev/logger';
  *
- * sovdevInitialize('company-lookup', '1.0.0', {
+ * sovdev_initialize('company-lookup', '1.0.0', {
  *   'BRREG': process.env.BRREG_SYSTEM_ID,
  *   'CRM': process.env.CRM_SYSTEM_ID
  * });
  * ```
  */
-export const sovdevInitialize = initializeSovdevLogger;
+export const sovdev_initialize = initialize_sovdev_logger;
 
 /**
  * Flush all OpenTelemetry telemetry (logs, metrics, traces) before app exit
@@ -1166,38 +1116,12 @@ export const sovdevInitialize = initializeSovdevLogger;
  *
  * @example
  * ```typescript
- * import { sovdevFlush } from '@sovdev/logger';
+ * import { sovdev_flush } from '@sovdev/logger';
  *
  * async function main() {
  *   // ... your application code ...
- *   await sovdevFlush();
+ *   await sovdev_flush();
  * }
  * ```
  */
-export const sovdevFlush = flushSovdevLogs;
-
-/**
- * Generate a unique trace ID for grouping related operations
- * Use this to link multiple log entries that belong to the same transaction/workflow
- *
- * @returns A unique UUID v4 string to use as traceId parameter in sovdevLog calls
- *
- * @example
- * ```typescript
- * // Generate one traceId for related operations
- * const companyTraceId = sovdevGenerateTraceId();
- *
- * // All these operations share the same traceId
- * sovdevLog(INFO, 'lookupCompany', 'Found', 'BRREG', null, input, output, companyTraceId);
- * sovdevLog(INFO, 'validateCompany', 'Valid', null, null, data, result, companyTraceId);
- * sovdevLog(INFO, 'saveCompany', 'Saved', 'Database', null, data, success, companyTraceId);
- *
- * // In Grafana: {traceId="<uuid>"} shows all 3 operations together
- * ```
- */
-export function sovdevGenerateTraceId(): string {
-  // Note: Future enhancement could add a prefix for easier trace identification
-  // (e.g., `trace-${uuidv4()}` or `sovdev-${uuidv4()}`)
-  // Decision: Keep plain UUID for now to maintain OpenTelemetry compatibility
-  return uuidv4();
-}
+export const sovdev_flush = flush_sovdev_logs;

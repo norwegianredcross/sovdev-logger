@@ -52,7 +52,10 @@ All sovdev-logger implementations **MUST** follow this standardized directory st
   OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://127.0.0.1/v1/logs
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://127.0.0.1/v1/metrics
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1/v1/traces
+  OTEL_EXPORTER_OTLP_HEADERS='{"Host":"otel.localhost"}'
   ```
+
+**Critical**: JSON values (like OTEL_EXPORTER_OTLP_HEADERS) MUST be wrapped in single quotes to preserve double quotes during shell parsing. Using `export $(grep ... | xargs)` will strip inner quotes and mangle JSON. Use `set -a && source .env && set +a` instead.
 
 **5. logs/ Directory**
 - Output directory for file-based logs
@@ -193,15 +196,15 @@ await sovdevFlush();
   "severity_text": "INFO",
   "service_name": "sovdev-test-app",
   "service_version": "1.0.0",
-  "functionName": "testFunction",
+  "function_name": "testFunction",
   "message": "Test message",
   "peer_service": "sovdev-test-app",
-  "traceId": "<uuid>",
-  "eventId": "<uuid>",
+  "trace_id": "<uuid>",
+  "event_id": "<uuid>",
   "session_id": "<uuid>",
-  "inputJSON": "{\"inputData\":\"test\"}",
-  "responseJSON": "{\"outputData\":\"result\"}",
-  "logType": "transaction",
+  "input_json": "{\"inputData\":\"test\"}",
+  "response_json": "{\"outputData\":\"result\"}",
+  "log_type": "transaction",
   "observed_timestamp": "<nanoseconds>"
 }
 ```
@@ -220,27 +223,17 @@ YYYY-MM-DD HH:mm:ss [INFO] sovdev-test-app
 {
   "timestamp": "YYYY-MM-DDTHH:mm:ss.ffffff+00:00",
   "level": "info",
-  "service": {
-    "name": "sovdev-test-app",
-    "version": "1.0.0"
-  },
-  "function": {
-    "name": "testFunction"
-  },
+  "service_name": "sovdev-test-app",
+  "service_version": "1.0.0",
+  "function_name": "testFunction",
   "message": "Test message",
-  "traceId": "<uuid>",
-  "eventId": "<uuid>",
-  "sessionId": "<uuid>",
-  "peer": {
-    "service": "sovdev-test-app"
-  },
-  "input": {
-    "inputData": "test"
-  },
-  "response": {
-    "outputData": "result"
-  },
-  "logType": "transaction"
+  "trace_id": "<uuid>",
+  "event_id": "<uuid>",
+  "session_id": "<uuid>",
+  "peer_service": "sovdev-test-app",
+  "input_json": "{\"inputData\":\"test\"}",
+  "response_json": "{\"outputData\":\"result\"}",
+  "log_type": "transaction"
 }
 ```
 
@@ -275,15 +268,15 @@ await sovdevFlush();
   "scope_name": "sovdev-test-app",
   "severity_number": 17,
   "severity_text": "ERROR",
-  "functionName": "lookupCompany",
+  "function_name": "lookupCompany",
   "message": "Failed to lookup company 123456789",
   "peer_service": "SYS1234567",
-  "traceId": "<uuid>",
-  "inputJSON": "{\"orgNumber\":\"123456789\"}",
-  "responseJSON": "null",
-  "exceptionType": "Error",
-  "exceptionMessage": "HTTP 404: Not Found",
-  "exceptionStack": "<stack trace max 350 chars>"
+  "trace_id": "<uuid>",
+  "input_json": "{\"orgNumber\":\"123456789\"}",
+  "response_json": "null",
+  "exception_type": "Error",
+  "exception_message": "HTTP 404: Not Found",
+  "exception_stack": "<stack trace max 350 chars>"
 }
 ```
 
@@ -302,27 +295,18 @@ YYYY-MM-DD HH:mm:ss [ERROR] sovdev-test-app
 {
   "timestamp": "YYYY-MM-DDTHH:mm:ss.ffffff+00:00",
   "level": "error",
-  "service": {
-    "name": "sovdev-test-app",
-    "version": "1.0.0"
-  },
-  "function": {
-    "name": "lookupCompany"
-  },
+  "service_name": "sovdev-test-app",
+  "service_version": "1.0.0",
+  "function_name": "lookupCompany",
   "message": "Failed to lookup company 123456789",
-  "exception": {
-    "type": "Error",
-    "message": "HTTP 404: Not Found",
-    "stack": "<stack trace max 350 chars>"
-  },
-  "traceId": "<uuid>",
-  "peer": {
-    "service": "SYS1234567"
-  },
-  "input": {
-    "orgNumber": "123456789"
-  },
-  "logType": "transaction"
+  "exception_type": "Error",
+  "exception_message": "HTTP 404: Not Found",
+  "exception_stack": "<stack trace max 350 chars>",
+  "trace_id": "<uuid>",
+  "peer_service": "SYS1234567",
+  "input_json": "{\"orgNumber\":\"123456789\"}",
+  "response_json": "null",
+  "log_type": "transaction"
 }
 ```
 
@@ -371,13 +355,13 @@ await sovdevFlush();
 {
   "severity_number": 9,
   "severity_text": "INFO",
-  "functionName": "batchProcess",
+  "function_name": "batchProcess",
   "message": "Job Started: CompanyLookupBatch",
   "peer_service": "sovdev-test-app",
-  "traceId": "<same-uuid-for-entire-batch>",
-  "inputJSON": "{\"jobName\":\"CompanyLookupBatch\",\"jobStatus\":\"Started\",\"totalItems\":100}",
-  "responseJSON": "null",
-  "logType": "job.status"
+  "trace_id": "<same-uuid-for-entire-batch>",
+  "input_json": "{\"jobName\":\"CompanyLookupBatch\",\"jobStatus\":\"Started\",\"totalItems\":100}",
+  "response_json": "null",
+  "log_type": "job.status"
 }
 ```
 
@@ -386,21 +370,21 @@ await sovdevFlush();
 {
   "severity_number": 9,
   "severity_text": "INFO",
-  "functionName": "batchProcess",
+  "function_name": "batchProcess",
   "message": "Job Completed: CompanyLookupBatch",
   "peer_service": "sovdev-test-app",
-  "traceId": "<same-uuid-as-started>",
-  "inputJSON": "{\"jobName\":\"CompanyLookupBatch\",\"jobStatus\":\"Completed\",\"totalItems\":100,\"successCount\":98,\"errorCount\":2}",
-  "responseJSON": "null",
-  "logType": "job.status"
+  "trace_id": "<same-uuid-as-started>",
+  "input_json": "{\"jobName\":\"CompanyLookupBatch\",\"jobStatus\":\"Completed\",\"totalItems\":100,\"successCount\":98,\"errorCount\":2}",
+  "response_json": "null",
+  "log_type": "job.status"
 }
 ```
 
 **Requirements:**
-- Both logs MUST have same traceId
+- Both logs MUST have same trace_id
 - Message format MUST be "Job {status}: {jobName}"
-- logType MUST be "job.status"
-- inputJSON MUST contain jobName, jobStatus, and metadata
+- log_type MUST be "job.status"
+- input_json MUST contain jobName, jobStatus, and metadata
 
 ---
 
@@ -434,22 +418,22 @@ await sovdevFlush();
 {
   "severity_number": 9,
   "severity_text": "INFO",
-  "functionName": "processItem",
+  "function_name": "processItem",
   "message": "Processing 971277882 (25/100)",
   "peer_service": "SYS1234567",
-  "traceId": "<batch-trace-id>",
-  "inputJSON": "{\"itemId\":\"971277882\",\"currentItem\":25,\"totalItems\":100,\"progressPercentage\":25,\"orgNumber\":\"971277882\"}",
-  "responseJSON": "null",
-  "logType": "job.progress"
+  "trace_id": "<batch-trace-id>",
+  "input_json": "{\"itemId\":\"971277882\",\"currentItem\":25,\"totalItems\":100,\"progressPercentage\":25,\"orgNumber\":\"971277882\"}",
+  "response_json": "null",
+  "log_type": "job.progress"
 }
 ```
 
 **Requirements:**
-- traceId MUST match job status logs
+- trace_id MUST match job status logs
 - Message format MUST be "Processing {itemId} ({current}/{total})"
-- inputJSON MUST contain: itemId, currentItem, totalItems, progressPercentage
+- input_json MUST contain: itemId, currentItem, totalItems, progressPercentage
 - progressPercentage MUST be Math.round((current / total) * 100)
-- logType MUST be "job.progress"
+- log_type MUST be "job.progress"
 
 ---
 
@@ -474,17 +458,17 @@ await sovdevFlush();
 **Expected OTLP Output (Loki):**
 ```json
 {
-  "functionName": "lookupCompany",
+  "function_name": "lookupCompany",
   "message": "Company not found",
-  "inputJSON": "{\"orgNumber\":\"999999999\"}",
-  "responseJSON": "null",
-  "exceptionType": "Error",
-  "exceptionMessage": "HTTP 404: Not Found"
+  "input_json": "{\"orgNumber\":\"999999999\"}",
+  "response_json": "null",
+  "exception_type": "Error",
+  "exception_message": "HTTP 404: Not Found"
 }
 ```
 
 **Critical Requirement:**
-- responseJSON field MUST be present with value "null" (string, not JSON null)
+- response_json field MUST be present with value "null" (string, not JSON null)
 - Field presence must be consistent across all log types
 
 ---
@@ -519,9 +503,9 @@ await sovdevFlush();
 **Expected OTLP Output (Loki):**
 ```json
 {
-  "exceptionType": "Error",
-  "exceptionMessage": "API call failed",
-  "exceptionStack": "<stack trace with credentials removed>"
+  "exception_type": "Error",
+  "exception_message": "API call failed",
+  "exception_stack": "<stack trace with credentials removed>"
 }
 ```
 
@@ -590,9 +574,9 @@ await sovdevFlush();
 ```
 
 **Expected Behavior:**
-- All three logs MUST have identical traceId
-- Grafana query `{service_name="sovdev-test-app"} | json | traceId="<uuid>"` MUST return all three logs
-- Logs should be linkable in Grafana UI via traceId
+- All three logs MUST have identical trace_id
+- Grafana query `{service_name="sovdev-test-app"} | json | trace_id="<uuid>"` MUST return all three logs
+- Logs should be linkable in Grafana UI via trace_id
 
 ---
 
@@ -675,7 +659,7 @@ await sovdevFlush();
 
 # JSON output for automated verification
 ./specification/tools/query-tempo.sh sovdev-test-app --json | \
-  jq '.traces[] | {traceID, rootServiceName, rootTraceName}'
+  jq '.traces[] | {trace_id, rootServiceName, rootTraceName}'
 ```
 
 ---
@@ -710,13 +694,13 @@ await sovdevFlush();
 **Required Fields in Dashboard:**
 - timestamp (human-readable)
 - service_name
-- functionName
+- function_name
 - message
 - peer_service
-- traceId
-- logType
-- exceptionType (for errors)
-- exceptionMessage (for errors)
+- trace_id
+- log_type
+- exception_type (for errors)
+- exception_message (for errors)
 
 ---
 
@@ -727,7 +711,7 @@ For each test scenario, verify:
 ### OTLP Output (Loki)
 - [ ] All required fields present
 - [ ] Field values in correct format (UUIDs, timestamps, severity numbers)
-- [ ] JSON serialization correct (inputJSON, responseJSON)
+- [ ] JSON serialization correct (input_json, response_json)
 - [ ] Exception handling correct (type, message, stack)
 - [ ] Credentials removed from stack traces
 - [ ] Stack traces limited to 350 characters
@@ -741,7 +725,7 @@ For each test scenario, verify:
 ### File Output
 - [ ] Valid JSON (one log per line)
 - [ ] All required fields present
-- [ ] Nested structure correct (service.name, function.name, etc.)
+- [ ] Flat snake_case structure (service_name, function_name, etc.)
 - [ ] Compact format (no pretty-printing)
 
 ### Metrics (Prometheus)
@@ -757,7 +741,7 @@ For each test scenario, verify:
 ### Grafana Dashboard
 - [ ] Logs appear in all relevant panels
 - [ ] Fields displayed correctly
-- [ ] Filtering works (by service, traceId, session_id)
+- [ ] Filtering works (by service, trace_id, session_id)
 - [ ] Error logs highlighted
 - [ ] Job tracking shows progress
 
@@ -850,6 +834,6 @@ An implementation **passes all tests** when:
 
 ---
 
-**Document Status**: Initial version based on existing E2E tests
-**Last Updated**: 2025-10-07
-**Next Review**: After first contract test implementation
+**Document Status**: Updated for snake_case naming convention (v2.0.0)
+**Last Updated**: 2025-10-08
+**Specification Version**: 2.0.0

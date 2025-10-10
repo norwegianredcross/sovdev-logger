@@ -1,13 +1,22 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://sovdev.no/schemas/log-entry-file.json",
-  "title": "Sovdev Logger - File Log Entry Schema (Flexible)",
-  "description": "JSON Schema for validating file log entries produced by sovdev-logger. Accepts both flat dotted notation (TypeScript) and nested object notation (Python).",
+  "$id": "https://sovdev.no/schemas/log-entry-v2.json",
+  "title": "Sovdev Logger - File Log Entry Schema v2.0 (snake_case)",
+  "description": "Strict JSON Schema for validating file log entries. Uses snake_case field names consistently throughout, including exception fields (exception_type, exception_message, exception_stacktrace).",
   "type": "object",
   "required": [
     "timestamp",
-    "message"
+    "message",
+    "level",
+    "service_name",
+    "service_version",
+    "peer_service",
+    "function_name",
+    "log_type",
+    "trace_id",
+    "event_id"
   ],
+  "comment": "session_id is optional in file logs - it's a resource attribute primarily used in OTLP export",
   "properties": {
     "timestamp": {
       "type": "string",
@@ -16,145 +25,86 @@
     },
     "level": {
       "type": "string",
-      "enum": ["trace", "debug", "info", "warn", "error", "fatal", "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
-      "description": "Log level (lowercase or uppercase)"
+      "enum": ["trace", "debug", "info", "warn", "error", "fatal"],
+      "description": "Log level (lowercase only)"
     },
     "message": {
       "type": "string",
       "minLength": 1,
       "description": "Human-readable log message"
     },
-    "eventId": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-      "description": "Unique event identifier (UUID v4, flat notation)"
-    },
-    "traceId": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-      "description": "Trace identifier (UUID v4, flat notation)"
-    },
-    "functionName": {
+    "service_name": {
       "type": "string",
       "minLength": 1,
-      "description": "Function name (flat notation)"
+      "description": "Service identifier (snake_case)"
     },
-    "logType": {
+    "service_version": {
       "type": "string",
-      "enum": ["transaction", "job.status", "job.progress"],
-      "description": "Log type (flat notation)"
+      "minLength": 1,
+      "description": "Service version (snake_case)"
+    },
+    "peer_service": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Peer service identifier (snake_case)"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Session identifier (UUID v4, snake_case)"
+    },
+    "function_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Function/method name (snake_case)"
     },
     "log_type": {
       "type": "string",
       "enum": ["transaction", "job.status", "job.progress"],
-      "description": "Log type (snake_case notation)"
+      "description": "Log type classification (snake_case)"
     },
-    "peer.service": {
+    "trace_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$",
+      "description": "OpenTelemetry trace identifier (32-char hex, snake_case) - extracted from OTEL span context for proper distributed tracing"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Unique event identifier (UUID v4, snake_case)"
+    },
+    "input_json": {
+      "description": "Input parameters as object (snake_case)",
+      "oneOf": [
+        {"type": "object"},
+        {"type": "null"}
+      ]
+    },
+    "response_json": {
+      "description": "Response data as object (snake_case)",
+      "oneOf": [
+        {"type": "object"},
+        {"type": "null"}
+      ]
+    },
+    "exception_type": {
       "type": "string",
       "minLength": 1,
-      "description": "Peer service (dotted notation)"
+      "description": "Exception type (snake_case, project standard)"
     },
-    "service.name": {
+    "exception_message": {
       "type": "string",
       "minLength": 1,
-      "description": "Service name (dotted notation)"
+      "description": "Exception message (snake_case, project standard)"
     },
-    "service.version": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Service version (dotted notation)"
-    },
-    "service": {
-      "type": "object",
-      "description": "Service info (nested notation)",
-      "properties": {
-        "name": {"type": "string"},
-        "version": {"type": "string"}
-      }
-    },
-    "trace": {
-      "type": "object",
-      "description": "Trace info (nested notation)",
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-        }
-      }
-    },
-    "event": {
-      "type": "object",
-      "description": "Event info (nested notation)",
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-        }
-      }
-    },
-    "function": {
-      "type": "object",
-      "description": "Function info (nested notation)",
-      "properties": {
-        "name": {"type": "string", "minLength": 1}
-      }
-    },
-    "peer": {
-      "type": "object",
-      "description": "Peer info (nested notation)",
-      "properties": {
-        "service": {"type": "string", "minLength": 1}
-      }
-    },
-    "session": {
-      "type": "object",
-      "description": "Session info (nested notation)",
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-        }
-      }
-    },
-    "inputJSON": {
-      "description": "Input data (flat notation)",
-      "oneOf": [{"type": "object"}, {"type": "null"}]
-    },
-    "responseJSON": {
-      "description": "Response data (flat notation)",
-      "oneOf": [{"type": "object"}, {"type": "null"}]
-    },
-    "input": {
-      "description": "Input data (nested notation)",
-      "type": "object"
-    },
-    "response": {
-      "description": "Response data (nested notation)",
-      "type": "object"
-    },
-    "exception.type": {
-      "type": "string",
-      "const": "Error",
-      "description": "Exception type (dotted notation)"
-    },
-    "exception.message": {
-      "type": "string",
-      "description": "Exception message (dotted notation)"
-    },
-    "exception.stack": {
+    "exception_stacktrace": {
       "type": "string",
       "maxLength": 350,
-      "description": "Stack trace (dotted notation, max 350 chars)"
-    },
-    "exception": {
-      "type": "object",
-      "description": "Exception info (nested notation)",
-      "properties": {
-        "type": {"type": "string", "const": "Error"},
-        "message": {"type": "string"},
-        "stack": {"type": "string", "maxLength": 350}
-      }
+      "description": "Exception stack trace (snake_case, project standard, max 350 characters)"
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false,
+  "errorMessage": {
+    "additionalProperties": "Only snake_case field names are allowed. No camelCase (functionName, logType, etc.) or dotted notation (service.name, peer.service, exception.type, etc.)."
+  }
 }

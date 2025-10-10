@@ -1,33 +1,83 @@
 #!/bin/bash
-
-###############################################################################
-# validate-log-format.sh
+# filename: specification/tools/validate-log-format.sh
+# description: Validate log files against strict snake_case JSON schema
 #
-# Purpose: Validate sovdev-logger log file format against specification
+# Purpose:
+#   Validates sovdev-logger log files (dev.log, error.log) against the
+#   strict snake_case JSON schema specification. Ensures all field names
+#   use snake_case (service_name, function_name, etc.) and rejects old
+#   camelCase or dotted notation (serviceName, service.name).
 #
-# This script can run:
-# 1. From HOST: Connects to devcontainer and runs Python validator
-# 2. Inside DEVCONTAINER: Directly runs Python validator
+#   Can run from:
+#   1. HOST: Connects to devcontainer and runs Python validator
+#   2. DEVCONTAINER: Directly runs Python validator
 #
-# Usage:   ./validate-log-format.sh <log-file-path> [options]
-# Example: ./validate-log-format.sh python/test/.../logs/dev.log
-#          ./validate-log-format.sh python/test/.../logs/error.log --error-log
-#          ./validate-log-format.sh python/test/.../logs/dev.log --json
+# Usage:
+#   ./validate-log-format.sh <log-file-path> [options]
 #
-# Validation checks:
-# - JSON Schema compliance (all required fields, correct types)
-# - sessionId consistency (same across all logs)
-# - responseJSON/inputJSON always present
-# - exceptionType is "Error" for cross-language consistency
-# - stackTrace limited to 350 characters
-# - error.log contains only ERROR severity logs
+#   From host:
+#     cd sovdev-logger
+#     ./specification/tools/validate-log-format.sh typescript/test/e2e/company-lookup/logs/dev.log
 #
-# Exit codes:
-# 0   = Validation passed
-# 1   = Validation failed
-# 2   = Usage error (missing parameter)
-# 3   = Devcontainer not running (when run from host)
-# 4   = Log file not found
+#   From devcontainer:
+#     cd /workspace
+#     ./specification/tools/validate-log-format.sh typescript/test/e2e/company-lookup/logs/dev.log
+#
+# Arguments:
+#   log-file-path    Path to log file (relative to sovdev-logger root)
+#
+# Options:
+#   --json           Output JSON format for automation/parsing
+#   --error-log      Validate as error.log (ERROR logs only)
+#   --help           Show detailed help message
+#
+# Environment:
+#   - Requires devcontainer-toolbox container running (when called from host)
+#   - Uses Python validator: specification/tests/validate-log-format.py
+#   - Uses JSON Schema: specification/schemas/log-entry-schema.json
+#   - Auto-detects if running inside devcontainer or on host
+#
+# Validation Checks:
+#   1. JSON Schema compliance (all required fields, correct types, snake_case only)
+#   2. Field naming: ONLY accepts snake_case (service_name, function_name, log_type)
+#   3. Field naming: REJECTS camelCase (serviceName, functionName, logType)
+#   4. Field naming: REJECTS dotted notation (service.name, peer.service)
+#   5. UUID validation: trace_id and event_id must be valid UUID v4
+#   6. Exception structure: type must be "Error" for cross-language consistency
+#   7. Exception stack: limited to 350 characters
+#   8. Trace ID consistency: found and unique across log entries
+#   9. error.log specific: contains only ERROR severity logs (if --error-log)
+#
+# Exit Codes:
+#   0 - Validation passed (all checks successful)
+#   1 - Validation failed (schema violations, wrong field names)
+#   2 - Usage error (missing parameter or invalid arguments)
+#   3 - Devcontainer not running (when run from host)
+#   4 - Log file not found or unreadable
+#
+# Output:
+#   - Colored output with validation results
+#   - Shows total logs, severities, log types
+#   - Lists errors and warnings with line numbers
+#   - JSON output available with --json flag
+#
+# Examples:
+#   # Validate dev.log (TypeScript)
+#   ./validate-log-format.sh typescript/test/e2e/company-lookup/logs/dev.log
+#
+#   # Validate error.log with strict ERROR-only check
+#   ./validate-log-format.sh typescript/test/e2e/company-lookup/logs/error.log --error-log
+#
+#   # JSON output for CI/CD pipeline parsing
+#   ./validate-log-format.sh python/test/e2e/company-lookup/logs/dev.log --json
+#
+# CI/CD Integration:
+#   This script is designed for automated testing pipelines:
+#   - Returns exit code 0 for success, non-zero for failure
+#   - Provides JSON output for parsing results
+#   - Auto-detects environment (host vs devcontainer)
+#   - Validates strict snake_case naming convention
+#
 ###############################################################################
 
 set -e  # Exit on error
