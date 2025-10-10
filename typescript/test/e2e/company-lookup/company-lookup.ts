@@ -19,6 +19,7 @@ import {
 } from '../../../dist/index.js';
 
 import https from 'https';
+import { trace, context } from '@opentelemetry/api';
 
 // Define peer services - INTERNAL is auto-generated
 const PEER_SERVICES = create_peer_services({
@@ -61,40 +62,53 @@ async function lookupCompany(orgNumber: string): Promise<void> {
   const FUNCTIONNAME = 'lookupCompany';
   const input = { organisasjonsnummer: orgNumber };
 
-  sovdev_log(
-    SOVDEV_LOGLEVELS.INFO,
-    FUNCTIONNAME,
-    `Looking up company ${orgNumber}`,
-    PEER_SERVICES.BRREG,
-    input
-  );
+  // Create a span for this operation - OTEL will generate trace ID
+  const tracer = trace.getTracer('company-lookup-service');
+  const span = tracer.startSpan(`lookupCompany-${orgNumber}`);
 
-  try {
-    const companyData = await fetchCompanyData(orgNumber);
-    const response = {
-      navn: companyData.navn,
-      organisasjonsform: companyData.organisasjonsform?.beskrivelse
-    };
+  // Execute within the span context so logs can extract the trace ID
+  return await context.with(trace.setSpan(context.active(), span), async () => {
+    try {
+      sovdev_log(
+        SOVDEV_LOGLEVELS.INFO,
+        FUNCTIONNAME,
+        `Looking up company ${orgNumber}`,
+        PEER_SERVICES.BRREG,
+        input
+      );
 
-    sovdev_log(
-      SOVDEV_LOGLEVELS.INFO,
-      FUNCTIONNAME,
-      `Company found: ${companyData.navn}`,
-      PEER_SERVICES.BRREG,
-      input,
-      response
-    );
-  } catch (error) {
-    sovdev_log(
-      SOVDEV_LOGLEVELS.ERROR,
-      FUNCTIONNAME,
-      `Failed to lookup company ${orgNumber}`,
-      PEER_SERVICES.BRREG,
-      input,
-      null,
-      error
-    );
-  }
+      const companyData = await fetchCompanyData(orgNumber);
+      const response = {
+        navn: companyData.navn,
+        organisasjonsform: companyData.organisasjonsform?.beskrivelse
+      };
+
+      sovdev_log(
+        SOVDEV_LOGLEVELS.INFO,
+        FUNCTIONNAME,
+        `Company found: ${companyData.navn}`,
+        PEER_SERVICES.BRREG,
+        input,
+        response
+      );
+
+      span.end();
+    } catch (error) {
+      span.recordException(error as Error);
+      span.end();
+
+      sovdev_log(
+        SOVDEV_LOGLEVELS.ERROR,
+        FUNCTIONNAME,
+        `Failed to lookup company ${orgNumber}`,
+        PEER_SERVICES.BRREG,
+        input,
+        null,
+        error
+      );
+      throw error;
+    }
+  });
 }
 
 /**

@@ -346,7 +346,10 @@ class LogConsistencyValidator:
             'log_type',
             'service_name',
             'service_version',
-            'peer_service'
+            'peer_service',
+            'trace_id',
+            'span_id',
+            'event_id'
         ]
 
         mismatches = {}

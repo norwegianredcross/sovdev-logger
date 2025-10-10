@@ -54,7 +54,7 @@
           "minLength": 16,
           "maxLength": 32,
           "pattern": "^[0-9a-f]{16,32}$",
-          "description": "Unique trace identifier (16-32 char hex, may omit leading zeros)"
+          "description": "OpenTelemetry trace identifier (16-32 char hex, Tempo may omit leading zeros)"
         },
         "rootServiceName": {
           "type": "string",

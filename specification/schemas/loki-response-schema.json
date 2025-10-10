@@ -159,11 +159,18 @@
         },
         "trace_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          "pattern": "^[0-9a-f]{32}$",
+          "description": "OpenTelemetry trace identifier (32-char hex)"
+        },
+        "span_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "OpenTelemetry span identifier (16-char hex, optional)"
         },
         "event_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "description": "Unique event identifier (UUID v4)"
         },
         "input_json": {
           "oneOf": [

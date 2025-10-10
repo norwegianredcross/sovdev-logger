@@ -68,6 +68,11 @@
       "pattern": "^[0-9a-f]{32}$",
       "description": "OpenTelemetry trace identifier (32-char hex, snake_case) - extracted from OTEL span context for proper distributed tracing"
     },
+    "span_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$",
+      "description": "OpenTelemetry span identifier (16-char hex, snake_case) - extracted from OTEL span context, links logs to specific operations within a trace"
+    },
     "event_id": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",

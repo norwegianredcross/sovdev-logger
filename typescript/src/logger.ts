@@ -33,7 +33,7 @@ import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs
 import { PeriodicExportingMetricReader, MeterProvider } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 import { metrics, Counter, Histogram, UpDownCounter } from '@opentelemetry/api';
-import { trace, Span, SpanStatusCode, context } from '@opentelemetry/api';
+import { trace } from '@opentelemetry/api';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
@@ -107,6 +107,7 @@ interface StructuredLogEntry {
 
   // Correlation fields (snake_case for consistency)
   trace_id: string;      // Business transaction identifier (links related operations)
+  span_id?: string;      // OpenTelemetry span identifier (16-char hex, links to specific operation)
   event_id: string;      // Unique identifier for this log entry
 
   // Log classification
@@ -165,6 +166,9 @@ class OpenTelemetryWinstonTransport extends TransportStream {
       // Add correlation fields (snake_case for consistency)
       if (info.trace_id) {
         attributes.trace_id = info.trace_id;
+      }
+      if (info.span_id) {
+        attributes.span_id = info.span_id;
       }
       if (info.event_id) {
         attributes.event_id = info.event_id;
@@ -411,6 +415,7 @@ class InternalSovdevLogger {
       function_name,
       message,
       trace_id: final_trace_id,
+      // span_id will be populated by write_log if active span exists (optional field)
       event_id: event_id,
       log_type: log_type || 'transaction',  // Default to transaction if not specified
       input_json,
@@ -487,6 +492,22 @@ class InternalSovdevLogger {
     const start_time = Date.now();
 
     try {
+      // Extract trace ID and span ID from active OpenTelemetry span context (if any)
+      // This links logs to traces automatically without creating new spans
+      const active_span = trace.getActiveSpan();
+      if (active_span) {
+        const span_context = active_span.spanContext();
+        if (span_context.traceId) {
+          // Override log trace_id with the active span's trace ID
+          // This ensures logs and traces are correlated properly
+          log_entry.trace_id = span_context.traceId;
+        }
+        if (span_context.spanId) {
+          // Extract span ID for operation-level correlation
+          log_entry.span_id = span_context.spanId;
+        }
+      }
+
       // Emit metrics automatically (zero developer effort)
       if (globalMetrics) {
         const attributes = {
@@ -730,7 +751,8 @@ function configure_opentelemetry(service_name: string, service_version: string, 
     const environment = process.env.NODE_ENV || 'development';
 
     // TRACE EXPORTER AND PROVIDER
-    let tracer_provider: BasicTracerProvider | null = null;
+    // CRITICAL: Must create and register TracerProvider BEFORE SDK initialization
+    // The SDK's auto-instrumentation needs an active TracerProvider to work
     const trace_endpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
                          process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
                          'http://localhost:4318/v1/traces';
@@ -741,15 +763,14 @@ function configure_opentelemetry(service_name: string, service_version: string, 
         JSON.parse(process.env.OTEL_EXPORTER_OTLP_HEADERS) : {},
     });
 
-    // Create BasicTracerProvider with BatchSpanProcessor
-    tracer_provider = new BasicTracerProvider({
-      resource
-    });
+    const tracer_provider = new BasicTracerProvider({ resource });
     tracer_provider.addSpanProcessor(new BatchSpanProcessor(trace_exporter));
 
-    // Set global tracer provider
+    // CRITICAL: Set global BEFORE SDK initialization
     trace.setGlobalTracerProvider(tracer_provider);
+
     console.log('🔍 OTLP Trace exporter configured for:', trace_endpoint);
+    console.log('✅ Global TracerProvider set (before SDK)');
 
     // LOG EXPORTER (NEW - IMPROVED)
     let logger_provider: LoggerProvider | null = null;
@@ -771,13 +792,16 @@ function configure_opentelemetry(service_name: string, service_version: string, 
       console.log('📡 BatchLogRecordProcessor added to LoggerProvider');
     }
 
-    // NODE SDK CONFIGURATION (optional auto-instrumentation)
+    // NODE SDK CONFIGURATION (auto-instrumentation)
+    // NOTE: TracerProvider is already set globally above, SDK will use it
     const sdk = new NodeSDK({
       resource,
       instrumentations: [
         getNodeAutoInstrumentations({
           // Enable Winston instrumentation for automatic trace context injection
           '@opentelemetry/instrumentation-winston': { enabled: true },
+          // Enable HTTP instrumentation for automatic span creation on http/https calls
+          '@opentelemetry/instrumentation-http': { enabled: true },
           // Disable verbose instrumentations for development
           '@opentelemetry/instrumentation-fs': { enabled: false },
           '@opentelemetry/instrumentation-dns': { enabled: false },
@@ -786,13 +810,13 @@ function configure_opentelemetry(service_name: string, service_version: string, 
     });
 
     console.log('🔗 OpenTelemetry SDK initialized for', service_name);
-    console.log('🔍 Auto-instrumentation includes Winston integration');
+    console.log('🔍 Auto-instrumentation includes Winston and HTTP integration');
 
     return { sdk, loggerProvider: logger_provider, tracerProvider: tracer_provider };
 
   } catch (error) {
     console.warn('⚠️  OpenTelemetry SDK configuration failed:', error);
-    return { sdk: null, loggerProvider: null, tracerProvider: null as BasicTracerProvider | null };
+    return { sdk: null, loggerProvider: null, tracerProvider: null };
   }
 }
 
@@ -1046,6 +1070,7 @@ export type { SovdevLogLevel, StructuredLogEntry };
  */
 async function flush_sovdev_logs(): Promise<void> {
   try {
+    // Flush all providers we created
     if (globalTracerProvider) {
       console.log('🔄 Flushing OpenTelemetry traces...');
       await globalTracerProvider.forceFlush();
@@ -1064,6 +1089,7 @@ async function flush_sovdev_logs(): Promise<void> {
       console.log('✅ OpenTelemetry logs flushed successfully');
     }
 
+    // Shutdown the SDK and providers
     if (otelSDK) {
       console.log('🔄 Shutting down OpenTelemetry SDK...');
       await otelSDK.shutdown();

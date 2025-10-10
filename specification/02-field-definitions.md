@@ -54,11 +54,14 @@ This document defines **every field** that must appear in log entries across all
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **trace_id** | string | UUID v4 (lowercase, 36 chars) | "c3d75d26-d783-48a2-96c3-1e62a37419c7" | ✅ | ✅ | ✅ | Business transaction correlation |
+| **trace_id** | string | 32-char hex from OTEL span | "a511b23170d1efb01d110191712cb439" | ✅ | ✅ | ✅ | OpenTelemetry trace identifier (links related operations in distributed system) |
+| **span_id** | string | 16-char hex from OTEL span | "7bf8a401f109ebe9" | ✅ | ❌ | ✅ | OpenTelemetry span identifier (links to specific operation within trace) |
 | **event_id** | string | UUID v4 (lowercase, 36 chars) | "dca7f112-1c94-478f-88f2-ec9805574190" | ✅ | ❌ | ✅ | Unique log entry identifier |
 | **session_id** | string | UUID v4 generated at init | "18df09dd-c321-43d8-aa24-19dd7c149a56" | ✅ | ✅ | ✅ | Execution correlation (groups all logs/metrics/traces from same run) |
 
-**Note**: All UUIDs use lowercase letters with hyphens (standard UUID v4 format)
+**Note**:
+- **trace_id** and **span_id**: Extracted from OpenTelemetry span context (hex format, no dashes)
+- **event_id** and **session_id**: Generated as UUID v4 (lowercase with hyphens)
 
 ### Timestamps
 
@@ -186,7 +189,8 @@ Example input_json:
 ```
 2025-10-07 08:34:22 [ERROR] sovdev-test-company-lookup-python
   Function: lookupCompany
-  Trace ID: 50ba0e1d-c46d-4dee-98d3-a0d3913f74ee
+  Trace ID: a511b23170d1efb01d110191712cb439
+  Span ID: 7bf8a401f109ebe9
   Session ID: 18df09dd-c321-43d8-aa24-19dd7c149a56
   Error: HTTP 404:
   Stack: Traceback (most recent call last):
@@ -210,7 +214,8 @@ Example input_json:
   "session_id": "18df09dd-c321-43d8-aa24-19dd7c149a56",
   "function_name": "lookupCompany",
   "message": "Failed to lookup company 974652846",
-  "trace_id": "50ba0e1d-c46d-4dee-98d3-a0d3913f74ee",
+  "trace_id": "a511b23170d1efb01d110191712cb439",
+  "span_id": "7bf8a401f109ebe9",
   "exception": {
     "type": "Error",
     "message": "HTTP 404:",
@@ -226,7 +231,7 @@ Example input_json:
 Each log entry is a single line of JSON with snake_case field names:
 
 ```json
-{"timestamp":"2025-10-07T08:34:22.398784+00:00","level":"error","service_name":"sovdev-test-company-lookup-python","service_version":"1.0.0","session_id":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer_service":"SYS1234567","function_name":"lookupCompany","log_type":"transaction","message":"Failed to lookup company 974652846","trace_id":"50ba0e1d-c46d-4dee-98d3-a0d3913f74ee","event_id":"cf115688-513e-48fe-8049-538a515f608d","input_json":{"organisasjonsnummer":"974652846"},"response_json":null,"exception":{"type":"Error","message":"HTTP 404:","stack":"Traceback..."}}
+{"timestamp":"2025-10-07T08:34:22.398784+00:00","level":"error","service_name":"sovdev-test-company-lookup-python","service_version":"1.0.0","session_id":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer_service":"SYS1234567","function_name":"lookupCompany","log_type":"transaction","message":"Failed to lookup company 974652846","trace_id":"a511b23170d1efb01d110191712cb439","span_id":"7bf8a401f109ebe9","event_id":"cf115688-513e-48fe-8049-538a515f608d","input_json":{"organisasjonsnummer":"974652846"},"response_json":null,"exception":{"type":"Error","message":"HTTP 404:","stack":"Traceback..."}}
 ```
 
 **Format Rules**:
@@ -253,7 +258,8 @@ Logs are sent to OpenTelemetry Collector via OTLP protocol using snake_case fiel
   "peer_service": "SYS1234567",
   "function_name": "lookupCompany",
   "log_type": "transaction",
-  "trace_id": "50ba0e1d-c46d-4dee-98d3-a0d3913f74ee",
+  "trace_id": "a511b23170d1efb01d110191712cb439",
+  "span_id": "7bf8a401f109ebe9",
   "event_id": "cf115688-513e-48fe-8049-538a515f608d",
   "input_json": "{\"organisasjonsnummer\":\"974652846\"}",
   "response_json": "null",
@@ -285,6 +291,7 @@ Summary of which fields appear in which outputs:
 | scope_name | ✅ | ❌ | ❌ | ✅ (OTLP only) |
 | scope_version | ✅ | ❌ | ❌ | ✅ (OTLP only) |
 | trace_id | ✅ | ✅ | ✅ | ✅ |
+| span_id | ✅ | ❌ | ✅ | ❌ (when span active) |
 | event_id | ✅ | ❌ | ✅ | ✅ |
 | session_id | ✅ | ✅ | ✅ | ✅ |
 | timestamp | ✅ | ✅ | ✅ | ✅ |
@@ -318,7 +325,9 @@ All implementations MUST validate that these fields are present in every log ent
 - response_json (even if "null")
 
 ### Format Validation
-- **UUID Fields**: Must match regex `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
+- **trace_id**: Must match regex `^[0-9a-f]{32}$` (32-char hex from OTEL span context)
+- **span_id**: Must match regex `^[0-9a-f]{16}$` (16-char hex from OTEL span context, optional)
+- **UUID Fields** (event_id, session_id): Must match regex `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
 - **Timestamps**: Must be valid ISO 8601 or nanoseconds since epoch
 - **Log Levels**: Must be one of: trace, debug, info, warn, error, fatal (lowercase)
 - **Severity Text**: Must be uppercase version of log level
