@@ -1,43 +1,74 @@
 #!/bin/bash
 ################################################################################
-# in-devcontainer.sh - Universal wrapper to run any script inside devcontainer
+# in-devcontainer.sh - Universal wrapper to run scripts and commands inside devcontainer
 #
-# Purpose: Run specification/tools scripts inside devcontainer from host machine
-#          Eliminates need for individual -host.sh wrapper files
+# Purpose:
+#   1. Run specification/tools scripts inside devcontainer from host machine
+#   2. Execute arbitrary commands inside devcontainer
+#   Eliminates need for individual -host.sh wrapper files
 #
-# Usage:
-#   ./in-devcontainer.sh <script> [args...]
-#   ./in-devcontainer.sh --help
-#   ./in-devcontainer.sh --list
+# TWO MODES OF OPERATION:
 #
-# Examples:
-#   ./in-devcontainer.sh query-loki.sh service-name --json
-#   ./in-devcontainer.sh run-full-validation.sh python
-#   ./in-devcontainer.sh validate-log-format.sh python/test/logs/dev.log
+# MODE 1: Run Scripts from specification/tools/ directory
+#   Usage:
+#     ./in-devcontainer.sh <script> [args...]
+#     ./in-devcontainer.sh --help
+#     ./in-devcontainer.sh --list
 #
-# Shortcuts (auto-add .sh):
-#   ./in-devcontainer.sh query-loki service-name
-#   ./in-devcontainer.sh run-full-validation python
+#   Examples:
+#     ./in-devcontainer.sh query-loki.sh service-name --json
+#     ./in-devcontainer.sh run-full-validation.sh python
+#     ./in-devcontainer.sh validate-log-format.sh python/test/logs/dev.log
 #
-# Common aliases:
-#   loki           → query-loki.sh
-#   prometheus     → query-prometheus.sh
-#   tempo          → query-tempo.sh
-#   validate       → run-full-validation.sh
-#   validate-logs  → validate-log-format.sh
+#   Shortcuts (auto-add .sh extension):
+#     ./in-devcontainer.sh query-loki service-name
+#     ./in-devcontainer.sh run-full-validation python
+#
+#   Common aliases:
+#     loki           → query-loki.sh
+#     prometheus     → query-prometheus.sh
+#     tempo          → query-tempo.sh
+#     validate       → run-full-validation.sh
+#     validate-logs  → validate-log-format.sh
+#
+# MODE 2: Execute Arbitrary Commands (--exec or -e flag)
+#   Usage:
+#     ./in-devcontainer.sh --exec <command>
+#     ./in-devcontainer.sh -e <command>
+#
+#   Examples:
+#     # Simple commands
+#     ./in-devcontainer.sh --exec whoami
+#     ./in-devcontainer.sh -e pwd
+#
+#     # Complex commands (use quotes)
+#     ./in-devcontainer.sh --exec "cd /workspace/typescript && npm test"
+#     ./in-devcontainer.sh -e "ls -la /workspace"
+#
+#     # With dry-run to see what would execute
+#     ./in-devcontainer.sh --dry-run --exec "cd /workspace && npm install"
+#
+#   Note: In exec mode, NO script resolution happens. The command runs as-is.
+#         You must provide the full command exactly as you want it executed.
 #
 # Options:
-#   --help         Show this help message
-#   --list         List all available scripts in devcontainer
-#   --dry-run      Show command without executing
-#   --interactive  Open bash shell in tools directory
+#   --help, -h         Show this help message
+#   --list, -l         List all available scripts in devcontainer
+#   --dry-run          Show command without executing (works with both modes)
+#   --interactive, -i  Open bash shell in tools directory
+#   --exec, -e         Execute arbitrary command in container (MODE 2)
 #
 # Exit Codes:
 #   0 - Success
 #   1 - Script execution failed
 #   2 - Usage error
 #   3 - Container not running
-#   4 - Script not found
+#   4 - Script not found (MODE 1 only)
+#
+# Container Requirements:
+#   - Container must be named: devcontainer-toolbox
+#   - Container must be running (use: docker start devcontainer-toolbox)
+#   - Container must have /workspace mounted
 #
 ################################################################################
 
@@ -57,6 +88,7 @@ NC='\033[0m' # No Color
 # Flags
 DRY_RUN=false
 INTERACTIVE=false
+EXEC_MODE=false
 
 #------------------------------------------------------------------------------
 # Helper Functions
@@ -64,28 +96,38 @@ INTERACTIVE=false
 
 show_help() {
     cat << EOF
-${BLUE}in-devcontainer.sh${NC} - Universal wrapper to run scripts inside devcontainer
+${BLUE}in-devcontainer.sh${NC} - Universal wrapper to run scripts and commands inside devcontainer
+
+${YELLOW}TWO MODES OF OPERATION:${NC}
+
+  ${GREEN}MODE 1: Run Scripts${NC} (from specification/tools/ directory)
+    ./in-devcontainer.sh <script> [args...]
+
+  ${GREEN}MODE 2: Execute Commands${NC} (arbitrary commands)
+    ./in-devcontainer.sh --exec <command>
+    ./in-devcontainer.sh -e <command>
 
 ${YELLOW}Usage:${NC}
-  ./in-devcontainer.sh <script> [args...]
+  ./in-devcontainer.sh <script> [args...]        # MODE 1
+  ./in-devcontainer.sh --exec <command>          # MODE 2
   ./in-devcontainer.sh [options]
 
 ${YELLOW}Examples:${NC}
-  ${GREEN}# Query tools${NC}
-  ./in-devcontainer.sh query-loki.sh service-name --json
-  ./in-devcontainer.sh query-prometheus.sh service-name
-  ./in-devcontainer.sh query-tempo.sh service-name --limit 5
 
-  ${GREEN}# Validation tools${NC}
+  ${GREEN}MODE 1 - Run Scripts:${NC}
+  ./in-devcontainer.sh query-loki.sh service-name --json
   ./in-devcontainer.sh run-full-validation.sh python
   ./in-devcontainer.sh validate-log-format.sh python/test/logs/dev.log
 
-  ${GREEN}# Test tools${NC}
-  ./in-devcontainer.sh run-company-lookup.sh typescript
-
-  ${GREEN}# Shortcuts (auto-add .sh)${NC}
+  ${GREEN}MODE 1 - Shortcuts (auto-add .sh extension):${NC}
   ./in-devcontainer.sh query-loki service-name
-  ./in-devcontainer.sh validate-log-format python/test/logs/dev.log
+  ./in-devcontainer.sh validate python
+
+  ${GREEN}MODE 2 - Execute Arbitrary Commands:${NC}
+  ./in-devcontainer.sh --exec whoami
+  ./in-devcontainer.sh --exec "cd /workspace/typescript && npm test"
+  ./in-devcontainer.sh -e "ls -la /workspace"
+  ./in-devcontainer.sh --dry-run --exec "cd /workspace && npm install"
 
 ${YELLOW}Common Aliases:${NC}
   loki, prometheus, tempo   → query-{name}.sh
@@ -98,6 +140,7 @@ ${YELLOW}Options:${NC}
   --list         List all available scripts in devcontainer
   --dry-run      Show command without executing
   --interactive  Open bash shell in tools directory (cd $TOOLS_DIR)
+  --exec, -e     Execute arbitrary command in container (not just tools scripts)
 
 ${YELLOW}Exit Codes:${NC}
   0 - Success
@@ -108,9 +151,11 @@ ${YELLOW}Exit Codes:${NC}
 
 ${YELLOW}Notes:${NC}
   - Container must be running: docker start $CONTAINER_NAME
-  - Scripts run from: $TOOLS_DIR
-  - All script arguments are passed through
-  - Use quotes for arguments with spaces
+  - MODE 1: Scripts run from: $TOOLS_DIR
+  - MODE 1: Script names auto-resolve (.sh extension, aliases)
+  - MODE 2: Commands execute as-is, no script resolution
+  - MODE 2: Use quotes for complex commands with spaces/special chars
+  - All arguments are passed through to scripts/commands
 
 ${YELLOW}Alternative:${NC}
   For the most common workflow, you can use:
@@ -125,7 +170,8 @@ list_scripts() {
     echo -e "${BLUE}Available scripts in devcontainer:${NC}"
     echo ""
 
-    if ! docker ps | grep -q "$CONTAINER_NAME"; then
+    # Check if container is running using docker exec
+    if ! docker exec "$CONTAINER_NAME" true 2>/dev/null; then
         echo -e "${RED}❌ Error: Container '$CONTAINER_NAME' is not running${NC}"
         echo "Start with: docker start $CONTAINER_NAME"
         exit 3
@@ -149,7 +195,9 @@ list_scripts() {
 }
 
 check_container() {
-    if ! docker ps | grep -q "$CONTAINER_NAME"; then
+    # Most reliable way: try to execute a command in the container
+    # If this succeeds, the container is definitely running
+    if ! docker exec "$CONTAINER_NAME" true 2>/dev/null; then
         echo -e "${RED}❌ Error: Container '$CONTAINER_NAME' is not running${NC}" >&2
         echo "" >&2
         echo "Start the container with:" >&2
@@ -225,6 +273,19 @@ run_interactive() {
     docker exec -it "$CONTAINER_NAME" bash -c "cd $TOOLS_DIR && exec bash"
 }
 
+run_command() {
+    local cmd="$1"
+
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${YELLOW}Dry run mode - would execute:${NC}"
+        echo "docker exec $CONTAINER_NAME bash -c \"$cmd\""
+        exit 0
+    fi
+
+    # Execute arbitrary command in container
+    docker exec "$CONTAINER_NAME" bash -c "$cmd"
+}
+
 run_script() {
     local script="$1"
     shift
@@ -280,6 +341,10 @@ while [[ $# -gt 0 ]]; do
             INTERACTIVE=true
             shift
             ;;
+        --exec|-e)
+            EXEC_MODE=true
+            shift
+            ;;
         -*)
             echo -e "${RED}❌ Error: Unknown option: $1${NC}" >&2
             echo "Use --help for usage information" >&2
@@ -298,6 +363,19 @@ check_container
 # Interactive mode
 if [ "$INTERACTIVE" = true ]; then
     run_interactive
+    exit 0
+fi
+
+# Exec mode - run arbitrary command
+if [ "$EXEC_MODE" = true ]; then
+    if [ $# -eq 0 ]; then
+        echo -e "${RED}❌ Error: No command specified${NC}" >&2
+        echo "Usage: ./in-devcontainer.sh --exec <command>" >&2
+        echo "Example: ./in-devcontainer.sh --exec whoami" >&2
+        exit 2
+    fi
+    # Join all remaining arguments as the command
+    run_command "$*"
     exit 0
 fi
 
