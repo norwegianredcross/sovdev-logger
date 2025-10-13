@@ -23,4 +23,4 @@ export { create_peer_services } from './peerServices';
 
 // Export TypeScript types
 export type { sovdev_log_level } from './logLevels';
-export type { StructuredLogEntry } from './logger';
+export type { structured_log_entry } from './logger';

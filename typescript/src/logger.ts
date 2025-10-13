@@ -53,14 +53,14 @@ import { SOVDEV_LOGLEVELS, sovdev_log_level } from './logLevels';
 /**
  * Global metrics instances - automatically track operations
  */
-interface SovdevMetrics {
+interface sovdev_metrics {
   operationCounter: Counter;           // Total operations by service, peer, level
   errorCounter: Counter;               // Total errors by service, peer, exception type
   operationDuration: Histogram;        // Operation duration distribution
   activeOperations: UpDownCounter;     // Currently active operations
 }
 
-let globalMetrics: SovdevMetrics | null = null;
+let globalMetrics: sovdev_metrics | null = null;
 let globalMeterProvider: MeterProvider | null = null;
 let globalTracerProvider: BasicTracerProvider | null = null;
 
@@ -92,7 +92,7 @@ function getServiceVersion(): string {
  * Complete structured log entry format - complies with "Loggeloven av 2025"
  * Uses snake_case field names for consistency across all languages
  */
-interface StructuredLogEntry {
+interface structured_log_entry {
   // Required fields
   timestamp: string;
   level?: string; // Optional - Winston will set this based on .log(level, entry)
@@ -130,7 +130,7 @@ interface StructuredLogEntry {
 /**
  * Custom Winston transport that sends logs to OpenTelemetry OTLP
  */
-class OpenTelemetryWinstonTransport extends TransportStream {
+class open_telemetry_winston_transport extends TransportStream {
   private otelLogger: any;
 
   constructor(options: any = {}) {
@@ -309,7 +309,7 @@ function createTransports(serviceName?: string): winston.transport[] {
   // 4. OPENTELEMETRY TRANSPORT: Always enabled for centralized logging
   if (serviceName) {
     transports.push(
-      new OpenTelemetryWinstonTransport({
+      new open_telemetry_winston_transport({
         serviceName: serviceName,
         level: 'silly' // Include all levels
       })
@@ -345,7 +345,7 @@ function initializeWinstonLogger(serviceName: string): void {
  * Internal logger class - handles all complexity, hidden from developers
  * IMPROVED: No manual trace injection - relies on OpenTelemetry auto-instrumentation
  */
-class InternalSovdevLogger {
+class internal_sovdev_logger {
   private readonly service_name: string;
   private readonly service_version: string;
   private readonly system_ids_mapping: Record<string, string>;
@@ -391,7 +391,7 @@ class InternalSovdevLogger {
     response_json?: any,
     trace_id?: string,
     log_type?: string
-  ): StructuredLogEntry {
+  ): structured_log_entry {
     // Generate unique event ID for this log entry
     const event_id = uuidv4();
 
@@ -406,7 +406,7 @@ class InternalSovdevLogger {
 
     // Create the complete log entry with snake_case fields
     // NOTE: Do NOT include 'level' field here - Winston will add it based on .log(level, entry)
-    const log_entry: StructuredLogEntry = {
+    const log_entry: structured_log_entry = {
       timestamp: new Date().toISOString(),
       // level field omitted - Winston will set it
       service_name: this.service_name,
@@ -488,7 +488,7 @@ class InternalSovdevLogger {
    * Write log entry using Winston (multiple transports including OTLP)
    * IMPROVED: Automatically emit metrics for complete observability
    */
-  private write_log(level: string, log_entry: StructuredLogEntry): void {
+  private write_log(level: string, log_entry: structured_log_entry): void {
     const start_time = Date.now();
 
     try {
@@ -834,7 +834,7 @@ function configure_opentelemetry(service_name: string, service_version: string, 
 /**
  * Global logger instance - initialized once per application
  */
-let globalLogger: InternalSovdevLogger | null = null;
+let globalLogger: internal_sovdev_logger | null = null;
 
 /**
  * Global OpenTelemetry SDK instance
@@ -920,7 +920,7 @@ function initialize_sovdev_logger(
   // This must happen AFTER global LoggerProvider is set
   initializeWinstonLogger(effective_service_name.trim());
 
-  globalLogger = new InternalSovdevLogger(
+  globalLogger = new internal_sovdev_logger(
     effective_service_name.trim(),
     effective_service_version,
     effective_system_ids
@@ -952,7 +952,7 @@ function initialize_sovdev_logger(
 /**
  * Ensure logger is initialized before use
  */
-function ensure_logger(): InternalSovdevLogger {
+function ensure_logger(): internal_sovdev_logger {
   if (!globalLogger) {
     throw new Error(
       'Sovdev Logger not initialized. Call sovdev_initialize(service_name) at application startup.'
@@ -1037,7 +1037,7 @@ export function sovdev_log_job_progress(
 }
 
 // Export types for TypeScript consumers
-export type { sovdev_log_level, StructuredLogEntry };
+export type { sovdev_log_level, structured_log_entry };
 
 /**
  * ARCHITECTURE SUMMARY:
