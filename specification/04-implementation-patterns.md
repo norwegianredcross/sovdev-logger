@@ -69,9 +69,95 @@ def create_log_entry(
     }
 ```
 
-### Migration Note
+---
 
-Existing implementations using camelCase must be refactored to snake_case in version 2.0.0.
+## Required Directory Structure
+
+### Overview
+
+**ALL language implementations MUST follow this exact directory structure** to work with cross-language validation tools in `specification/tools/`.
+
+### Standard Structure
+
+```
+<language>/                  # Language directory (typescript, python, php, go, rust, etc.)
+├── <package>/               # Main package/library code
+│   ├── (source files)       # Implementation files
+│   └── ...
+├── test/                    # Test directory (singular, not "tests")
+│   └── e2e/                 # E2E tests
+│       └── company-lookup/  # REQUIRED: Standard E2E test application
+│           ├── .env                 # REQUIRED: Environment configuration
+│           ├── company-lookup.<ext> # REQUIRED: Main test script (e.g., .ts, .py, .php, .go)
+│           ├── package.*            # REQUIRED: Dependencies (package.json, requirements.txt, go.mod, etc.)
+│           ├── run-test.sh          # REQUIRED: Execution script
+│           └── logs/                # REQUIRED: Log output directory (created by test)
+└── (other files)            # README, build config, etc.
+```
+
+### Critical Requirements
+
+1. **Directory name**: MUST be `test/` (singular), NOT `tests/` (plural)
+2. **E2E directory**: MUST be `test/e2e/`
+3. **Standard test app**: MUST be `test/e2e/company-lookup/` directory
+4. **Environment file**: MUST include `.env` with OTLP configuration
+5. **Test script name**: MUST be `company-lookup.<ext>` matching the language
+6. **Run script**: MUST include `run-test.sh` for validation tools
+7. **Logs directory**: MUST include `logs/` subdirectory for output
+
+### Why This Matters
+
+The validation tools in `specification/tools/` expect this exact structure:
+
+- `run-company-lookup-validate.sh` - Executes tests and validates output
+- `validate-log-format.sh` - Validates JSON log format
+- `query-loki.sh` - Queries logs from observability stack
+- `run-full-validation.sh` - Runs complete validation suite
+
+**If the directory structure doesn't match, validation tools will fail.**
+
+### Purpose of company-lookup
+
+The `company-lookup` application is a **standardized E2E test** that:
+
+1. Tests the entire logging pipeline (console + file + OTLP)
+2. Demonstrates all 7 core API functions
+3. Produces consistent output across all languages
+4. Enables cross-language validation
+
+Every language implementation should produce functionally identical logs when running `company-lookup`.
+
+---
+
+## Required File: .env
+
+The `.env` file configures OTLP endpoints and environment variables for the test application. This file MUST be present in the `test/e2e/company-lookup/` directory.
+
+**Reference Implementation**: `typescript/test/e2e/company-lookup/.env` (73 lines, fully documented)
+
+**Critical Requirement**: Service name MUST follow pattern `sovdev-test-company-lookup-<language>` (e.g., `sovdev-test-company-lookup-python`)
+
+---
+
+## Required File: run-test.sh
+
+### Purpose
+
+The `run-test.sh` script is the **standardized execution wrapper** for the E2E test. All validation tools in `specification/tools/` execute this script, expecting consistent behavior across all languages.
+
+### Required Behavior
+
+The script MUST perform these steps in order:
+
+1. **Clean old logs**: Remove `logs/*.log` files to ensure fresh test data
+2. **Load environment**: Source `.env` file to set OTLP configuration
+3. **Execute test**: Run the `company-lookup.<ext>` script with language-specific command
+4. **Validate logs**: Call `validate-log-format.sh` on generated log files (unless `--skip-validation` flag set)
+5. **Return exit code**: 0 for success, non-zero for failure
+
+### Reference Implementation
+
+**Reference Implementation**: `typescript/test/e2e/company-lookup/run-test.sh` (135 lines, fully documented)
 
 ---
 
@@ -201,6 +287,40 @@ logger.addHandler(OtelLogHandler(service_name='my-service'))
 - Every Python developer already knows it
 - Full control over formatting and handlers
 - Easy to extend with custom handlers
+
+**Import pattern**:
+```python
+# In __init__.py - expose public API
+from .logger import (
+    sovdev_initialize,
+    sovdev_log,
+    sovdev_log_job_status,
+    sovdev_log_job_progress,
+    sovdev_flush,
+    sovdev_generate_trace_id,
+    create_peer_services
+)
+from .types import SOVDEV_LOGLEVELS
+
+__all__ = [
+    'sovdev_initialize',
+    'sovdev_log',
+    'sovdev_log_job_status',
+    'sovdev_log_job_progress',
+    'sovdev_flush',
+    'sovdev_generate_trace_id',
+    'create_peer_services',
+    'SOVDEV_LOGLEVELS'
+]
+```
+
+**Usage**:
+```python
+from sovdev_logger import sovdev_initialize, sovdev_log, SOVDEV_LOGLEVELS
+
+sovdev_initialize('my-service', '1.0.0', {})
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'test', 'Hello', 'internal')
+```
 
 ---
 
@@ -463,6 +583,89 @@ MDC.clear();
 2. Require same formatter for all outputs
 3. Don't support custom transports/handlers
 4. Are unmaintained or experimental
+
+---
+
+## Triple Output Architecture
+
+### Overview
+
+Sovdev-logger implements a **three-way output architecture** where logs are sent **simultaneously** to three destinations:
+
+1. **Console** (stdout) - Human-readable output for local development
+2. **File** (JSON Lines) - JSON log files for archival and debugging
+3. **OTLP** (OpenTelemetry Protocol) - Structured telemetry for production monitoring
+
+**IMPORTANT**: This is **NOT an either/or configuration**. All three outputs work simultaneously and independently.
+
+### Purpose of Each Output
+
+| Output | Purpose | Format | Use Case |
+|--------|---------|--------|----------|
+| **Console** | Developer experience during coding | Human-readable with colors | Local debugging, reading logs while coding |
+| **File** | Historical archive and offline analysis | JSON Lines (one entry per line) | Post-mortem debugging, compliance, log analysis tools |
+| **OTLP** | Production observability and monitoring | OpenTelemetry structured data | Grafana dashboards, alerting, distributed tracing |
+
+### Why All Three?
+
+- **Console**: Developers need readable logs while running code locally
+- **File**: Required for compliance (Loggeloven av 2025), debugging production issues offline
+- **OTLP**: Required for production monitoring, alerting, and distributed tracing in Grafana
+
+### Configuration
+
+Each output is independently enabled via environment variables:
+
+```bash
+# Console output
+LOG_TO_CONSOLE=true              # Enable/disable console logging
+
+# File output
+LOG_TO_FILE=true                 # Enable/disable file logging
+LOG_FILE_PATH=./logs/dev.log     # Main log file path
+ERROR_LOG_PATH=./logs/error.log  # Error-only log file path
+
+# OTLP output (always enabled by default)
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://localhost:4318/v1/logs
+```
+
+### Implementation Pattern
+
+All three outputs are configured at initialization:
+
+```typescript
+// TypeScript example using Winston
+const logger = winston.createLogger({
+  transports: [
+    // 1. Console transport (human-readable)
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.printf(info => `${info.timestamp} [${info.level}] ${info.message}`)
+      )
+    }),
+    // 2. File transport (JSON)
+    new winston.transports.File({
+      filename: 'logs/dev.log',
+      format: winston.format.json()
+    }),
+    // 3. OTLP transport (OpenTelemetry)
+    new OpenTelemetryWinstonTransport({
+      serviceName: 'my-service'
+    })
+  ]
+});
+```
+
+### Graceful Degradation
+
+If one output fails, the others continue working:
+
+- **OTLP collector unreachable**: Console and File still work
+- **Disk full**: Console and OTLP still work
+- **Console closed**: File and OTLP still work
+
+See `04-error-handling.md` for detailed graceful degradation patterns.
 
 ---
 
@@ -744,6 +947,36 @@ sovdev_log(
   { result: 'success' }
 );
 ```
+
+### Resolution Mechanism
+
+The `create_peer_services()` function generates two outputs:
+
+1. **Constants object** - Type-safe constants for each peer service (BRREG, ALTINN, etc.)
+2. **Mappings object** - Map of constant names to system IDs for validation
+
+**How it works**:
+```typescript
+// Input: Mapping of names to system IDs
+const input = {
+  BRREG: 'SYS1234567',
+  ALTINN: 'SYS7654321'
+};
+
+// Output: Constants object + mappings
+const PEER_SERVICES = {
+  INTERNAL: 'internal',           // Auto-generated constant
+  BRREG: 'SYS1234567',            // Passed through as constant
+  ALTINN: 'SYS7654321',           // Passed through as constant
+  mappings: {                     // Validation map
+    'internal': 'internal',
+    'SYS1234567': 'SYS1234567',
+    'SYS7654321': 'SYS7654321'
+  }
+};
+```
+
+**Validation**: When logging, the library checks if the `peer_service` value exists in `mappings`. Invalid values log a warning and use "unknown" as fallback.
 
 ---
 
