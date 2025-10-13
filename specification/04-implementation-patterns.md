@@ -466,6 +466,75 @@ MDC.clear();
 
 ---
 
+## OpenTelemetry Batch Processing
+
+### Overview
+
+**CRITICAL**: OpenTelemetry uses **batch processing by default** for efficiency. Logs, traces, and metrics are **accumulated in memory** and sent in **batches**, not immediately.
+
+**Without `sovdev_flush()`** before application exit, the **last batch is lost** (never sent to OTLP collector).
+
+### Default Batch Behavior
+
+| Telemetry | Processor | Trigger | Default |
+|-----------|-----------|---------|---------|
+| **Logs** | BatchLogRecordProcessor | 512 records OR 5 seconds | [Docs](https://opentelemetry.io/docs/specs/otel/logs/sdk/#batching-processor) |
+| **Traces** | BatchSpanProcessor | 512 spans OR 5 seconds | [Docs](https://opentelemetry.io/docs/specs/otel/trace/sdk/#batching-processor) |
+| **Metrics** | PeriodicExportingMetricReader | 60 seconds (periodic) | [Docs](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#periodic-exporting-metricreader) |
+
+### Why Batching Matters
+
+Short-lived applications (tests, CLI tools, jobs) often run **< 5 seconds**:
+
+```
+App runs 2 seconds → Creates 10 logs → Exits → ❌ 10 logs LOST (batch still in memory)
+App runs 2 seconds → Creates 10 logs → sovdev_flush() → ✅ 10 logs SENT
+```
+
+### Implementation Requirements
+
+All implementations MUST:
+
+1. **Use batch processors** (not simple/synchronous processors)
+2. **Implement `sovdev_flush()`** that:
+   - Calls `forceFlush()` on all three providers (Logs, Traces, Metrics)
+   - Blocks until export completes OR 30s timeout
+3. **Document flush requirement** in examples
+
+### Language-Specific Flush
+
+| Language | Type | Returns |
+|----------|------|---------|
+| TypeScript | async | `Promise<void>` |
+| Python | sync | `None` |
+| Go | sync | `error` |
+| Java | sync | `void` |
+| C# | async | `Task` |
+| Rust | sync | `Result<(), Error>` |
+| PHP | sync | `void` |
+
+### Configuration (Optional)
+
+Tune batch behavior via environment variables:
+
+```bash
+OTEL_BLRP_MAX_EXPORT_BATCH_SIZE=512    # Logs: batch size
+OTEL_BLRP_SCHEDULE_DELAY=5000          # Logs: export interval (ms)
+OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Traces: batch size
+OTEL_BSP_SCHEDULE_DELAY=5000           # Traces: export interval (ms)
+OTEL_METRIC_EXPORT_INTERVAL=60000      # Metrics: export interval (ms)
+```
+
+See [OpenTelemetry Environment Variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+
+### Key Takeaway
+
+**If logs don't appear in Loki/Grafana**: Check if `sovdev_flush()` is called before application exit.
+
+**Further reading**: [OpenTelemetry Specification](https://opentelemetry.io/docs/specs/otel/)
+
+---
+
 ## Field Naming Convention
 
 ### Standard Fields
