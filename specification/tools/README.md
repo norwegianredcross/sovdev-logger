@@ -147,6 +147,57 @@ diff validation-results/typescript.json validation-results/python.json
 
 ---
 
+## Integration with Validators
+
+These tools orchestrate the complete validation pipeline by calling validators and querying backends:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│         Shell Script Tools (This Directory)                      │
+│  run-full-validation.sh │ query-loki.sh │ ...                   │
+└─────────────┬───────────────────────────────────────────────────┘
+              │
+              ↓ (calls validators)
+┌─────────────────────────────────────────────────────────────────┐
+│              Python Validators (specification/tests/)            │
+│  validate-log-format.py │ validate-loki-response.py │ ...       │
+└─────────────┬───────────────────────────────────────────────────┘
+              │
+              ↓ (loads schemas)
+┌─────────────────────────────────────────────────────────────────┐
+│              JSON Schemas (specification/schemas/)               │
+│  log-entry-schema.json │ loki-response-schema.json │ ...        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Validation workflow:**
+
+1. **Tools query backends**: `query-loki.sh`, `query-prometheus.sh`, `query-tempo.sh` fetch data from observability stack
+2. **Tools call validators**: Response data piped to Python validators in `specification/tests/`
+3. **Validators load schemas**: JSON schemas from `specification/schemas/` define validation rules
+4. **Results reported**: Validators output pass/fail with detailed error messages
+
+**Example: Full validation pipeline**
+```bash
+# 1. Tool runs test
+./run-company-lookup.sh python
+
+# 2. Tool queries Loki backend
+./query-loki.sh sovdev-test-company-lookup-python --json > /tmp/loki-response.json
+
+# 3. Tool calls validator (which loads schema)
+python3 ../tests/validate-loki-response.py /tmp/loki-response.json
+
+# All orchestrated by run-full-validation.sh
+./run-full-validation.sh python  # Runs all steps automatically
+```
+
+**Related Documentation:**
+- **Validators**: See `specification/tests/README.md` for Python validators that these tools call
+- **Schemas**: See `specification/schemas/README.md` for JSON schemas that validators use
+
+---
+
 
 **Last Updated:** 2025-10-07
 **Maintainer:** Claude Code / Terje Christensen

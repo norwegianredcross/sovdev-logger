@@ -136,7 +136,28 @@ python3 validate-log-format.py "$LOG_FILE"
 
 ## Integration with Tools
 
-These validators are called by tools in `specification/tools/`:
+These validators are the core of the validation pipeline, connecting schemas to tools:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              JSON Schemas (specification/schemas/)               │
+│  log-entry-schema.json │ loki-response-schema.json │ ...        │
+└─────────────┬───────────────────────────────────────────────────┘
+              │
+              ↓ (loaded by)
+┌─────────────────────────────────────────────────────────────────┐
+│           Python Validators (This Directory)                     │
+│  validate-log-format.py │ validate-loki-response.py │ ...       │
+└─────────────┬───────────────────────────────────────────────────┘
+              │
+              ↓ (called by)
+┌─────────────────────────────────────────────────────────────────┐
+│         Shell Script Tools (specification/tools/)                │
+│  run-full-validation.sh │ validate-log-format.sh │ ...          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Tool integration:**
 
 | Tool | Validators Used |
 |------|-----------------|
