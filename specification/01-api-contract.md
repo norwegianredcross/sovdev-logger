@@ -840,6 +840,389 @@ sovdev_log("info", ...)  # Also works (string literal)
 
 ---
 
+## Development Workflow: Self-Correcting Implementation
+
+### ⚠️ CRITICAL: Specification Integrity Protection
+
+**🚫 DO NOT MODIFY SPECIFICATION FILES TO MAKE YOUR CODE PASS VALIDATION**
+
+The specification files are the **CONTRACT** and **SOURCE OF TRUTH**. They define what sovdev-logger implementations must do. If your implementation fails validation, you MUST fix your code, not the specification.
+
+#### Files You MUST NOT Modify
+
+**❌ Specification documents** (all .md files in `specification/`):
+- `01-api-contract.md` ← Defines function signatures and behavior
+- `02-field-definitions.md` ← Defines log field structure
+- `03-log-types.md` ← Defines valid log types
+- `04-error-handling.md` ← Defines error handling patterns
+- `05-implementation-patterns.md` ← Defines implementation requirements
+- `06-test-scenarios.md` ← Defines test requirements
+- All other specification documents
+
+**❌ JSON Schemas** (`specification/schemas/`):
+- `log-entry-schema.json` ← Defines valid log structure
+- All other schema files
+
+**❌ Validation Tools** (`specification/tools/`):
+- `validate-log-format.sh` ← Validates log format
+- `run-company-lookup.sh` ← Runs E2E tests
+- `run-full-validation.sh` ← Full validation suite
+- All other validation scripts
+
+#### Why This Rule Exists
+
+**BAD WORKFLOW** ❌ (DO NOT DO THIS):
+```
+Your code fails validation
+  ↓
+You modify the JSON schema to match your incorrect output
+  ↓
+Validation now passes
+  ↓
+❌ YOUR CODE IS STILL WRONG (schema was correct, your code wasn't)
+```
+
+**CORRECT WORKFLOW** ✅ (DO THIS):
+```
+Your code fails validation
+  ↓
+You read the error message from validation tool
+  ↓
+You check specification to understand what's required
+  ↓
+You fix your code to match specification
+  ↓
+You re-run validation
+  ↓
+✅ VALIDATION PASSES (your code now matches contract)
+```
+
+#### When It IS OK to Change Specification
+
+Only change specification files if you find a **genuine error in the specification itself**:
+
+✅ **OK to change**:
+- Specification has a typo: "serivce_name" → "service_name"
+- Specification contradicts TypeScript implementation (TypeScript is source of truth)
+- JSON schema has incorrect type definition
+- Documentation is unclear or missing
+
+✅ **Requires explicit approval/discussion**:
+- Adding new fields to specification
+- Clarifying ambiguous requirements
+- Adding new validation rules
+
+❌ **NEVER change to make failing code pass**:
+- Your code uses camelCase → Don't change schema to accept camelCase
+- Your code omits required fields → Don't change schema to make fields optional
+- Your code outputs different field names → Don't change schema to accept your names
+- Your validation fails → Don't modify validation tool to skip checks
+
+#### How to Verify Your Intent
+
+Before modifying any specification file, ask yourself:
+
+**Question**: "Am I changing this file because:"
+1. ✅ The specification has a genuine error → **OK to fix**
+2. ✅ The specification contradicts TypeScript → **OK to align with TypeScript**
+3. ❌ My code doesn't match specification → **NOT OK - fix your code instead**
+
+#### Enforcement
+
+If you modify specification files to make failing code pass validation:
+- Your implementation is **invalid** (doesn't match contract)
+- Other implementations will fail when tested against your changes
+- You violate the purpose of specification-driven development
+
+**The specification is the contract. Fix your code to match the specification, not the other way around.**
+
+---
+
+### Prerequisites
+
+**IMPORTANT**: Before you begin implementation, ensure the development environment is running:
+
+#### 1. Kubernetes Cluster Must Be Running
+
+The sovdev-logger requires a **local Kubernetes cluster** with the observability stack deployed. This cluster receives and stores logs, metrics, and traces during testing.
+
+**Required services** (all must be running in `monitoring` namespace):
+- ✅ **OTLP Collector** - Receives telemetry from applications
+- ✅ **Loki** - Stores logs
+- ✅ **Prometheus** - Stores metrics
+- ✅ **Tempo** - Stores traces
+- ✅ **Grafana** - Visualizes data
+
+**Verify cluster is running**:
+```bash
+# Check all monitoring pods are running
+kubectl get pods -n monitoring
+
+# Expected: All pods show STATUS = Running
+```
+
+**If cluster is not running**: See `specification/05-environment-configuration.md` for setup instructions.
+
+#### 2. DevContainer Must Be Running
+
+Code execution happens inside the **devcontainer-toolbox** container, which provides consistent language runtimes (Node.js, Python, Go, Java, etc.).
+
+**Verify devcontainer is running**:
+```bash
+# Check container exists and is running
+docker ps --filter name=devcontainer-toolbox
+
+# Expected: Shows container with STATUS = Up
+```
+
+**If container is not running**: Open project in VSCode with DevContainer extension, or see `specification/05-environment-configuration.md`.
+
+#### 3. Command Execution Pattern
+
+All validation tools and test commands run **inside the devcontainer**. Use the `in-devcontainer.sh` wrapper script:
+
+```bash
+# From host machine (recommended)
+./specification/tools/in-devcontainer.sh <command>
+
+# Examples:
+./specification/tools/in-devcontainer.sh validate-log-format.sh typescript/test/logs/dev.log
+./specification/tools/in-devcontainer.sh run-company-lookup.sh typescript
+```
+
+**Alternative**: Execute directly inside container:
+```bash
+docker exec devcontainer-toolbox bash -c "cd /workspace && <command>"
+```
+
+**File editing**: Edit files on your **host machine** (using your IDE). Changes are immediately visible inside the container via bind mount at `/workspace`.
+
+---
+
+### Overview
+
+When implementing sovdev-logger in a new language, use the validation tools in `specification/tools/` to verify correctness **during development** (not just at the end). This self-correcting workflow reduces errors and ensures implementation matches the specification.
+
+### Step-by-Step Implementation Process
+
+```
+1. Read specification       → Understand API contract
+2. Examine TypeScript      → See reference implementation
+3. Implement one function  → Start small (sovdev_initialize)
+4. Write minimal test      → Create simple test case
+5. Run validation tool     → Get immediate feedback
+6. Fix issues found        → Iterate based on tool output
+7. Repeat steps 3-6        → For each remaining function
+8. Run full validation     → Verify complete implementation
+```
+
+### Validation Tools (Use During Development)
+
+The `specification/tools/` directory contains validation scripts that provide immediate feedback during development.
+
+#### Tool 1: validate-log-format.sh (Run First)
+
+**When to use**: After implementing logging and generating your first log file
+
+**What it does**: Validates log entries against JSON schema
+
+**How to run**:
+```bash
+# From repository root (using in-devcontainer.sh wrapper - recommended)
+./specification/tools/in-devcontainer.sh validate-log-format.sh typescript/test/logs/dev.log
+
+# Alternative: Execute directly inside container
+docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && ./validate-log-format.sh ../typescript/test/logs/dev.log"
+```
+
+**Success output**:
+```
+✅ All 17 log entries match schema
+✅ Found 13 unique trace IDs
+✅ VALIDATION PASSED
+```
+
+**Failure output** (shows what to fix):
+```
+❌ Log entry 5 failed validation:
+  - Missing required field: service_name
+  - Invalid field name: serviceName (should be service_name)
+  - trace_id format invalid (expected UUID v4)
+```
+
+**Fix and re-run**: Make corrections, generate new logs, validate again
+
+#### Tool 2: run-company-lookup.sh (Run Second)
+
+**When to use**: After basic logging works and passes validate-log-format.sh
+
+**What it does**: Runs the E2E test scenario and validates output
+
+**How to run**:
+```bash
+# From repository root (using in-devcontainer.sh wrapper - recommended)
+./specification/tools/in-devcontainer.sh run-company-lookup.sh typescript
+
+# Alternative: Execute directly inside container
+docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && ./run-company-lookup.sh typescript"
+```
+
+**Success output**:
+```
+✅ Test program completed
+✅ Log file schema validation passed
+```
+
+**Failure output** (shows what to fix):
+```
+❌ Test program failed with exit code 1
+❌ Log validation found 3 errors
+  - See output above for details
+```
+
+**Fix and re-run**: Correct the issues, run test again
+
+#### Tool 3: run-full-validation.sh (Run Last)
+
+**When to use**: Before declaring implementation complete
+
+**What it does**: Runs complete E2E validation including Loki/Prometheus/Tempo checks
+
+**How to run**:
+```bash
+# From repository root (using in-devcontainer.sh wrapper - recommended)
+./specification/tools/in-devcontainer.sh run-full-validation.sh typescript
+
+# Alternative: Execute directly inside container
+docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && ./run-full-validation.sh typescript"
+```
+
+**Success output**:
+```
+✅ Test program completed
+✅ Log file schema validation passed
+✅ Loki response schema validation passed
+✅ Log consistency validation passed (file ↔ Loki)
+✅ Prometheus response schema validation passed
+✅ Metrics consistency validation passed (file ↔ Prometheus)
+✅ Tempo response schema validation passed
+✅ Trace consistency validation passed (file ↔ Tempo)
+
+✅ FULL E2E VALIDATION PASSED
+```
+
+**Failure output**: Shows which validation step failed (fix that specific issue)
+
+### Self-Correction Loop
+
+```
+┌─────────────────────────────────────┐
+│ Implement function                  │
+└──────────┬──────────────────────────┘
+           ↓
+┌─────────────────────────────────────┐
+│ Write test & generate logs          │
+└──────────┬──────────────────────────┘
+           ↓
+┌─────────────────────────────────────┐
+│ Run validation tool                 │
+│ (validate-log-format.sh)           │
+└──────────┬──────────────────────────┘
+           ↓
+     ┌─────────┐
+     │ Pass?   │
+     └─────┬───┘
+      Yes  │  No
+           │   └───────────┐
+           │               ↓
+           │    ┌──────────────────────┐
+           │    │ Review error output  │
+           │    │ Fix issues          │
+           │    └──────────┬───────────┘
+           │               │
+           │               └───────────┐
+           ↓                           ↓
+┌─────────────────────────────────────┐
+│ Next function or Full validation    │
+└─────────────────────────────────────┘
+```
+
+### Expected Questions (Target: ≤3)
+
+With this workflow and the specification, an LLM or developer should only need to ask:
+
+1. **Language-specific library recommendation** (if not in specification)
+   - Example: "Which logging library should I use for Python?"
+   - Answer: See specification/04-implementation-patterns.md
+
+2. **Language-specific type mapping** (if ambiguous)
+   - Example: "Should Python use Dict or TypedDict for input_json?"
+   - Answer: Either works (JSON-serializable is the requirement)
+
+3. **Clarification on edge cases** (if specification is unclear)
+   - Example: "What happens if OTLP endpoint is unreachable?"
+   - Answer: See specification/04-error-handling.md
+
+**Goal**: If you need to ask more than 3 questions, the specification is incomplete → report missing information
+
+### Key Principles
+
+1. **Validate Early**: Don't wait until implementation is complete
+2. **Validate Often**: Run tools after each function implementation
+3. **Use Tools for Feedback**: Tools tell you exactly what's wrong
+4. **Self-Correct**: Fix issues and re-validate without asking for help
+5. **Specification is Truth**: If tool fails, check specification first
+
+### Example Implementation Session
+
+```typescript
+// Step 1: Implement sovdev_initialize
+function sovdev_initialize(service_name: string, ...) {
+  // Implementation
+}
+
+// Step 2: Write minimal test
+const test = () => {
+  const PEER_SERVICES = create_peer_services({});
+  sovdev_initialize('test-service', '1.0.0', PEER_SERVICES.mappings);
+  sovdev_log(
+    SOVDEV_LOGLEVELS.INFO,           // ✅ Best practice: Use enum constant
+    'test',
+    'Hello world',
+    PEER_SERVICES.INTERNAL,          // ✅ Best practice: Use PEER_SERVICES constant
+    null,
+    null
+  );
+};
+
+// Step 3: Run test and generate logs
+test();
+
+// Step 4: Validate logs (from host machine)
+$ ./specification/tools/in-devcontainer.sh validate-log-format.sh test/logs/dev.log
+❌ Log entry 1 failed validation:
+  - Missing required field: service_version
+
+// Step 5: Fix issue
+// (Add service_version field to log output)
+
+// Step 6: Re-validate
+$ ./specification/tools/in-devcontainer.sh validate-log-format.sh test/logs/dev.log
+✅ VALIDATION PASSED
+
+// Step 7: Continue with next function...
+```
+
+### Resources
+
+- **Specification**: `specification/01-api-contract.md` (this file)
+- **Reference Implementation**: `typescript/src/` (source of truth)
+- **Test Scenarios**: `specification/06-test-scenarios.md` (expected behavior)
+- **JSON Schemas**: `specification/schemas/` (output format validation)
+- **Validation Tools**: `specification/tools/` (self-correction feedback)
+
+---
+
 ## Error Handling
 
 All functions MUST:

@@ -75,6 +75,397 @@ Existing implementations using camelCase must be refactored to snake_case in ver
 
 ---
 
+## Logging Library Selection
+
+### Overview
+
+Choosing the right logging library for each language is critical for successful implementation. This section provides **recommended libraries** and **rationale** for each supported language.
+
+### Selection Criteria
+
+When choosing a logging library, prioritize libraries that:
+
+1. **Support structured logging** - JSON output, field-based filtering
+2. **Support multiple transports** - Console, file, custom transports
+3. **Support log levels** - Trace, Debug, Info, Warn, Error, Fatal
+4. **Support formatters** - Customize output format per transport
+5. **Support extensions** - Custom transports for OTLP integration
+6. **Are production-ready** - Widely adopted, actively maintained
+7. **Have good documentation** - Clear examples, active community
+
+### TypeScript/JavaScript
+
+**Recommended Library**: [Winston](https://github.com/winstonjs/winston)
+
+**Rationale**:
+- ✅ **Mature and stable**: 20k+ GitHub stars, used by major companies
+- ✅ **Multiple transports**: Console, File, HTTP, Stream, custom transports
+- ✅ **Format flexibility**: JSON, pretty-print, custom formatters per transport
+- ✅ **Log levels**: Supports custom levels (map to SOVDEV_LOGLEVELS)
+- ✅ **TypeScript support**: Full type definitions included
+- ✅ **Transport isolation**: Each transport can have its own format and level
+- ✅ **Custom transport API**: Easy to create OTLP transport
+
+**Key Features Used**:
+```typescript
+import winston from 'winston';
+import TransportStream from 'winston-transport';
+
+// Multiple transports with different formats
+const logger = winston.createLogger({
+  level: 'silly',  // Include all levels
+  transports: [
+    // Console: Human-readable with colors
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.printf(...)
+      )
+    }),
+    // File: JSON format
+    new winston.transports.File({
+      filename: 'logs/dev.log',
+      format: winston.format.json()
+    }),
+    // Custom OTLP transport
+    new OpenTelemetryWinstonTransport({
+      serviceName: 'my-service'
+    })
+  ]
+});
+```
+
+**Alternatives**:
+- **Pino**: Faster, but less flexible for multiple transport formats
+- **Bunyan**: Good structured logging, but less active maintenance
+- **Node.js console**: Too basic, no transport support
+
+---
+
+### Python
+
+**Recommended Library**: [Python stdlib logging](https://docs.python.org/3/library/logging.html) with custom handlers
+
+**Rationale**:
+- ✅ **Built-in**: No external dependencies, always available
+- ✅ **Flexible handlers**: Console, File, custom handlers for OTLP
+- ✅ **Log levels**: Built-in levels (map to SOVDEV_LOGLEVELS)
+- ✅ **Formatters**: Support for JSON and custom formatters
+- ✅ **Production-proven**: Used by thousands of Python applications
+- ✅ **Handler per output**: Each handler can have its own formatter
+
+**Key Features Used**:
+```python
+import logging
+import json
+from logging.handlers import RotatingFileHandler
+
+# Custom JSON formatter
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "timestamp": record.created,
+            "level": record.levelname.lower(),
+            "service_name": record.service_name,
+            # ... all sovdev fields
+        }
+        return json.dumps(log_entry)
+
+# Configure logger with multiple handlers
+logger = logging.getLogger('sovdev')
+logger.setLevel(logging.DEBUG)
+
+# Console handler: Human-readable
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(
+    logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+)
+logger.addHandler(console_handler)
+
+# File handler: JSON format
+file_handler = RotatingFileHandler('logs/dev.log', maxBytes=50*1024*1024, backupCount=5)
+file_handler.setFormatter(JsonFormatter())
+logger.addHandler(file_handler)
+
+# Custom OTLP handler
+logger.addHandler(OtelLogHandler(service_name='my-service'))
+```
+
+**Alternatives**:
+- **structlog**: Excellent structured logging, but adds dependency
+- **loguru**: Modern API, but not stdlib (adds dependency)
+- **python-json-logger**: Good for JSON, but stdlib logging is sufficient
+
+**Why stdlib?**
+- Reduces dependencies (critical for library packages)
+- Every Python developer already knows it
+- Full control over formatting and handlers
+- Easy to extend with custom handlers
+
+---
+
+### Go
+
+**Recommended Library**: [slog (Go 1.21+)](https://pkg.go.dev/log/slog) or [zap](https://github.com/uber-go/zap)
+
+**Rationale for slog** (Preferred for Go 1.21+):
+- ✅ **Built-in**: Part of Go standard library (Go 1.21+)
+- ✅ **Structured logging**: Key-value pairs, JSON output
+- ✅ **Multiple handlers**: Console, File, custom handlers
+- ✅ **Type-safe**: Strong typing for log attributes
+- ✅ **Performance**: Optimized for high-throughput
+
+**Key Features Used**:
+```go
+import (
+    "log/slog"
+    "os"
+)
+
+// Create logger with JSON handler
+logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+// Log with structured fields
+logger.Info("Company lookup",
+    slog.String("service_name", "company-lookup"),
+    slog.String("function_name", "lookupCompany"),
+    slog.String("trace_id", traceID),
+)
+```
+
+**Rationale for zap** (Alternative for Go < 1.21 or high performance needs):
+- ✅ **High performance**: Zero-allocation logging
+- ✅ **Structured logging**: Strongly-typed fields
+- ✅ **Multiple outputs**: Console, File, custom
+- ✅ **Production-proven**: Used by Uber and many others
+
+**Key Features Used**:
+```go
+import "go.uber.org/zap"
+
+logger, _ := zap.NewProduction()
+defer logger.Sync()
+
+logger.Info("Company lookup",
+    zap.String("service_name", "company-lookup"),
+    zap.String("function_name", "lookupCompany"),
+    zap.String("trace_id", traceID),
+)
+```
+
+**Alternatives**:
+- **logrus**: Popular, but slower than slog/zap
+- **zerolog**: Very fast, but less ergonomic API
+
+---
+
+### PHP
+
+**Recommended Library**: [Monolog](https://github.com/Seldaek/monolog)
+
+**Rationale**:
+- ✅ **PSR-3 compliant**: Follows PHP-FIG logging standard
+- ✅ **Multiple handlers**: Console, File, Stream, custom handlers
+- ✅ **Formatters**: JSON, Line, custom formatters
+- ✅ **Processors**: Add extra fields to log records
+- ✅ **Production-proven**: Used by Symfony, Laravel, Drupal
+- ✅ **Flexible architecture**: Easy to create custom handlers
+
+**Key Features Used**:
+```php
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+use Monolog\Handler\RotatingFileHandler;
+use Monolog\Formatter\JsonFormatter;
+
+// Create logger with multiple handlers
+$logger = new Logger('sovdev');
+
+// Console handler: Human-readable
+$consoleHandler = new StreamHandler('php://stdout', Logger::DEBUG);
+$consoleHandler->setFormatter(new LineFormatter());
+$logger->pushHandler($consoleHandler);
+
+// File handler: JSON format
+$fileHandler = new RotatingFileHandler('logs/dev.log', 5, Logger::DEBUG);
+$fileHandler->setFormatter(new JsonFormatter());
+$logger->pushHandler($fileHandler);
+
+// Custom OTLP handler
+$logger->pushHandler(new OtelLogHandler('my-service'));
+```
+
+**Alternatives**:
+- **KLogger**: Simple, but lacks advanced features
+- **PHP error_log**: Too basic, no structured logging
+
+---
+
+### C#
+
+**Recommended Library**: [Serilog](https://serilog.net/)
+
+**Rationale**:
+- ✅ **Structured logging**: First-class support for structured data
+- ✅ **Multiple sinks**: Console, File, Seq, custom sinks
+- ✅ **Flexible formatting**: JSON, text, custom formatters per sink
+- ✅ **Production-proven**: Used by Microsoft and .NET community
+- ✅ **Easy enrichment**: Add properties to all log events
+- ✅ **Async support**: Non-blocking logging
+
+**Key Features Used**:
+```csharp
+using Serilog;
+using Serilog.Formatting.Json;
+
+// Create logger with multiple sinks
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    // Console sink: Human-readable
+    .WriteTo.Console(
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] {Message}{NewLine}"
+    )
+    // File sink: JSON format
+    .WriteTo.File(
+        new JsonFormatter(),
+        "logs/dev.log",
+        rollingInterval: RollingInterval.Day
+    )
+    // Custom OTLP sink
+    .WriteTo.OtelLog(serviceName: "my-service")
+    .CreateLogger();
+
+// Log with structured properties
+Log.Information("Company lookup",
+    "service_name", "company-lookup",
+    "function_name", "LookupCompany",
+    "trace_id", traceId
+);
+```
+
+**Alternatives**:
+- **NLog**: Good alternative, similar features
+- **Microsoft.Extensions.Logging**: Built-in, but less flexible than Serilog
+
+---
+
+### Rust
+
+**Recommended Library**: [tracing](https://github.com/tokio-rs/tracing)
+
+**Rationale**:
+- ✅ **Modern structured logging**: Built for async Rust
+- ✅ **Spans and events**: Native OpenTelemetry-like concepts
+- ✅ **Multiple subscribers**: Console, File, OTLP, custom
+- ✅ **Compile-time performance**: Zero-cost abstractions
+- ✅ **Production-proven**: Used by Tokio ecosystem
+
+**Key Features Used**:
+```rust
+use tracing::{info, subscriber};
+use tracing_subscriber::fmt;
+
+// Set up subscriber with JSON format
+subscriber::set_global_default(
+    fmt()
+        .json()
+        .with_current_span(false)
+        .finish()
+).expect("setting default subscriber failed");
+
+// Log with structured fields
+info!(
+    service_name = "company-lookup",
+    function_name = "lookup_company",
+    trace_id = %trace_id,
+    "Company lookup"
+);
+```
+
+**Alternatives**:
+- **log + env_logger**: Simpler, but less structured
+- **slog**: Good alternative, different API style
+
+---
+
+### Java
+
+**Recommended Library**: [Logback](https://logback.qos.ch/) with [SLF4J](https://www.slf4j.org/)
+
+**Rationale**:
+- ✅ **SLF4J API**: Standard logging facade for Java
+- ✅ **Flexible configuration**: XML-based appender config
+- ✅ **Multiple appenders**: Console, File, Async, custom
+- ✅ **Pattern layouts**: Flexible output formatting
+- ✅ **Production-proven**: Successor to log4j, widely used
+- ✅ **MDC support**: Thread-local context for structured fields
+
+**Key Features Used**:
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+Logger logger = LoggerFactory.getLogger(CompanyLookup.class);
+
+// Add structured fields via MDC
+MDC.put("service_name", "company-lookup");
+MDC.put("function_name", "lookupCompany");
+MDC.put("trace_id", traceId);
+
+// Log message (fields from MDC will be included)
+logger.info("Company lookup: {}", companyName);
+
+// Clear MDC when done
+MDC.clear();
+```
+
+**Configuration** (logback.xml):
+```xml
+<appender name="FILE" class="ch.qos.logback.core.FileAppender">
+  <file>logs/dev.log</file>
+  <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+    <!-- JSON output with MDC fields -->
+  </encoder>
+</appender>
+```
+
+**Alternatives**:
+- **Log4j2**: Similar features, different API
+- **JUL (java.util.logging)**: Built-in, but less flexible
+
+---
+
+### Summary Table
+
+| Language | Recommended Library | Rationale | Built-in? |
+|----------|---------------------|-----------|-----------|
+| **TypeScript** | Winston | Multiple transports, custom format per transport, mature | No (npm) |
+| **Python** | stdlib logging | No dependencies, flexible handlers, widely known | ✅ Yes |
+| **Go** | slog (1.21+) or zap | Built-in structured logging, high performance | ✅ Yes (1.21+) |
+| **PHP** | Monolog | PSR-3 standard, production-proven, flexible | No (Composer) |
+| **C#** | Serilog | First-class structured logging, multiple sinks | No (NuGet) |
+| **Rust** | tracing | Modern async support, OpenTelemetry-like concepts | No (Cargo) |
+| **Java** | Logback + SLF4J | Standard Java logging, MDC support, widely used | No (Maven/Gradle) |
+
+### Key Takeaway
+
+**Choose libraries that support**:
+1. Multiple output targets (console + file + custom)
+2. Different formatters per output
+3. Structured logging (key-value pairs)
+4. Custom handlers/transports for OTLP integration
+
+**Avoid libraries that**:
+1. Only support single output format
+2. Require same formatter for all outputs
+3. Don't support custom transports/handlers
+4. Are unmaintained or experimental
+
+---
+
 ## Field Naming Convention
 
 ### Standard Fields
