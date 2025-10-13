@@ -87,16 +87,16 @@ Norwegian logging law compliance built-in with required fields:
    - Used for: Job status logs, internal operations, initialization logs
    - Example: `INTERNAL: 'my-service'`
 
-**Type-Safe Mapping with createPeerServices()**:
+**Type-Safe Mapping with create_peer_services()**:
 ```typescript
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   BRREG: 'SYS1234567',    // External: Norwegian company registry
   ALTINN: 'SYS7654321'    // External: Government portal
 });
 // INTERNAL is auto-generated = service name
 
 // Usage: Type-safe constants prevent typos
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'fetchData',
   'Calling Brønnøysund Registry',
@@ -175,7 +175,7 @@ const logger = winston.createLogger({
 });
 
 // Our library is a WRAPPER around Winston
-function sovdevLog(...) {
+function sovdev_log(...) {
   // Use Winston to write structured log
   logger.info({ /* structured data */ });
 
@@ -210,7 +210,7 @@ def sovdev_log(...):
 
 ```typescript
 // ❌ WRONG: Custom file writing implementation
-function sovdevLog(...) {
+function sovdev_log(...) {
   // DON'T manually write to files
   fs.appendFileSync('dev.log', JSON.stringify({...}) + '\n');
 
@@ -230,7 +230,7 @@ function sovdevLog(...) {
 - Performance problems at scale
 
 **Our Library's Responsibility**:
-1. ✅ Provide 7 standard functions (sovdevLog, etc.)
+1. ✅ Provide 7 standard functions (sovdev_log, sovdev_initialize, sovdev_flush, etc.)
 2. ✅ Standardize field names and structure
 3. ✅ Handle OpenTelemetry integration
 4. ✅ Remove credentials from stack traces
@@ -268,7 +268,7 @@ function sovdevLog(...) {
 **Why**: Grafana queries break when field presence varies
 
 ### ❌ DON'T: Forget to flush on application exit
-**Bad**: Exit without calling `sovdevFlush()`
+**Bad**: Exit without calling `sovdev_flush()`
 **Good**: Always flush before exit (including error exits)
 **Why**: OTLP batches final logs; without flushing they're lost
 

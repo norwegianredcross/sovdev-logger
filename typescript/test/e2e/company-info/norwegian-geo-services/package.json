@@ -1,0 +1,42 @@
+{
+  "name": "@norwegian-geo/services",
+  "version": "2.0.0",
+  "description": "Comprehensive TypeScript library for Norwegian geographical and business registry services",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./geonorge": "./dist/geonorge/index.js",
+    "./kartverket": "./dist/kartverket/index.js",
+    "./brreg": "./dist/brreg/index.js",
+    "./services": "./dist/services/index.js",
+    "./shared": "./dist/shared/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "rebuild": "npm run clean && npm run build",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run rebuild"
+  },
+  "keywords": [
+    "norway",
+    "norwegian",
+    "geonorge",
+    "kartverket",
+    "brreg",
+    "address",
+    "geocoding",
+    "business-registry"
+  ],
+  "author": "Norwegian Red Cross",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

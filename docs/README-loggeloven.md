@@ -14,7 +14,7 @@ All systems MUST use the standardized log levels: Trace, Debug, Info, Warn, Erro
 All log entries MUST be structured using JSON format. Unstructured text-based logging is prohibited for production systems.
 
 ### §4 - Naming Convention Standard
-All log field names MUST use camelCase convention. Consistent field naming across systems is mandatory for correlation and analysis.
+All log field names MUST use snake_case convention. Consistent field naming across systems is mandatory for correlation and analysis.
 
 ### §5 - Context Information Requirement
 Log entries MUST include sufficient context to understand what caused an error, including:
@@ -32,7 +32,7 @@ Every log entry MUST identify where the error occurred by including:
 Log entries MUST include correlation identifiers (session_id, trace_id, event_id) to enable tracing across multiple systems and services.
 
 ### §8 - Field Name Consistency
-Systems SHOULD strive for consistent field names across the organization when possible. When integrating with external systems, original field names MAY be preserved, but systems SHOULD provide mapping or transformation to organizational standards where feasible. The same entity SHOULD use consistent field names in internally developed systems (e.g., prefer "userId" over varying names like "employee" or "employmentId").
+Systems SHOULD strive for consistent field names across the organization when possible. When integrating with external systems, original field names MAY be preserved, but systems SHOULD provide mapping or transformation to organizational standards where feasible. The same entity SHOULD use consistent field names in internally developed systems (e.g., prefer "user_id" over varying names like "employee" or "employment_id").
 
 ### §9 - Machine Readability
 All log entries MUST be machine-readable and processable by automated monitoring and alerting systems.
@@ -201,22 +201,22 @@ The same information in a structured format:
 
 ```json
 {
-  "event": "handleNewEmployeeFailed",
-  "userCreationInfo": {
-    "processedAt": "20250610131205",
-    "sourceSystem": "VismaToOkta",
-    "employmentId": "26943",
-    "firstName": "Natnael",
-    "lastName": "Abraham",
-    "defaultSignature": "105010NAAB",
-    "defaultEmail": "natnael.abraham@redcross.no",
-    "uniqueSignature": "105010NAAB",
-    "uniqueEmail": "natnael.abraham@redcross.no"
+  "event": "handle_new_employee_failed",
+  "user_creation_info": {
+    "processed_at": "20250610131205",
+    "source_system": "VismaToOkta",
+    "employment_id": "26943",
+    "first_name": "Natnael",
+    "last_name": "Abraham",
+    "default_signature": "105010NAAB",
+    "default_email": "natnael.abraham@redcross.no",
+    "unique_signature": "105010NAAB",
+    "unique_email": "natnael.abraham@redcross.no"
   },
-  "failureMessage": "RecipientRespondedWithFailure: Cannot update. Userid is already in use by another ansatt.",
-  "sessionId": "010225",
-  "correlationId": "d04584f7-bf95-41e0-9e20-f8063b7658b6",
-  "employeeId": "26943"
+  "failure_message": "RecipientRespondedWithFailure: Cannot update. Userid is already in use by another ansatt.",
+  "session_id": "010225",
+  "correlation_id": "d04584f7-bf95-41e0-9e20-f8063b7658b6",
+  "employee_id": "26943"
 }
 ```
 

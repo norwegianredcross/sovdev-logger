@@ -764,7 +764,14 @@ function configure_opentelemetry(service_name: string, service_version: string, 
     });
 
     const tracer_provider = new BasicTracerProvider({ resource });
-    tracer_provider.addSpanProcessor(new BatchSpanProcessor(trace_exporter));
+    // Configure BatchSpanProcessor for short-lived applications
+    // Default scheduledDelayMillis=5000ms is too long for tests/short apps
+    tracer_provider.addSpanProcessor(new BatchSpanProcessor(trace_exporter, {
+      maxQueueSize: 2048,           // Default: keep large queue
+      scheduledDelayMillis: 1000,   // Export every 1s (vs default 5s)
+      exportTimeoutMillis: 30000,   // Default: 30s timeout
+      maxExportBatchSize: 512       // Default: batch size
+    }));
 
     // CRITICAL: Set global BEFORE SDK initialization
     trace.setGlobalTracerProvider(tracer_provider);

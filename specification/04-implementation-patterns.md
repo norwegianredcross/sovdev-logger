@@ -116,7 +116,7 @@ The `session_id` field groups all logs, metrics, and traces from a single execut
 
 ### Generation Rules
 
-1. **Generate once** at initialization (in `sovdevInitialize()`)
+1. **Generate once** at initialization (in `sovdev_initialize()`)
 2. **Use UUID v4** format (lowercase, e.g., `"18df09dd-c321-43d8-aa24-19dd7c149a56"`)
 3. **Store in instance** for reuse across all log calls
 4. **Include in all logs** - Every log entry MUST have the same `session_id`
@@ -187,10 +187,10 @@ The `trace_id` field correlates related operations within a business transaction
 **Single Transaction with Multiple Operations**:
 ```typescript
 // Generate trace_id for the entire transaction
-const trace_id = sovdevGenerateTraceId();
+const trace_id = sovdev_generate_trace_id();
 
 // Log start of transaction
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'startTransaction',
   'Starting order processing',
@@ -202,7 +202,7 @@ sovdevLog(
 );
 
 // Log external API call
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'callPaymentAPI',
   'Processing payment',
@@ -214,7 +214,7 @@ sovdevLog(
 );
 
 // Log completion
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'completeTransaction',
   'Order processing completed',
@@ -259,14 +259,14 @@ const PEER_SERVICES = createPeerServices({
 });
 
 // Initialize logger
-sovdevInitialize(
+sovdev_initialize(
   'company-lookup-service',
   '2.1.0',
   PEER_SERVICES.mappings
 );
 
 // Use type-safe constants in logging
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'lookupCompany',
   'Looking up company',
@@ -275,7 +275,7 @@ sovdevLog(
   { name: 'Acme Corp' }
 );
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'processInternally',
   'Processing data',
@@ -454,7 +454,7 @@ Define function name as a constant at the top of each function to avoid typos:
 async function lookupCompany(org_number: string): Promise<Company> {
   const FUNCTIONNAME = 'lookupCompany';  // Define once
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,  // Reuse constant
     'Starting company lookup',
@@ -466,7 +466,7 @@ async function lookupCompany(org_number: string): Promise<Company> {
   try {
     const company = await fetchCompany(org_number);
 
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,  // Same constant
       'Company lookup successful',
@@ -477,7 +477,7 @@ async function lookupCompany(org_number: string): Promise<Company> {
 
     return company;
   } catch (error) {
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.ERROR,
       FUNCTIONNAME,  // Same constant
       'Company lookup failed',
@@ -500,7 +500,7 @@ async function processOrder(order_data: OrderData): Promise<OrderResult> {
   const FUNCTIONNAME = 'processOrder';
   const input_data = { order_id: order_data.id, amount: order_data.amount };
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Processing order',
@@ -511,7 +511,7 @@ async function processOrder(order_data: OrderData): Promise<OrderResult> {
 
   const result = await executeOrder(order_data);
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Order processed',

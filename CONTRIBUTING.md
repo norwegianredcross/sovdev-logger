@@ -80,15 +80,35 @@ sovdev-logger/
 ├── README.md                 # Main repository overview
 ├── LICENSE                   # MIT license
 ├── CONTRIBUTING.md          # This file
+├── CHANGELOG.md            # Version history
 ├── .gitignore              # Multi-language gitignore
-├── github-plan.md          # Repository management plan
+│
+├── docs/                   # Shared documentation
+│   ├── README-configuration.md
+│   ├── README-loggeloven.md
+│   ├── README-microsoft-opentelemetry.md
+│   ├── README-observability-architecture.md
+│   └── logging-data.md
+│
+├── specification/          # Language-agnostic specification
+│   ├── README.md
+│   ├── 00-design-principles.md
+│   ├── 01-api-contract.md
+│   ├── 02-field-definitions.md
+│   ├── 04-error-handling.md
+│   ├── 05-environment-configuration.md
+│   ├── 06-test-scenarios.md
+│   ├── 08-anti-patterns.md
+│   ├── schemas/           # JSON schemas for validation
+│   ├── tests/             # Python validators
+│   └── tools/             # Bash verification scripts
 │
 ├── typescript/             # TypeScript implementation
 │   ├── README.md          # TypeScript-specific docs
 │   ├── package.json
 │   ├── src/               # Source code
 │   ├── examples/          # Usage examples
-│   └── tests/             # Test suite
+│   └── test/              # Test suite
 │
 ├── python/                # Python implementation (coming soon)
 │   ├── README.md
@@ -126,15 +146,15 @@ sovdev-logger/
 ```typescript
 /**
  * Initialize the sovdev-logger with service information.
- * 
- * @param serviceName - Unique identifier for your service
- * @param serviceVersion - Version of your service (optional)
- * @param peerServices - Peer service mappings (optional)
+ *
+ * @param service_name - Unique identifier for your service
+ * @param service_version - Version of your service (optional)
+ * @param peer_services - Peer service mappings (optional)
  */
-export function sovdevInitialize(
-  serviceName: string,
-  serviceVersion?: string,
-  peerServices?: Record<string, string>
+export function sovdev_initialize(
+  service_name: string,
+  service_version?: string,
+  peer_services?: Record<string, string>
 ): void {
   // Implementation...
 }
@@ -247,8 +267,8 @@ Your implementation must:
 - ✅ Support OpenTelemetry Protocol (OTLP) export
 - ✅ Auto-generate logs, metrics, and traces from one call
 - ✅ Support peer service tracking
-- ✅ Provide `sovdevLog()`, `sovdevLogJobStatus()`, `sovdevLogJobProgress()` functions
-- ✅ Support trace correlation via traceId
+- ✅ Provide `sovdev_log()`, `sovdev_log_job_status()`, `sovdev_log_job_progress()` functions
+- ✅ Support trace correlation via trace_id
 - ✅ Include console and file logging options
 - ✅ Automatically flush logs before application exit
 
@@ -258,7 +278,7 @@ Match the TypeScript API as closely as possible in your language:
 
 **TypeScript:**
 ```typescript
-sovdevLog(level, functionName, message, peerService, inputJSON, responseJSON, exceptionObject, traceId)
+sovdev_log(level, function_name, message, peer_service, input_json, response_json, exception_object, trace_id)
 ```
 
 **Python (example):**

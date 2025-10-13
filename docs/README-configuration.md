@@ -23,17 +23,17 @@ All sovdev-logger implementations require service identification using OpenTelem
 #### Initialization (TypeScript/JavaScript)
 
 ```typescript
-import { sovdevInitialize, createPeerServices } from '@sovdev/logger';
+import { sovdev_initialize, create_peer_services } from '@sovdev/logger';
 
 // Define peer services (external systems you call)
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   BRREG: 'SYS1234567',        // External API system ID
   DATABASE: 'INT0001234',     // Internal database system ID
   // INTERNAL is auto-generated for internal operations
 });
 
 // Initialize logger
-sovdevInitialize(
+sovdev_initialize(
   'company-lookup-service',   // Required: your service name
   '1.0.0',                    // Optional: version (auto-detected from package.json)
   PEER_SERVICES.mappings      // Optional: peer service mappings
@@ -72,10 +72,10 @@ Peer services track which external systems your service interacts with:
 
 ```typescript
 // Example usage
-import { sovdevLog, SOVDEV_LOGLEVELS } from '@sovdev/logger';
+import { sovdev_log, SOVDEV_LOGLEVELS } from '@sovdev/logger';
 
 // When calling external API
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'lookupCompany',
   'Looking up company',
@@ -85,7 +85,7 @@ sovdevLog(
 );
 
 // For internal operations
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'processData',
   'Processing batch',

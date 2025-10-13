@@ -40,7 +40,7 @@ const FUNCTIONNAME = 'processPayment';
 const input = { orderId: '123', amount: 99.99 };
 const output = { transactionId: 'tx-456', status: 'approved' };
 
-sovdevLog(INFO, FUNCTIONNAME, 'Payment processed', PEER_SERVICES.PAYMENT_GATEWAY, input, output);
+sovdev_log(INFO, FUNCTIONNAME, 'Payment processed', PEER_SERVICES.PAYMENT_GATEWAY, input, output);
 // ↑ Automatic logs + metrics + traces + correlation
 ```
 
@@ -120,7 +120,7 @@ Good news! This library uses **OpenTelemetry** - Microsoft's recommended standar
 
 ```typescript
 // Same code works everywhere
-sovdevLog(INFO, FUNCTIONNAME, 'Order processed', PEER_SERVICES.INTERNAL, input, output);
+sovdev_log(INFO, FUNCTIONNAME, 'Order processed', PEER_SERVICES.INTERNAL, input, output);
 ```
 
 **Where your logs go**:
@@ -150,7 +150,7 @@ sovdevLog(INFO, FUNCTIONNAME, 'Order processed', PEER_SERVICES.INTERNAL, input, 
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Your Code: sovdevLog(...)                         │
+│  Your Code: sovdev_log(...)                        │
 │             ↓                                       │
 │  One Log Call                                       │
 └──────────────┬──────────────────────────────────────┘
@@ -176,18 +176,72 @@ Every log call generates:
 
 ---
 
+## Log Structure (Consistent Across All Languages)
+
+All sovdev-logger implementations produce **identical log structures** with **snake_case field naming** (underscores, not dots or camelCase):
+
+### Standard Fields (Every Log Entry)
+
+```json
+{
+  "event_id": "uuid-v4-identifier",
+  "service_name": "your-service-name",
+  "service_version": "1.0.0",
+  "function_name": "functionName",
+  "level": "info|warn|error|debug|fatal",
+  "log_type": "transaction|job.status|job.progress",
+  "message": "Human-readable message",
+  "timestamp": "2025-10-10T19:38:39.109Z",
+  "trace_id": "32-char-hex-trace-identifier",
+  "span_id": "16-char-hex-span-identifier",
+  "peer_service": "external-system-identifier"
+}
+```
+
+### Contextual Fields (Optional)
+
+```json
+{
+  "input_json": { "orderId": "123" },
+  "response_json": { "status": "success" }
+}
+```
+
+### Exception Fields (When Logging Errors)
+
+```json
+{
+  "exception_type": "Error",
+  "exception_message": "HTTP 404: Not found",
+  "exception_stacktrace": "Error: HTTP 404...\n    at function (/path/file.ts:50:20)\n    ..."
+}
+```
+
+**Key Principles:**
+- ✅ **Consistent naming**: All languages use identical field names (`service_name`, `function_name`, `trace_id`, `span_id`)
+- ✅ **snake_case convention**: All field names use underscores (not dots, not camelCase)
+- ✅ **Flat structure**: Exception fields at top level (`exception_type`, not `exception.type`)
+- ✅ **OpenTelemetry compatible**: Works with Loki, Tempo, Prometheus, Azure Monitor
+- ✅ **Language agnostic**: TypeScript, Python, C#, Go, Rust, PHP all produce same structure
+
+**Why snake_case?**
+
+OpenTelemetry automatically converts dot notation (`service.name`) to underscores (`service_name`) when storing in backends. Using snake_case directly avoids transformation inconsistencies and ensures fields are stored and retrieved with the same names across all systems (Grafana, Loki, Prometheus, Azure Monitor).
+
+---
+
 ## Example: TypeScript
 
 ```typescript
-import { sovdevInitialize, sovdevLog, sovdevFlush, SOVDEV_LOGLEVELS, createPeerServices } from '@sovdev/logger';
+import { sovdev_initialize, sovdev_log, sovdev_flush, SOVDEV_LOGLEVELS, create_peer_services } from '@sovdev/logger';
 
 // Define external systems your app calls
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   PAYMENT_GATEWAY: 'SYS2034567'  // INTERNAL is auto-generated
 });
 
 // Initialize at app startup (before any logging)
-sovdevInitialize(
+sovdev_initialize(
   'my-payment-service',      // Service name
   '1.0.0',                   // Version (optional, auto-detected from package.json)
   PEER_SERVICES.mappings     // Peer service mappings (optional)
@@ -202,7 +256,7 @@ async function processPayment(orderId: string, amount: number) {
     const result = await paymentGateway.charge(orderId, amount);
     const output = { transactionId: result.id, status: 'approved' };
 
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,
       'Payment processed successfully',
@@ -213,7 +267,7 @@ async function processPayment(orderId: string, amount: number) {
 
     return result;
   } catch (error) {
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.ERROR,
       FUNCTIONNAME,
       'Payment failed',
@@ -228,7 +282,7 @@ async function processPayment(orderId: string, amount: number) {
 
 // Flush before exit (CRITICAL - prevents log loss!)
 process.on('beforeExit', async () => {
-  await sovdevFlush();
+  await sovdev_flush();
 });
 ```
 

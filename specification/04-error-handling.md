@@ -41,7 +41,7 @@ This inconsistency breaks cross-language alerting and Grafana queries.
 try {
   throw new TypeError('Invalid input');
 } catch (error) {
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.ERROR,
     'validate',
     'Validation failed',
@@ -421,17 +421,17 @@ try {
 
 ---
 
-## Error Handling in sovdevFlush()
+## Error Handling in sovdev_flush()
 
 ### Purpose
-`sovdevFlush()` forces immediate export of all pending batches to OTLP collector. This is critical before application exit.
+`sovdev_flush()` forces immediate export of all pending batches to OTLP collector. This is critical before application exit.
 
 ### Timeout Behavior
 **Requirement:** Flush MUST complete within 30 seconds or timeout.
 
 **Implementation Pattern:**
 ```typescript
-async function sovdevFlush(timeoutMs: number = 30000): Promise<void> {
+async function sovdev_flush(timeoutMs: number = 30000): Promise<void> {
   const timeoutPromise = new Promise<void>((_, reject) => {
     setTimeout(() => reject(new Error('Flush timeout')), timeoutMs);
   });
@@ -459,18 +459,18 @@ async function sovdevFlush(timeoutMs: number = 30000): Promise<void> {
 ```typescript
 process.on('SIGINT', async () => {
   console.log('Flushing logs before exit...');
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('Flushing logs before exit...');
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(0);
 });
 
 process.on('beforeExit', async () => {
-  await sovdevFlush();
+  await sovdev_flush();
 });
 ```
 
@@ -504,13 +504,13 @@ signal.signal(signal.SIGTERM, signal_handler)
 **Test Cases:**
 ```typescript
 // Valid: Optional parameters omitted
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL);
 
 // Valid: Optional parameters explicitly null
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL, null, null, null, null);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL, null, null, null, null);
 
 // Valid: Some optional parameters provided
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL, {input: 'data'}, null);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL, {input: 'data'}, null);
 ```
 
 **Required Behavior:**
@@ -532,15 +532,15 @@ sovdevLog(SOVDEV_LOGLEVELS.INFO, 'test', 'msg', PEER_SERVICES.INTERNAL, {input: 
 **Test Cases:**
 ```typescript
 // Invalid: null level
-sovdevLog(null, 'test', 'msg', PEER_SERVICES.INTERNAL);
+sovdev_log(null, 'test', 'msg', PEER_SERVICES.INTERNAL);
 // Expected: Log warning to console, skip logging operation
 
 // Invalid: empty functionName
-sovdevLog(SOVDEV_LOGLEVELS.INFO, '', 'msg', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, '', 'msg', PEER_SERVICES.INTERNAL);
 // Expected: Log warning to console, use "unknown" as functionName
 
 // Invalid: empty message
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'test', '', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'test', '', PEER_SERVICES.INTERNAL);
 // Expected: Log warning to console, use "(no message)" as message
 ```
 
@@ -561,7 +561,7 @@ All error messages MUST be:
 ```typescript
 // Good error message
 "Failed to initialize sovdev-logger: SERVICE_NAME environment variable not set.
-Set SERVICE_NAME or call sovdevInitialize() with service name."
+Set SERVICE_NAME or call sovdev_initialize() with service name."
 
 // Bad error message
 "Error: undefined is not a function at Logger.initialize"
@@ -666,7 +666,7 @@ Warnings SHOULD be logged for:
 ```typescript
 const start = performance.now();
 for (let i = 0; i < 1000; i++) {
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.ERROR,
     'test',
     'error',

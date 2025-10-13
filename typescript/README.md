@@ -148,6 +148,125 @@ Every `sovdevLog()` call generates:
 
 ---
 
+## Log Structure (snake_case Fields)
+
+All log entries follow a consistent structure with **snake_case field naming** (underscores, not dots or camelCase):
+
+### Basic Log Entry
+
+```json
+{
+  "event_id": "10a1d43f-bd70-4581-8e30-c6fa60160ff0",
+  "service_name": "my-app",
+  "service_version": "1.0.0",
+  "function_name": "processPayment",
+  "level": "info",
+  "log_type": "transaction",
+  "message": "Payment processed successfully",
+  "timestamp": "2025-10-10T19:38:39.109Z",
+  "trace_id": "a17e6a44986c4581a13e19d6b0a9b295",
+  "span_id": "b7e53ae49dd3b969",
+  "peer_service": "SYS2034567",
+  "input_json": {
+    "orderId": "123",
+    "amount": 99.99
+  },
+  "response_json": {
+    "transactionId": "tx-456",
+    "status": "approved"
+  }
+}
+```
+
+### Error Log Entry (with Exception Fields)
+
+```json
+{
+  "event_id": "b73f6657-7731-453b-9d17-f61a6da52a71",
+  "service_name": "my-app",
+  "service_version": "1.0.0",
+  "function_name": "processPayment",
+  "level": "error",
+  "log_type": "transaction",
+  "message": "Payment failed",
+  "timestamp": "2025-10-10T19:38:40.440Z",
+  "trace_id": "5c50f2b84f562949abcedb71298cd39a",
+  "span_id": "b7f6c8e6b794f83f",
+  "peer_service": "SYS2034567",
+  "exception_type": "Error",
+  "exception_message": "HTTP 404: Payment gateway unavailable",
+  "exception_stacktrace": "Error: HTTP 404...\n    at processPayment (/app/payment.ts:50:20)\n    ...",
+  "input_json": {
+    "orderId": "123",
+    "amount": 99.99
+  },
+  "response_json": {
+    "status": "failed"
+  }
+}
+```
+
+### Job Status Log Entry
+
+```json
+{
+  "event_id": "d2f77136-f6c8-499a-b1ac-4d8e09c7501d",
+  "service_name": "my-app",
+  "function_name": "importUsers",
+  "level": "info",
+  "log_type": "job.status",
+  "message": "Job Started: UserImportJob",
+  "timestamp": "2025-10-10T19:38:39.110Z",
+  "trace_id": "3024d80d06a74509a212baca13870433",
+  "peer_service": "my-app",
+  "input_json": {
+    "job_name": "UserImportJob",
+    "job_status": "Started",
+    "totalUsers": 5000
+  },
+  "response_json": null
+}
+```
+
+### Job Progress Log Entry
+
+```json
+{
+  "event_id": "41247f72-6b93-4c26-92ed-d58cb20e3851",
+  "service_name": "my-app",
+  "function_name": "importUsers",
+  "level": "info",
+  "log_type": "job.progress",
+  "message": "Processing user-123 (45/5000)",
+  "timestamp": "2025-10-10T19:38:39.111Z",
+  "trace_id": "5f0b0d8227f94217bb3028920d2cb07e",
+  "peer_service": "my-app",
+  "input_json": {
+    "job_name": "UserImportJob",
+    "item_id": "user-123",
+    "current_item": 45,
+    "total_items": 5000,
+    "progress_percentage": 0.9
+  },
+  "response_json": null
+}
+```
+
+**Key Field Naming Rules:**
+- ✅ **Use underscores**: `service_name`, `function_name`, `trace_id`, `span_id`
+- ✅ **Flat structure**: `exception_type`, NOT `exception.type`
+- ✅ **Consistent casing**: All field names are lowercase with underscores
+- ❌ **Never use dots**: Avoid `service.name` or nested structures for standard fields
+- ❌ **Never use camelCase**: Avoid `serviceName` or `functionName`
+
+**Why snake_case?**
+- OpenTelemetry automatically converts dot notation to underscores when storing in backends
+- Using snake_case directly avoids transformation inconsistencies
+- Ensures fields are stored and retrieved with the same names
+- Simplifies querying in Grafana, Loki, and Prometheus
+
+---
+
 ## For Microsoft/Azure Developers
 
 **"I only know Azure Monitor and Application Insights..."**
@@ -1044,12 +1163,16 @@ If you see errors during init, the OTLP endpoint is likely unreachable.
 
 This library implements "Loggeloven av 2025" requirements:
 
-- ✅ Structured JSON format
-- ✅ Required fields: service_name, function_name, timestamp, trace_id
-- ✅ snake_case field naming convention
-- ✅ ERROR/FATAL levels trigger ServiceNow incidents
-- ✅ Security: Credentials removed from logs
-- ✅ OpenTelemetry trace correlation
+- ✅ **Structured JSON format**: All logs use structured JSON with consistent schema
+- ✅ **Required fields**: Every log includes `service_name`, `function_name`, `timestamp`, `trace_id`, `event_id`
+- ✅ **snake_case field naming**: All field names use underscores (`service_name`, `function_name`, `exception_type`, `span_id`)
+- ✅ **OpenTelemetry-compliant exception fields**: Flat structure with `exception_type`, `exception_message`, `exception_stacktrace` (not nested, not dot notation)
+- ✅ **ERROR/FATAL levels trigger ServiceNow incidents**: Automatic alerting on critical errors
+- ✅ **Security**: Credentials automatically removed from logs (Authorization headers, auth objects)
+- ✅ **Distributed tracing**: OpenTelemetry trace and span correlation for operation tracking
+
+**Field Naming Standard:**
+All log fields use snake_case (lowercase with underscores) to ensure consistent storage and retrieval across OpenTelemetry backends (Loki, Tempo, Prometheus). This avoids transformation inconsistencies when OTLP automatically converts dot notation to underscores.
 
 ---
 

@@ -700,7 +700,7 @@ docker exec devcontainer-toolbox curl -v http://host.docker.internal/
 1. Check OTLP collector is receiving data: `kubectl logs -n monitoring -l app.kubernetes.io/name=opentelemetry-collector`
 2. Verify OTLP endpoint in application: `echo $OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`
 3. Check OTLP headers: `echo $OTEL_EXPORTER_OTLP_HEADERS`
-4. Verify application calls `sovdevFlush()` before exit
+4. Verify application calls `sovdev_flush()` before exit
 
 ---
 

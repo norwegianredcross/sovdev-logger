@@ -6,23 +6,23 @@ All sovdev-logger implementations MUST provide these 7 core functions with ident
 
 ---
 
-## 1. sovdevInitialize
+## 1. sovdev_initialize
 
 **Purpose**: Initialize the logger with service information and peer service mappings.
 
 **Signature** (TypeScript reference):
 ```typescript
-sovdevInitialize(
-  serviceName: string,
-  serviceVersion?: string,
-  peerServices?: { [key: string]: string }
+sovdev_initialize(
+  service_name: string,
+  service_version?: string,
+  peer_services?: { [key: string]: string }
 ): void
 ```
 
 **Parameters**:
-- `serviceName`: Service identifier (from SYSTEM_ID env var or hardcoded)
-- `serviceVersion`: Service version (optional, defaults to "1.0.0")
-- `peerServices`: Peer service mapping from createPeerServices() (optional)
+- `service_name`: Service identifier (from SYSTEM_ID env var or hardcoded)
+- `service_version`: Service version (optional, defaults to "1.0.0")
+- `peer_services`: Peer service mapping from create_peer_services() (optional)
 
 **Behavior**:
 - MUST be called before any logging operations
@@ -35,13 +35,13 @@ sovdevInitialize(
 **Example**:
 ```typescript
 // Define peer services - INTERNAL is auto-generated
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   BRREG: 'SYS1234567',  // External system (Norwegian company registry)
   ALTINN: 'SYS7654321'   // External system (Government portal)
 });
 
 // Initialize at application startup
-sovdevInitialize(
+sovdev_initialize(
   'company-lookup-service',  // Service name
   '2.1.0',                    // Service version
   PEER_SERVICES.mappings      // Peer service mappings
@@ -55,44 +55,44 @@ sovdevInitialize(
 
 ---
 
-## 2. sovdevLog
+## 2. sovdev_log
 
 **Purpose**: Log a transaction with optional input/output data and exception.
 
 **Signature** (TypeScript reference):
 ```typescript
-sovdevLog(
+sovdev_log(
   level: SOVDEV_LOGLEVELS,
-  functionName: string,
+  function_name: string,
   message: string,
-  peerService: string,
-  inputJSON?: object | null,
-  responseJSON?: object | null,
+  peer_service: string,
+  input_json?: object | null,
+  response_json?: object | null,
   exception?: Error | null,
-  traceId?: string | null
+  trace_id?: string | null
 ): void
 ```
 
 **Parameters**:
 - `level`: Log level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
-- `functionName`: Function/method name where logging occurs
+- `function_name`: Function/method name where logging occurs
 - `message`: Human-readable log message
-- `peerService`: Target system/service identifier (from PEER_SERVICES)
-- `inputJSON`: Request/input data (optional, will be JSON serialized)
-- `responseJSON`: Response/output data (optional, will be JSON serialized)
+- `peer_service`: Target system/service identifier (from PEER_SERVICES)
+- `input_json`: Request/input data (optional, will be JSON serialized)
+- `response_json`: Response/output data (optional, will be JSON serialized)
 - `exception`: Exception/error object (optional, will be processed for security)
-- `traceId`: Business transaction ID (optional, generates UUID if not provided)
+- `trace_id`: Business transaction ID (optional, generates UUID if not provided)
 
 **Behavior**:
 - MUST create structured log entry with all fields
-- MUST generate traceId if not provided (UUID v4)
-- MUST generate eventId (UUID v4)
-- MUST serialize inputJSON and responseJSON to JSON strings
+- MUST generate trace_id if not provided (UUID v4)
+- MUST generate event_id (UUID v4)
+- MUST serialize input_json and response_json to JSON strings
 - MUST process exception for security (credential removal, stack limit 350 chars)
 - MUST create OpenTelemetry span with attributes
 - MUST increment metrics (operations.total, errors.total if ERROR/FATAL)
-- MUST set logType to "transaction"
-- MUST always include responseJSON field (value "null" if not provided)
+- MUST set log_type to "transaction"
+- MUST always include response_json field (value "null" if not provided)
 
 **Example - Basic Transaction Log**:
 ```typescript
@@ -101,7 +101,7 @@ async function lookupCompany(orgNumber: string): Promise<void> {
   const input = { organisasjonsnummer: orgNumber };  // Best practice: Define input as variable
 
   // Simple INFO log with input and response
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,                     // Use constant (easier to maintain)
     `Looking up company ${orgNumber}`, // Human-readable message
@@ -109,13 +109,13 @@ async function lookupCompany(orgNumber: string): Promise<void> {
     input,                             // Reuse input variable
     null,                              // No response yet
     null,                              // No exception
-    null                               // Auto-generate traceId
+    null                               // Auto-generate trace_id
   );
 
   // ... fetch company data ...
   const response = { navn: 'REMA 1000 AS' };  // Best practice: Define response as variable
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,                     // Same constant
     `Company found: ${response.navn}`,
@@ -130,12 +130,12 @@ async function lookupCompany(orgNumber: string): Promise<void> {
 
 **Example - Error Log with Exception**:
 ```typescript
-async function lookupCompany(orgNumber: string, traceId?: string): Promise<void> {
+async function lookupCompany(orgNumber: string, trace_id?: string): Promise<void> {
   const FUNCTIONNAME = 'lookupCompany';  // Best practice: Define function name as constant
-  const txnTraceId = traceId || sovdevGenerateTraceId();  // Use provided or generate new
+  const txn_trace_id = trace_id || sovdev_generate_trace_id();  // Use provided or generate new
   const input = { organisasjonsnummer: orgNumber };  // Best practice: Define input as variable
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     `Looking up company ${orgNumber}`,
@@ -143,7 +143,7 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
     input,
     null,
     null,
-    txnTraceId  // Same traceId for related logs
+    txn_trace_id  // Same trace_id for related logs
   );
 
   try {
@@ -153,7 +153,7 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
       organisasjonsform: companyData.organisasjonsform?.beskrivelse
     };
 
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,
       `Company found: ${companyData.navn}`,
@@ -161,11 +161,11 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
       input,      // Reuse same input variable
       response,   // Use response variable
       null,
-      txnTraceId  // SAME traceId links request and response
+      txn_trace_id  // SAME trace_id links request and response
     );
   } catch (error) {
     // ERROR log with exception handling
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.ERROR,
       FUNCTIONNAME,                       // Same constant
       `Failed to lookup company ${orgNumber}`,
@@ -173,7 +173,7 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
       input,                              // Reuse same input variable
       null,                               // No response data
       error,                              // Exception object (will be sanitized)
-      txnTraceId                          // SAME traceId for error
+      txn_trace_id                          // SAME trace_id for error
     );
   }
 }
@@ -181,73 +181,73 @@ async function lookupCompany(orgNumber: string, traceId?: string): Promise<void>
 
 **Example - Trace Correlation**:
 ```typescript
-// This example shows how the same input variable and traceId are reused
+// This example shows how the same input variable and trace_id are reused
 // across multiple log calls within a single function - see previous example
 // for the complete pattern with FUNCTIONNAME constant, input variable, and
 // response variable all following best practices.
 
 // Key benefit: If you need to change the input structure or add fields,
 // you only change it in ONE place (the variable definition) rather than
-// in every sovdevLog() call.
+// in every sovdev_log() call.
 
-// In Grafana: {traceId="<uuid>"} shows all logs with the same traceId together
+// In Grafana: {trace_id="<uuid>"} shows all logs with the same trace_id together
 ```
 
 ---
 
-## 3. sovdevLogJobStatus
+## 3. sovdev_log_job_status
 
 **Purpose**: Log batch job status (Started, Completed, Failed).
 
 **Signature** (TypeScript reference):
 ```typescript
-sovdevLogJobStatus(
+sovdev_log_job_status(
   level: SOVDEV_LOGLEVELS,
-  functionName: string,
-  jobName: string,
+  function_name: string,
+  job_name: string,
   status: string,
-  peerService: string,
-  inputJSON?: object | null,
-  traceId?: string | null
+  peer_service: string,
+  input_json?: object | null,
+  trace_id?: string | null
 ): void
 ```
 
 **Parameters**:
 - `level`: Log level (typically INFO or ERROR)
-- `functionName`: Function name managing the job
-- `jobName`: Human-readable job name
+- `function_name`: Function name managing the job
+- `job_name`: Human-readable job name
 - `status`: Job status ("Started", "Completed", "Failed", etc.)
-- `peerService`: Target system or INTERNAL for internal jobs
-- `inputJSON`: Job metadata (total items, success count, etc.)
-- `traceId`: Job correlation ID (use same ID for all logs in this job)
+- `peer_service`: Target system or INTERNAL for internal jobs
+- `input_json`: Job metadata (total items, success count, etc.)
+- `trace_id`: Job correlation ID (use same ID for all logs in this job)
 
 **Behavior**:
 - MUST create structured log entry with job metadata
-- MUST set logType to "job.status"
-- MUST format message as "Job {status}: {jobName}"
-- MUST include job status information in inputJSON
-- MUST use provided traceId for job correlation
+- MUST set log_type to "job.status"
+- MUST format message as "Job {status}: {job_name}"
+- MUST include job status information in input_json
+- MUST use provided trace_id for job correlation
 
 **Example - Complete Batch Job Tracking**:
 ```typescript
 async function batchLookup(orgNumbers: string[]): Promise<void> {
-  const jobName = 'CompanyLookupBatch';  // Best practice: Define job name as constant
+  const job_name = 'CompanyLookupBatch';  // Best practice: Define job name as constant
   const FUNCTIONNAME = 'batchLookup';    // Best practice: Define function name as constant
-  const batchTraceId = sovdevGenerateTraceId();  // Generate ONE traceId for entire batch job
-  const jobStartInput = { totalCompanies: orgNumbers.length };  // Best practice: Define input as variable
+  const batch_trace_id = sovdev_generate_trace_id();  // Generate ONE trace_id for entire batch job
+  const job_start_input = { totalCompanies: orgNumbers.length };  // Best practice: Define input as variable
 
   // 1. Log job start - internal job
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,                     // Use constant
-    jobName,                          // Use constant
+    job_name,                          // Use constant
     'Started',                        // Status
     PEER_SERVICES.INTERNAL,           // Internal job (not external system)
-    jobStartInput,                    // Use variable
-    batchTraceId                      // All job logs share this traceId
+    job_start_input,                    // Use variable
+    batch_trace_id                      // All job logs share this trace_id
   );
 
-  // 2. Process items (see sovdevLogJobProgress for progress tracking)
+  // 2. Process items (see sovdev_log_job_progress for progress tracking)
   let successful = 0;
   let failed = 0;
   for (let i = 0; i < orgNumbers.length; i++) {
@@ -260,24 +260,24 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
   }
 
   // 3. Log job completion - internal job
-  const jobCompletionInput = {  // Best practice: Define completion input as variable
+  const job_completion_input = {  // Best practice: Define completion input as variable
     totalCompanies: orgNumbers.length,
     successful,
     failed
   };
 
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,                     // Same constant
-    jobName,                          // Same constant
+    job_name,                          // Same constant
     'Completed',                      // Status changed
     PEER_SERVICES.INTERNAL,
-    jobCompletionInput,               // Use variable
-    batchTraceId                      // SAME traceId links start and completion
+    job_completion_input,               // Use variable
+    batch_trace_id                      // SAME trace_id links start and completion
   );
 }
 
-// In Grafana: {traceId="<batch-uuid>"} shows complete job lifecycle
+// In Grafana: {trace_id="<batch-uuid>"} shows complete job lifecycle
 // - Job Started log
 // - All progress logs
 // - Job Completed log
@@ -285,114 +285,114 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
 
 ---
 
-## 4. sovdevLogJobProgress
+## 4. sovdev_log_job_progress
 
 **Purpose**: Log progress for individual items in a batch job.
 
 **Signature** (TypeScript reference):
 ```typescript
-sovdevLogJobProgress(
+sovdev_log_job_progress(
   level: SOVDEV_LOGLEVELS,
-  functionName: string,
-  itemId: string,
+  function_name: string,
+  item_id: string,
   current: number,
   total: number,
-  peerService: string,
-  inputJSON?: object | null,
-  traceId?: string | null
+  peer_service: string,
+  input_json?: object | null,
+  trace_id?: string | null
 ): void
 ```
 
 **Parameters**:
 - `level`: Log level (typically INFO)
-- `functionName`: Function name processing items
-- `itemId`: Identifier for current item being processed
+- `function_name`: Function name processing items
+- `item_id`: Identifier for current item being processed
 - `current`: Current item number (1-based)
 - `total`: Total number of items
-- `peerService`: Target system for this item
-- `inputJSON`: Item-specific data
-- `traceId`: Job correlation ID (same as job status logs)
+- `peer_service`: Target system for this item
+- `input_json`: Item-specific data
+- `trace_id`: Job correlation ID (same as job status logs)
 
 **Behavior**:
 - MUST create structured log entry with progress metadata
-- MUST set logType to "job.progress"
-- MUST format message as "Processing {itemId} ({current}/{total})"
-- MUST calculate progressPercentage: Math.round((current / total) * 100)
-- MUST include progress fields in inputJSON (currentItem, totalItems, itemId, progressPercentage)
+- MUST set log_type to "job.progress"
+- MUST format message as "Processing {item_id} ({current}/{total})"
+- MUST calculate progress_percentage: Math.round((current / total) * 100)
+- MUST include progress fields in input_json (current_item, total_items, item_id, progress_percentage)
 
 **Example - Batch Processing with Progress Tracking**:
 ```typescript
 async function batchLookup(orgNumbers: string[]): Promise<void> {
-  const jobName = 'CompanyLookupBatch';
+  const job_name = 'CompanyLookupBatch';
   const FUNCTIONNAME = 'batchLookup';  // Best practice: Define function name as constant
-  const batchTraceId = sovdevGenerateTraceId();  // ONE traceId for entire batch
-  const jobStartInput = { totalCompanies: orgNumbers.length };
+  const batch_trace_id = sovdev_generate_trace_id();  // ONE trace_id for entire batch
+  const job_start_input = { totalCompanies: orgNumbers.length };
 
-  // Log job start (see sovdevLogJobStatus example)
-  sovdevLogJobStatus(
+  // Log job start (see sovdev_log_job_status example)
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
-    jobName,
+    job_name,
     'Started',
     PEER_SERVICES.INTERNAL,
-    jobStartInput,
-    batchTraceId
+    job_start_input,
+    batch_trace_id
   );
 
   // Process each item with progress tracking
   for (let i = 0; i < orgNumbers.length; i++) {
     const orgNumber = orgNumbers[i];
-    const itemTraceId = sovdevGenerateTraceId();  // Unique traceId for each item
-    const progressInput = { organisasjonsnummer: orgNumber };  // Best practice: Define input as variable
+    const item_trace_id = sovdev_generate_trace_id();  // Unique trace_id for each item
+    const progress_input = { organisasjonsnummer: orgNumber };  // Best practice: Define input as variable
 
     // Log progress - tracking BRREG processing
-    sovdevLogJobProgress(
+    sovdev_log_job_progress(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,                // Use constant
       orgNumber,                    // Item identifier
       i + 1,                        // Current item (1-based)
       orgNumbers.length,            // Total items
       PEER_SERVICES.BRREG,          // External system for this item
-      progressInput,                // Use variable
-      batchTraceId                  // Progress logs use batch traceId
+      progress_input,                // Use variable
+      batch_trace_id                  // Progress logs use batch trace_id
     );
 
-    // Process the item (uses separate itemTraceId for request/response)
-    await lookupCompany(orgNumber, itemTraceId);
+    // Process the item (uses separate item_trace_id for request/response)
+    await lookupCompany(orgNumber, item_trace_id);
   }
 
-  // Log job completion (see sovdevLogJobStatus example)
-  const jobCompletionInput = {
+  // Log job completion (see sovdev_log_job_status example)
+  const job_completion_input = {
     totalCompanies: orgNumbers.length,
     successful: orgNumbers.length,
     failed: 0
   };
 
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
-    jobName,
+    job_name,
     'Completed',
     PEER_SERVICES.INTERNAL,
-    jobCompletionInput,
-    batchTraceId
+    job_completion_input,
+    batch_trace_id
   );
 }
 
 // Result: Two levels of correlation
-// 1. Batch level: {traceId="<batch-uuid>"} shows all progress logs + job status
-// 2. Item level: {traceId="<item-uuid>"} shows request/response for specific item
+// 1. Batch level: {trace_id="<batch-uuid>"} shows all progress logs + job status
+// 2. Item level: {trace_id="<item-uuid>"} shows request/response for specific item
 ```
 
 ---
 
-## 5. sovdevFlush
+## 5. sovdev_flush
 
 **Purpose**: Flush all pending OTLP batches to ensure logs/metrics/traces are exported.
 
 **Signature** (TypeScript reference):
 ```typescript
-sovdevFlush(): Promise<void>
+sovdev_flush(): Promise<void>
 ```
 
 **Behavior**:
@@ -409,16 +409,16 @@ sovdevFlush(): Promise<void>
 ```typescript
 async function main() {
   // Initialize logger
-  sovdevInitialize('company-lookup-service', '1.0.0', PEER_SERVICES.mappings);
+  sovdev_initialize('company-lookup-service', '1.0.0', PEER_SERVICES.mappings);
 
   try {
     // Application logic
     await batchLookup(orgNumbers);
   } catch (error) {
-    sovdevLog(SOVDEV_LOGLEVELS.FATAL, 'main', 'Application crashed', PEER_SERVICES.INTERNAL, null, null, error);
+    sovdev_log(SOVDEV_LOGLEVELS.FATAL, 'main', 'Application crashed', PEER_SERVICES.INTERNAL, null, null, error);
   } finally {
     // CRITICAL: Flush before exit to ensure final logs are exported
-    await sovdevFlush();
+    await sovdev_flush();
   }
 }
 
@@ -430,31 +430,31 @@ main();
 // Ensure flush on process termination
 process.on('SIGINT', async () => {
   console.log('Received SIGINT, flushing logs...');
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, flushing logs...');
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(0);
 });
 
 // Flush before normal exit
 process.on('beforeExit', async () => {
-  await sovdevFlush();
+  await sovdev_flush();
 });
 ```
 
 ---
 
-## 6. sovdevGenerateTraceId
+## 6. sovdev_generate_trace_id
 
 **Purpose**: Generate a UUID v4 for trace correlation.
 
 **Signature** (TypeScript reference):
 ```typescript
-sovdevGenerateTraceId(): string
+sovdev_generate_trace_id(): string
 ```
 
 **Behavior**:
@@ -465,12 +465,12 @@ sovdevGenerateTraceId(): string
 
 **Example - Linking Related Operations**:
 ```typescript
-// Generate ONE traceId for related operations
-const companyTraceId = sovdevGenerateTraceId();
+// Generate ONE trace_id for related operations
+const company_trace_id = sovdev_generate_trace_id();
 // Returns: "c3d75d26-d783-48a2-96c3-1e62a37419c7"
 
-// All these operations share the same traceId - linkable in Grafana
-sovdevLog(
+// All these operations share the same trace_id - linkable in Grafana
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'lookupCompany',
   'Looking up company',
@@ -478,10 +478,10 @@ sovdevLog(
   { orgNumber: '971277882' },
   null,
   null,
-  companyTraceId  // Shared traceId
+  company_trace_id  // Shared trace_id
 );
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'validateCompany',
   'Validating company data',
@@ -489,10 +489,10 @@ sovdevLog(
   { orgNumber: '971277882' },
   { valid: true },
   null,
-  companyTraceId  // SAME traceId
+  company_trace_id  // SAME trace_id
 );
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'saveCompany',
   'Saving to database',
@@ -500,21 +500,21 @@ sovdevLog(
   { orgNumber: '971277882' },
   { success: true },
   null,
-  companyTraceId  // SAME traceId
+  company_trace_id  // SAME trace_id
 );
 
-// In Grafana: {traceId="c3d75d26-d783-48a2-96c3-1e62a37419c7"} shows all 3 operations together
+// In Grafana: {trace_id="c3d75d26-d783-48a2-96c3-1e62a37419c7"} shows all 3 operations together
 ```
 
 ---
 
-## 7. createPeerServices
+## 7. create_peer_services
 
 **Purpose**: Create type-safe peer service mapping with INTERNAL auto-generation.
 
 **Signature** (TypeScript reference):
 ```typescript
-createPeerServices<T extends Record<string, string>>(
+create_peer_services<T extends Record<string, string>>(
   definitions: T
 ): {
   [K in keyof T]: string;
@@ -530,13 +530,13 @@ createPeerServices<T extends Record<string, string>>(
 **Behavior**:
 - MUST create constants for each defined peer service
 - MUST auto-generate INTERNAL constant with value equal to service name
-- MUST return mappings object for sovdevInitialize()
+- MUST return mappings object for sovdev_initialize()
 - MUST provide type-safe access to peer service IDs
 
 **Example - Type-Safe Peer Service Mapping**:
 ```typescript
 // Define peer services - INTERNAL is auto-generated
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   BRREG: 'SYS1234567',  // Norwegian company registry
   ALTINN: 'SYS7654321', // Government portal
   CRM: 'SYS9876543'     // Customer relationship management system
@@ -545,10 +545,10 @@ const PEER_SERVICES = createPeerServices({
 // After creation, PEER_SERVICES provides:
 // - Type-safe constants (compile-time validation)
 // - Auto-generated INTERNAL (equals service name)
-// - Mappings object for sovdevInitialize()
+// - Mappings object for sovdev_initialize()
 
 // Type-safe usage - compiler prevents typos:
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'fetchCompany',
   'Fetching from BRREG',
@@ -557,10 +557,10 @@ sovdevLog(
 );
 
 // Compiler error: Property 'BRRG' does not exist
-// sovdevLog(..., PEER_SERVICES.BRRG, ...)  // ❌ Typo caught at compile time
+// sovdev_log(..., PEER_SERVICES.BRRG, ...)  // ❌ Typo caught at compile time
 
 // Internal operations use auto-generated INTERNAL:
-sovdevLogJobStatus(
+sovdev_log_job_status(
   SOVDEV_LOGLEVELS.INFO,
   'processData',
   'DataProcessingJob',
@@ -570,7 +570,7 @@ sovdevLogJobStatus(
 );
 
 // Initialize logger with mappings:
-sovdevInitialize(
+sovdev_initialize(
   'company-lookup-service',
   '1.0.0',
   PEER_SERVICES.mappings  // Includes all defined peers + INTERNAL
@@ -623,12 +623,12 @@ enum SOVDEV_LOGLEVELS {
 ## Language-Specific Adaptations
 
 ### Naming Conventions
-- **TypeScript/JavaScript**: camelCase (sovdevLog, sovdevFlush)
+- **TypeScript/JavaScript**: snake_case (sovdev_log, sovdev_flush)
 - **Python**: snake_case (sovdev_log, sovdev_flush)
-- **Go**: PascalCase for exported functions (SovdevLog, SovdevFlush)
-- **Java**: camelCase (sovdevLog, sovdevFlush)
-- **C#**: PascalCase (SovdevLog, SovdevFlush)
-- **PHP**: camelCase or snake_case per PSR standards
+- **Go**: snake_case for exported functions (sovdev_log, sovdev_flush) or PascalCase wrappers
+- **Java**: snake_case (sovdev_log, sovdev_flush) or camelCase wrappers
+- **C#**: snake_case (sovdev_log, sovdev_flush) or PascalCase wrappers
+- **PHP**: snake_case (sovdev_log, sovdev_flush) per PSR standards
 - **Rust**: snake_case (sovdev_log, sovdev_flush)
 
 ### Optional Parameters

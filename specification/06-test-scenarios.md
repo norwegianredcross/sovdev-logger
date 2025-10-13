@@ -6,6 +6,55 @@ This document defines the **required test scenarios** that all sovdev-logger imp
 
 ---
 
+## ⚡ Quick Start: Testing Your Implementation
+
+**IMPORTANT:** Use the provided tools in `specification/tools/` - **DO NOT create custom validation scripts!**
+
+### 2-Step Testing Process
+
+All sovdev-logger implementations are tested the same way, regardless of language:
+
+**Step 1: Test log files**
+```bash
+# Validate log file format (fast, local-only test)
+./specification/tools/validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log
+```
+
+**Step 2: Test OTLP export**
+```bash
+# Quick smoke test (5 seconds, no backend queries)
+./specification/tools/run-company-lookup.sh {language}
+
+# Complete E2E validation with backend queries (30 seconds)
+./specification/tools/run-company-lookup-validate.sh {language}
+```
+
+### Example Workflow
+
+```bash
+# TypeScript implementation
+./specification/tools/validate-log-format.sh typescript/test/e2e/company-lookup/logs/dev.log
+./specification/tools/run-company-lookup.sh typescript
+./specification/tools/run-company-lookup-validate.sh typescript
+
+# Python implementation
+./specification/tools/validate-log-format.sh python/test/e2e/company-lookup/logs/dev.log
+./specification/tools/run-company-lookup.sh python
+./specification/tools/run-company-lookup-validate.sh python
+```
+
+### Why Use These Tools?
+
+- ✅ **Language-agnostic**: Works identically for all implementations
+- ✅ **Comprehensive**: Tests file output, OTLP export, and backend verification
+- ✅ **Automated**: No manual steps or Grafana clicking required
+- ✅ **Fast**: Quick smoke test in 5 seconds, full validation in 30 seconds
+- ✅ **Consistent**: Same verification process for all languages
+
+**See `specification/tools/README.md` for complete tool documentation.**
+
+---
+
 ## Required Project Structure
 
 All sovdev-logger implementations **MUST** follow this standardized directory structure:
@@ -176,7 +225,7 @@ Verify data flows through the complete stack (application → OTLP → Loki/Prom
 
 **Test Code:**
 ```typescript
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'testFunction',
   'Test message',
@@ -184,7 +233,7 @@ sovdevLog(
   { inputData: 'test' },
   { outputData: 'result' }
 );
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected OTLP Output (Loki):**
@@ -248,7 +297,7 @@ YYYY-MM-DD HH:mm:ss [INFO] sovdev-test-app
 try {
   throw new Error('HTTP 404: Not Found');
 } catch (error) {
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.ERROR,
     'lookupCompany',
     'Failed to lookup company 123456789',
@@ -259,7 +308,7 @@ try {
     traceId
   );
 }
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected OTLP Output (Loki):**
@@ -323,9 +372,9 @@ YYYY-MM-DD HH:mm:ss [ERROR] sovdev-test-app
 
 **Test Code:**
 ```typescript
-const batchTraceId = sovdevGenerateTraceId();
+const batchTraceId = sovdev_generate_trace_id();
 
-sovdevLogJobStatus(
+sovdev_log_job_status(
   SOVDEV_LOGLEVELS.INFO,
   'batchProcess',
   'CompanyLookupBatch',
@@ -337,7 +386,7 @@ sovdevLogJobStatus(
 
 // Process items...
 
-sovdevLogJobStatus(
+sovdev_log_job_status(
   SOVDEV_LOGLEVELS.INFO,
   'batchProcess',
   'CompanyLookupBatch',
@@ -347,7 +396,7 @@ sovdevLogJobStatus(
   batchTraceId
 );
 
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected OTLP Output (Loki) - Job Started:**
@@ -397,7 +446,7 @@ await sovdevFlush();
 for (let i = 0; i < totalItems; i++) {
   const itemId = items[i].id;
 
-  sovdevLogJobProgress(
+  sovdev_log_job_progress(
     SOVDEV_LOGLEVELS.INFO,
     'processItem',
     itemId,
@@ -410,7 +459,7 @@ for (let i = 0; i < totalItems; i++) {
 
   // Process item...
 }
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected OTLP Output (Loki):**
@@ -443,7 +492,7 @@ await sovdevFlush();
 
 **Test Code:**
 ```typescript
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.ERROR,
   'lookupCompany',
   'Company not found',
@@ -452,7 +501,7 @@ sovdevLog(
   null,  // Explicitly no response
   new Error('HTTP 404: Not Found')
 );
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected OTLP Output (Loki):**
@@ -487,7 +536,7 @@ try {
     }
   });
 } catch (error) {
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.ERROR,
     'apiCall',
     'API call failed',
@@ -497,7 +546,7 @@ try {
     error as Error
   );
 }
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected OTLP Output (Loki):**
@@ -535,9 +584,9 @@ await sovdevFlush();
 
 **Test Code:**
 ```typescript
-const traceId = sovdevGenerateTraceId();
+const traceId = sovdev_generate_trace_id();
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'startTransaction',
   'Starting transaction',
@@ -548,7 +597,7 @@ sovdevLog(
   traceId
 );
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'callExternalAPI',
   'Calling external API',
@@ -559,7 +608,7 @@ sovdevLog(
   traceId
 );
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   'completeTransaction',
   'Transaction completed',
@@ -570,7 +619,7 @@ sovdevLog(
   traceId
 );
 
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected Behavior:**
@@ -587,13 +636,13 @@ await sovdevFlush();
 **Test Code:**
 ```typescript
 // Single execution, multiple operations
-sovdevInitialize('sovdev-test-app', '1.0.0');
+sovdev_initialize('sovdev-test-app', '1.0.0');
 
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'operation1', 'First operation', PEER_SERVICES.INTERNAL);
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'operation2', 'Second operation', PEER_SERVICES.INTERNAL);
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'operation3', 'Third operation', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'operation1', 'First operation', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'operation2', 'Second operation', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'operation3', 'Third operation', PEER_SERVICES.INTERNAL);
 
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Expected Behavior:**
@@ -611,10 +660,10 @@ await sovdevFlush();
 **Test Code:**
 ```typescript
 // Log several operations
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'operation1', 'Op 1', PEER_SERVICES.INTERNAL);
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'operation2', 'Op 2', PEER_SERVICES.BRREG);
-sovdevLog(SOVDEV_LOGLEVELS.ERROR, 'operation3', 'Failed', PEER_SERVICES.BRREG, null, null, new Error('test'));
-await sovdevFlush();
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'operation1', 'Op 1', PEER_SERVICES.INTERNAL);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'operation2', 'Op 2', PEER_SERVICES.BRREG);
+sovdev_log(SOVDEV_LOGLEVELS.ERROR, 'operation3', 'Failed', PEER_SERVICES.BRREG, null, null, new Error('test'));
+await sovdev_flush();
 ```
 
 **Expected Prometheus Metrics:**
@@ -644,8 +693,8 @@ sovdev_errors_total{service_name="sovdev-test-app",exception_type="Error"} >= 1
 
 **Test Code:**
 ```typescript
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'testOperation', 'Test trace', PEER_SERVICES.BRREG);
-await sovdevFlush();
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'testOperation', 'Test trace', PEER_SERVICES.BRREG);
+await sovdev_flush();
 ```
 
 **Expected Tempo Traces:**
@@ -671,14 +720,14 @@ await sovdevFlush();
 **Test Code:**
 ```typescript
 // Run full E2E test with multiple log types
-const batchTraceId = sovdevGenerateTraceId();
+const batchTraceId = sovdev_generate_trace_id();
 
-sovdevLogJobStatus(SOVDEV_LOGLEVELS.INFO, 'batch', 'TestBatch', 'Started', PEER_SERVICES.INTERNAL, {}, batchTraceId);
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'process', 'Processing', PEER_SERVICES.BRREG);
-sovdevLog(SOVDEV_LOGLEVELS.ERROR, 'process', 'Failed', PEER_SERVICES.BRREG, null, null, new Error('Test error'));
-sovdevLogJobStatus(SOVDEV_LOGLEVELS.INFO, 'batch', 'TestBatch', 'Completed', PEER_SERVICES.INTERNAL, {}, batchTraceId);
+sovdev_log_job_status(SOVDEV_LOGLEVELS.INFO, 'batch', 'TestBatch', 'Started', PEER_SERVICES.INTERNAL, {}, batchTraceId);
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'process', 'Processing', PEER_SERVICES.BRREG);
+sovdev_log(SOVDEV_LOGLEVELS.ERROR, 'process', 'Failed', PEER_SERVICES.BRREG, null, null, new Error('Test error'));
+sovdev_log_job_status(SOVDEV_LOGLEVELS.INFO, 'batch', 'TestBatch', 'Completed', PEER_SERVICES.INTERNAL, {}, batchTraceId);
 
-await sovdevFlush();
+await sovdev_flush();
 ```
 
 **Verification in Grafana:**
@@ -706,9 +755,62 @@ await sovdevFlush();
 
 ## Test Validation Checklist
 
-For each test scenario, verify:
+### ✅ Automated Verification (Use These Tools First!)
 
-### OTLP Output (Loki)
+**IMPORTANT:** These tools automatically verify all test scenarios. Use them instead of manual verification.
+
+**1. Validate log file format:**
+```bash
+./specification/tools/validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log
+```
+
+This tool automatically checks:
+- All required fields present in correct format
+- JSON serialization correct
+- Field values (UUIDs, timestamps, severity)
+- Stack traces within limits
+- Flat snake_case structure
+
+**2. Quick smoke test:**
+```bash
+./specification/tools/run-company-lookup.sh {language}
+```
+
+This tool automatically:
+- Runs test application in devcontainer
+- Sends telemetry to OTLP endpoints
+- Validates basic functionality
+- Fast (5 seconds)
+
+**3. Complete E2E validation:**
+```bash
+./specification/tools/run-company-lookup-validate.sh {language}
+```
+
+This tool automatically verifies:
+- ✅ OTLP export to all backends
+- ✅ Logs arrived in Loki
+- ✅ Metrics in Prometheus (sovdev_operations_total, sovdev_errors_total)
+- ✅ Traces in Tempo
+- ✅ All required fields present
+- ✅ Exception handling correct
+- ✅ Credential removal working
+
+**Result:** If all three tools pass, your implementation is complete! ✅
+
+---
+
+### 📝 Manual Verification (Optional, for Deep Debugging)
+
+Only use manual verification if automated tools fail and you need to debug specific issues.
+
+**OTLP Output (Loki) - Query manually:**
+```bash
+./specification/tools/query-loki.sh {service-name}
+./specification/tools/query-loki.sh {service-name} --json | jq
+```
+
+Verify:
 - [ ] All required fields present
 - [ ] Field values in correct format (UUIDs, timestamps, severity numbers)
 - [ ] JSON serialization correct (input_json, response_json)
@@ -716,29 +818,46 @@ For each test scenario, verify:
 - [ ] Credentials removed from stack traces
 - [ ] Stack traces limited to 350 characters
 
-### Console Output
+**Console Output - Check terminal:**
 - [ ] Human-readable format
 - [ ] Color coding appropriate (red for ERROR, yellow for WARN, etc.)
 - [ ] Essential fields displayed (timestamp, level, service, function, message)
 - [ ] Exception details shown for errors
 
-### File Output
+**File Output - Inspect logs/ directory:**
 - [ ] Valid JSON (one log per line)
 - [ ] All required fields present
 - [ ] Flat snake_case structure (service_name, function_name, etc.)
 - [ ] Compact format (no pretty-printing)
 
-### Metrics (Prometheus)
+**Metrics (Prometheus) - Query manually:**
+```bash
+./specification/tools/query-prometheus.sh {service-name}
+./specification/tools/query-prometheus.sh {service-name} --json | jq
+```
+
+Verify:
 - [ ] sovdev_operations_total increments
 - [ ] sovdev_errors_total increments for errors
 - [ ] Labels correct (service_name, exception_type)
 
-### Traces (Tempo)
+**Traces (Tempo) - Query manually:**
+```bash
+./specification/tools/query-tempo.sh {service-name}
+./specification/tools/query-tempo.sh {service-name} --json | jq
+```
+
+Verify:
 - [ ] Spans created for operations
 - [ ] Span attributes match log fields
 - [ ] service.name correct
 
-### Grafana Dashboard
+**Grafana Dashboard - Open in browser:**
+1. Navigate to `http://grafana.localhost`
+2. Open "Structured Logging Testing Dashboard"
+3. Filter: `systemId =~ /^sovdev-test-.*/`
+
+Verify:
 - [ ] Logs appear in all relevant panels
 - [ ] Fields displayed correctly
 - [ ] Filtering works (by service, trace_id, session_id)
@@ -774,7 +893,7 @@ For each test scenario, verify:
 ### Test: Missing Required Fields
 ```typescript
 // Should throw/return error
-sovdevLog(
+sovdev_log(
   null,  // Invalid: null level
   'function',
   'message',
@@ -789,8 +908,8 @@ sovdevLog(
 // Configure invalid OTLP endpoint
 process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT = 'http://invalid-host/logs';
 
-sovdevLog(SOVDEV_LOGLEVELS.INFO, 'test', 'Test message', PEER_SERVICES.INTERNAL);
-await sovdevFlush();
+sovdev_log(SOVDEV_LOGLEVELS.INFO, 'test', 'Test message', PEER_SERVICES.INTERNAL);
+await sovdev_flush();
 ```
 
 **Expected**:

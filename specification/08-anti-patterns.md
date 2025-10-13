@@ -135,33 +135,33 @@ stack = stack[:350] + ('... (truncated)' if len(stack) > 350 else '')
 
 ### Problem
 
-Each call to `sovdevLog()` for the same logical operation (request/response/error) should use the SAME `traceId`. Generating a new one breaks correlation.
+Each call to `sovdev_log()` for the same logical operation (request/response/error) should use the SAME `traceId`. Generating a new one breaks correlation.
 
 ### Bad Example
 
 ```typescript
 // ❌ WRONG - Generates new traceId for each log
-sovdevLog(INFO, 'lookupCompany', 'Starting lookup', PEER_SERVICES.BRREG,
-  input, null, null, sovdevGenerateTraceId());  // New ID
+sovdev_log(INFO, 'lookupCompany', 'Starting lookup', PEER_SERVICES.BRREG,
+  input, null, null, sovdev_generate_trace_id());  // New ID
 
 const response = await fetchData();
 
-sovdevLog(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
-  input, response, null, sovdevGenerateTraceId());  // Different ID - breaks correlation!
+sovdev_log(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
+  input, response, null, sovdev_generate_trace_id());  // Different ID - breaks correlation!
 ```
 
 ### Correct Example
 
 ```typescript
 // ✅ CORRECT - Same traceId for all logs in transaction
-const txnTraceId = sovdevGenerateTraceId();  // Generate ONCE
+const txnTraceId = sovdev_generate_trace_id();  // Generate ONCE
 
-sovdevLog(INFO, 'lookupCompany', 'Starting lookup', PEER_SERVICES.BRREG,
+sovdev_log(INFO, 'lookupCompany', 'Starting lookup', PEER_SERVICES.BRREG,
   input, null, null, txnTraceId);  // Same ID
 
 const response = await fetchData();
 
-sovdevLog(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
+sovdev_log(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
   input, response, null, txnTraceId);  // Same ID - enables correlation
 ```
 
@@ -173,7 +173,7 @@ sovdevLog(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
 
 ---
 
-## ❌ DON'T: Forget to Call sovdevFlush() Before Exit
+## ❌ DON'T: Forget to Call sovdev_flush() Before Exit
 
 ### Problem
 
@@ -184,9 +184,9 @@ OpenTelemetry batches logs for performance. The final batch is only sent when ex
 ```typescript
 // ❌ WRONG - Exits without flushing
 async function main() {
-  sovdevLog(INFO, 'main', 'Job started', PEER_SERVICES.INTERNAL);
+  sovdev_log(INFO, 'main', 'Job started', PEER_SERVICES.INTERNAL);
   await processData();
-  sovdevLog(INFO, 'main', 'Job complete', PEER_SERVICES.INTERNAL);
+  sovdev_log(INFO, 'main', 'Job complete', PEER_SERVICES.INTERNAL);
   // No flush - "Job complete" log likely lost!
 }
 
@@ -198,16 +198,16 @@ main();
 ```typescript
 // ✅ CORRECT - Always flush before exit
 async function main() {
-  sovdevLog(INFO, 'main', 'Job started', PEER_SERVICES.INTERNAL);
+  sovdev_log(INFO, 'main', 'Job started', PEER_SERVICES.INTERNAL);
   await processData();
-  sovdevLog(INFO, 'main', 'Job complete', PEER_SERVICES.INTERNAL);
+  sovdev_log(INFO, 'main', 'Job complete', PEER_SERVICES.INTERNAL);
 
-  await sovdevFlush();  // Ensures all logs are sent
+  await sovdev_flush();  // Ensures all logs are sent
 }
 
 main().catch(async (error) => {
   console.error('Fatal error:', error);
-  await sovdevFlush();  // CRITICAL: Flush even on error!
+  await sovdev_flush();  // CRITICAL: Flush even on error!
   process.exit(1);
 });
 ```
@@ -217,16 +217,16 @@ main().catch(async (error) => {
 ```typescript
 // ✅ CORRECT - Flush on SIGINT/SIGTERM
 process.on('SIGINT', async () => {
-  sovdevLog(INFO, 'shutdown', 'Received SIGINT, shutting down gracefully',
+  sovdev_log(INFO, 'shutdown', 'Received SIGINT, shutting down gracefully',
     PEER_SERVICES.INTERNAL);
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  sovdevLog(INFO, 'shutdown', 'Received SIGTERM, shutting down gracefully',
+  sovdev_log(INFO, 'shutdown', 'Received SIGTERM, shutting down gracefully',
     PEER_SERVICES.INTERNAL);
-  await sovdevFlush();
+  await sovdev_flush();
   process.exit(0);
 });
 ```
@@ -237,7 +237,7 @@ process.on('SIGTERM', async () => {
 
 ### Problem
 
-The `sessionId` (generated at `sovdevInitialize()`) should remain constant for the entire application lifecycle. Generating new session IDs breaks session correlation.
+The `sessionId` (generated at `sovdev_initialize()`) should remain constant for the entire application lifecycle. Generating new session IDs breaks session correlation.
 
 ### Bad Example
 
@@ -252,7 +252,7 @@ def lookup_company(org_number):
 
 ```python
 # ✅ CORRECT - Session ID generated ONCE at initialization
-# In sovdevInitialize():
+# In sovdev_initialize():
 _session_id = str(uuid.uuid4())  # Generated once at startup
 
 def lookup_company(org_number):
@@ -273,19 +273,19 @@ def lookup_company(org_number):
 
 ### Problem
 
-Using inline object literals in `sovdevLog()` calls reduces code maintainability and prevents reuse. Changes require updating multiple log statements.
+Using inline object literals in `sovdev_log()` calls reduces code maintainability and prevents reuse. Changes require updating multiple log statements.
 
 ### Bad Example
 
 ```typescript
 // ❌ WRONG - Inline object definition
-sovdevLog(INFO, 'lookupCompany', 'Starting lookup', PEER_SERVICES.BRREG,
+sovdev_log(INFO, 'lookupCompany', 'Starting lookup', PEER_SERVICES.BRREG,
   { organisasjonsnummer: orgNumber },  // Inline input
   null, null, traceId);
 
 const response = await fetchData();
 
-sovdevLog(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
+sovdev_log(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
   { organisasjonsnummer: orgNumber },  // Duplicated inline - hard to maintain
   { navn: response.navn }, null, traceId);
 ```
@@ -297,7 +297,7 @@ sovdevLog(INFO, 'lookupCompany', 'Lookup complete', PEER_SERVICES.BRREG,
 const FUNCTIONNAME = 'lookupCompany';
 const input = { organisasjonsnummer: orgNumber };
 
-sovdevLog(INFO, FUNCTIONNAME, 'Starting lookup', PEER_SERVICES.BRREG,
+sovdev_log(INFO, FUNCTIONNAME, 'Starting lookup', PEER_SERVICES.BRREG,
   input,  // Reuse input variable
   null, null, traceId);
 
@@ -307,7 +307,7 @@ const response = {
   organisasjonsform: companyData.organisasjonsform?.beskrivelse
 };
 
-sovdevLog(INFO, FUNCTIONNAME, 'Lookup complete', PEER_SERVICES.BRREG,
+sovdev_log(INFO, FUNCTIONNAME, 'Lookup complete', PEER_SERVICES.BRREG,
   input,  // Reuse same input
   response,  // Use response variable
   null, traceId);
@@ -334,13 +334,13 @@ Using string literals for function names makes refactoring difficult and prone t
 ```typescript
 // ❌ WRONG - Hardcoded string
 function lookupCompany(orgNumber: string) {
-  sovdevLog(INFO, 'lookupCompany', 'Starting lookup', ...);
+  sovdev_log(INFO, 'lookupCompany', 'Starting lookup', ...);
 
   try {
     // ... code ...
-    sovdevLog(INFO, 'lookupCompany', 'Success', ...);
+    sovdev_log(INFO, 'lookupCompany', 'Success', ...);
   } catch (error) {
-    sovdevLog(ERROR, 'lookupCompnay', 'Failed', ...);  // TYPO! Hard to spot
+    sovdev_log(ERROR, 'lookupCompnay', 'Failed', ...);  // TYPO! Hard to spot
   }
 }
 ```
@@ -352,13 +352,13 @@ function lookupCompany(orgNumber: string) {
 function lookupCompany(orgNumber: string) {
   const FUNCTIONNAME = 'lookupCompany';
 
-  sovdevLog(INFO, FUNCTIONNAME, 'Starting lookup', ...);
+  sovdev_log(INFO, FUNCTIONNAME, 'Starting lookup', ...);
 
   try {
     // ... code ...
-    sovdevLog(INFO, FUNCTIONNAME, 'Success', ...);
+    sovdev_log(INFO, FUNCTIONNAME, 'Success', ...);
   } catch (error) {
-    sovdevLog(ERROR, FUNCTIONNAME, 'Failed', ...);  // No typo possible
+    sovdev_log(ERROR, FUNCTIONNAME, 'Failed', ...);  // No typo possible
   }
 }
 ```
@@ -429,7 +429,7 @@ Implementing file writing and rotation from scratch introduces bugs and maintena
 // ❌ WRONG - Custom file writing
 import fs from 'fs';
 
-function sovdevLog(level, functionName, message, ...) {
+function sovdev_log(level, functionName, message, ...) {
   const logEntry = JSON.stringify({ timestamp: new Date(), level, ... });
 
   // Manual file writing
@@ -464,7 +464,7 @@ const logger = winston.createLogger({
   ]
 });
 
-function sovdevLog(level, functionName, message, ...) {
+function sovdev_log(level, functionName, message, ...) {
   const logEntry = { timestamp: new Date(), level, functionName, message, ... };
 
   // Winston handles file writing, buffering, rotation
@@ -514,7 +514,7 @@ See `specification/00-design-principles.md` section 10 for complete implementati
 2. **Always standardize `exceptionType` to "Error"** - Never language-specific types
 3. **Always remove credentials before truncating** - Security over stack trace completeness
 4. **Always reuse same `traceId` for related logs** - Enable trace correlation
-5. **Always call `sovdevFlush()` before exit** - Prevent log loss
+5. **Always call `sovdev_flush()` before exit** - Prevent log loss
 6. **Always use single `sessionId` per execution** - Enable session correlation
 7. **Always define `FUNCTIONNAME` constant** - Prevent typos and enable refactoring
 8. **Always define `input`/`response` variables** - Improve maintainability
