@@ -10,13 +10,33 @@ All sovdev-logger implementations MUST provide these 7 core functions with ident
 
 **Purpose**: Initialize the logger with service information and peer service mappings.
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
 sovdev_initialize(
   service_name: string,
   service_version?: string,
   peer_services?: { [key: string]: string }
 ): void
+```
+
+**Python Signature**:
+```python
+def sovdev_initialize(
+    service_name: str,
+    service_version: str = "1.0.0",
+    peer_services: Optional[Dict[str, str]] = None
+) -> None:
+    """
+    Initialize the sovdev-logger.
+
+    Args:
+        service_name: Service identifier (from SYSTEM_ID env var)
+        service_version: Service version (defaults to "1.0.0")
+        peer_services: Peer service mapping from create_peer_services()
+
+    Raises:
+        ValueError: If service_name is empty
+    """
 ```
 
 **Parameters**:
@@ -59,18 +79,48 @@ sovdev_initialize(
 
 **Purpose**: Log a transaction with optional input/output data and exception.
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
+// Type definition
+type sovdev_log_level = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
 sovdev_log(
-  level: SOVDEV_LOGLEVELS,
+  level: sovdev_log_level,  // Accepts: SOVDEV_LOGLEVELS.INFO or 'info'
   function_name: string,
   message: string,
   peer_service: string,
-  input_json?: object | null,
-  response_json?: object | null,
-  exception?: Error | null,
-  trace_id?: string | null
+  input_json?: any,
+  response_json?: any,
+  exception?: Error,
+  trace_id?: string
 ): void
+```
+
+**Python Signature**:
+```python
+def sovdev_log(
+    level: str,
+    function_name: str,
+    message: str,
+    peer_service: str,
+    input_json: Optional[Any] = None,
+    response_json: Optional[Any] = None,
+    exception: Optional[BaseException] = None,
+    trace_id: Optional[str] = None
+) -> None:
+    """
+    Log a transaction with optional input/output and exception.
+
+    Args:
+        level: Log level (use SOVDEV_LOGLEVELS enum or string)
+        function_name: Name of the function being logged
+        message: Human-readable message
+        peer_service: Target system identifier
+        input_json: Request data (any JSON-serializable type)
+        response_json: Response data (any JSON-serializable type)
+        exception: Exception object (if logging error)
+        trace_id: UUID for transaction correlation (auto-generated if None)
+    """
 ```
 
 **Parameters**:
@@ -199,17 +249,42 @@ async function lookupCompany(orgNumber: string, trace_id?: string): Promise<void
 
 **Purpose**: Log batch job status (Started, Completed, Failed).
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
 sovdev_log_job_status(
-  level: SOVDEV_LOGLEVELS,
+  level: sovdev_log_level,  // Accepts: SOVDEV_LOGLEVELS.INFO or 'info'
   function_name: string,
   job_name: string,
   status: string,
   peer_service: string,
-  input_json?: object | null,
-  trace_id?: string | null
+  input_json?: any,
+  trace_id?: string
 ): void
+```
+
+**Python Signature**:
+```python
+def sovdev_log_job_status(
+    level: str,
+    function_name: str,
+    job_name: str,
+    status: str,
+    peer_service: str,
+    input_json: Optional[Any] = None,
+    trace_id: Optional[str] = None
+) -> None:
+    """
+    Log batch job status (Started, Completed, Failed).
+
+    Args:
+        level: Log level (typically INFO or ERROR)
+        function_name: Function name managing the job
+        job_name: Human-readable job name
+        status: Job status ("Started", "Completed", "Failed", etc.)
+        peer_service: Target system or INTERNAL for internal jobs
+        input_json: Job metadata (total items, success count, etc.)
+        trace_id: Job correlation ID (use same ID for all logs in this job)
+    """
 ```
 
 **Parameters**:
@@ -289,18 +364,45 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
 
 **Purpose**: Log progress for individual items in a batch job.
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
 sovdev_log_job_progress(
-  level: SOVDEV_LOGLEVELS,
+  level: sovdev_log_level,  // Accepts: SOVDEV_LOGLEVELS.INFO or 'info'
   function_name: string,
   item_id: string,
   current: number,
   total: number,
   peer_service: string,
-  input_json?: object | null,
-  trace_id?: string | null
+  input_json?: any,
+  trace_id?: string
 ): void
+```
+
+**Python Signature**:
+```python
+def sovdev_log_job_progress(
+    level: str,
+    function_name: str,
+    item_id: str,
+    current: int,
+    total: int,
+    peer_service: str,
+    input_json: Optional[Any] = None,
+    trace_id: Optional[str] = None
+) -> None:
+    """
+    Log progress for individual items in a batch job.
+
+    Args:
+        level: Log level (typically INFO)
+        function_name: Function name processing items
+        item_id: Identifier for current item being processed
+        current: Current item number (1-based)
+        total: Total number of items
+        peer_service: Target system for this item
+        input_json: Item-specific data
+        trace_id: Job correlation ID (same as job status logs)
+    """
 ```
 
 **Parameters**:
@@ -390,9 +492,22 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
 
 **Purpose**: Flush all pending OTLP batches to ensure logs/metrics/traces are exported.
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
 sovdev_flush(): Promise<void>
+```
+
+**Python Signature**:
+```python
+def sovdev_flush() -> None:
+    """
+    Flush all pending logs, metrics, and traces.
+
+    Blocks until all data is exported or 30-second timeout occurs.
+    Safe to call from signal handlers and atexit hooks.
+
+    Note: Python uses synchronous flush (blocks), unlike TypeScript async.
+    """
 ```
 
 **Behavior**:
@@ -452,9 +567,24 @@ process.on('beforeExit', async () => {
 
 **Purpose**: Generate a UUID v4 for trace correlation.
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
 sovdev_generate_trace_id(): string
+```
+
+**Python Signature**:
+```python
+def sovdev_generate_trace_id() -> str:
+    """
+    Generate UUID v4 for trace correlation.
+
+    Returns:
+        Lowercase UUID string with hyphens (36 characters)
+
+    Example:
+        >>> sovdev_generate_trace_id()
+        '50ba0e1d-c46d-4dee-98d3-a0d3913f74ee'
+    """
 ```
 
 **Behavior**:
@@ -512,7 +642,7 @@ sovdev_log(
 
 **Purpose**: Create type-safe peer service mapping with INTERNAL auto-generation.
 
-**Signature** (TypeScript reference):
+**TypeScript Signature**:
 ```typescript
 create_peer_services<T extends Record<string, string>>(
   definitions: T
@@ -522,6 +652,39 @@ create_peer_services<T extends Record<string, string>>(
   INTERNAL: string;
   mappings: Record<string, string>;
 }
+```
+
+**Python Signature**:
+```python
+class PeerServices:
+    """Type-safe peer service constants."""
+    mappings: Dict[str, str]
+    INTERNAL: str
+    # Dynamic attributes for each defined service
+
+def create_peer_services(definitions: Dict[str, str]) -> PeerServices:
+    """
+    Create peer service mapping with INTERNAL auto-generation.
+
+    Args:
+        definitions: Dictionary mapping service names to system IDs
+
+    Returns:
+        PeerServices object with:
+        - Attribute access (PEER_SERVICES.BRREG returns 'BRREG')
+        - Mapping access (PEER_SERVICES.mappings returns full dict)
+        - Auto-generated INTERNAL constant
+
+    Example:
+        >>> PEER_SERVICES = create_peer_services({
+        ...     'BRREG': 'SYS1234567',
+        ...     'ALTINN': 'SYS7654321'
+        ... })
+        >>> PEER_SERVICES.BRREG  # Returns 'BRREG' (constant name)
+        'BRREG'
+        >>> PEER_SERVICES.mappings  # Returns full mapping
+        {'BRREG': 'SYS1234567', 'ALTINN': 'SYS7654321'}
+    """
 ```
 
 **Parameters**:
@@ -599,15 +762,47 @@ sovdev_initialize(
 
 All implementations MUST support these 6 log levels:
 
+**TypeScript**:
 ```typescript
-enum SOVDEV_LOGLEVELS {
-  TRACE = 'trace',   // Severity: 1  (OpenTelemetry)
-  DEBUG = 'debug',   // Severity: 5  (OpenTelemetry)
-  INFO = 'info',     // Severity: 9  (OpenTelemetry)
-  WARN = 'warn',     // Severity: 13 (OpenTelemetry)
-  ERROR = 'error',   // Severity: 17 (OpenTelemetry)
-  FATAL = 'fatal'    // Severity: 21 (OpenTelemetry)
-}
+// Constants object
+export const SOVDEV_LOGLEVELS = {
+  TRACE: 'trace',   // Severity: 1  (OpenTelemetry)
+  DEBUG: 'debug',   // Severity: 5  (OpenTelemetry)
+  INFO: 'info',     // Severity: 9  (OpenTelemetry)
+  WARN: 'warn',     // Severity: 13 (OpenTelemetry)
+  ERROR: 'error',   // Severity: 17 (OpenTelemetry)
+  FATAL: 'fatal'    // Severity: 21 (OpenTelemetry)
+} as const;
+
+// Type definition (string literal union)
+export type sovdev_log_level = typeof SOVDEV_LOGLEVELS[keyof typeof SOVDEV_LOGLEVELS];
+// Resolves to: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+
+// Usage: Both constants and strings work
+sovdev_log(SOVDEV_LOGLEVELS.INFO, ...)  // Recommended (type-safe with autocomplete)
+sovdev_log('info', ...)                  // Also works (string literal)
+```
+
+**Python**:
+```python
+from enum import Enum
+
+class SOVDEV_LOGLEVELS(str, Enum):
+    """
+    Log levels matching OpenTelemetry severity numbers.
+
+    Subclasses str to allow use as string literals.
+    """
+    TRACE = "trace"   # Severity: 1  (OpenTelemetry)
+    DEBUG = "debug"   # Severity: 5  (OpenTelemetry)
+    INFO = "info"     # Severity: 9  (OpenTelemetry)
+    WARN = "warn"     # Severity: 13 (OpenTelemetry)
+    ERROR = "error"   # Severity: 17 (OpenTelemetry)
+    FATAL = "fatal"   # Severity: 21 (OpenTelemetry)
+
+# Usage: Both enum and string work
+sovdev_log(SOVDEV_LOGLEVELS.INFO, ...)  # Type-safe
+sovdev_log("info", ...)  # Also works (string literal)
 ```
 
 **Mapping to OpenTelemetry Severity**:

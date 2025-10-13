@@ -22,5 +22,5 @@ export { SOVDEV_LOGLEVELS } from './logLevels';
 export { create_peer_services } from './peerServices';
 
 // Export TypeScript types
-export type { SovdevLogLevel } from './logLevels';
+export type { sovdev_log_level } from './logLevels';
 export type { StructuredLogEntry } from './logger';

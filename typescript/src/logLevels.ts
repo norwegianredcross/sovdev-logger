@@ -14,4 +14,4 @@ export const SOVDEV_LOGLEVELS = {
   FATAL: 'fatal'    // Fatal errors (triggers ServiceNow incident)
 } as const;
 
-export type SovdevLogLevel = typeof SOVDEV_LOGLEVELS[keyof typeof SOVDEV_LOGLEVELS];
+export type sovdev_log_level = typeof SOVDEV_LOGLEVELS[keyof typeof SOVDEV_LOGLEVELS];

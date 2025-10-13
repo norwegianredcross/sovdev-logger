@@ -83,15 +83,17 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 ---
 
-### HIGH PRIORITY GAP 1: Python Function Signatures ✅ RESOLVED
+### HIGH PRIORITY GAP 1: Python Function Signatures ✅ COMPLETED
 
 **Original issue**: Only TypeScript signatures shown
 
 **Research finding**: Python type hints follow standard patterns
 
-**Specification update needed:**
+**Status**: ✅ **COMPLETED** - Python signatures added to `specification/01-api-contract.md` (2025-10-12)
 
-Add Python signatures to `01-api-contract.md`:
+**Specification update (DONE):**
+
+Added Python signatures to `01-api-contract.md` for all 7 API functions:
 
 ```markdown
 ## sovdev_initialize
@@ -760,7 +762,7 @@ Python convention for multi-word packages:
 | Gap | Status | Resolution Time | Priority |
 |-----|--------|-----------------|----------|
 | Async/sync flush | ✅ RESOLVED | 15 min | CRITICAL |
-| Python signatures | ✅ RESOLVED | 1 hour | HIGH |
+| Python signatures | ✅ **COMPLETED** | 1 hour | HIGH |
 | Module structure | ✅ RESOLVED | 30 min | HIGH |
 | create_peer_services | ✅ RESOLVED | 1 hour | HIGH |
 | Idempotent behavior | ✅ RESOLVED | 15 min | MEDIUM |
@@ -771,8 +773,13 @@ Python convention for multi-word packages:
 | Package naming | ✅ RESOLVED | 5 min | LOW |
 | More examples | ⏳ ACKNOWLEDGED | 4-6 hours | LOW |
 
+**Note**:
+- ✅ RESOLVED = Solution documented, awaiting specification update
+- ✅ **COMPLETED** = Added to specification files
+
 **Total resolution time**: ~5 hours of specification updates
 **Implementation readiness**: ✅ 100% (all critical and high priority gaps resolved)
+**Specification updates**: 1/11 completed (Python signatures in 01-api-contract.md)
 
 ---
 

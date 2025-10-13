@@ -40,7 +40,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // Import log levels from separate module
-import { SOVDEV_LOGLEVELS, SovdevLogLevel } from './logLevels';
+import { SOVDEV_LOGLEVELS, sovdev_log_level } from './logLevels';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -382,7 +382,7 @@ class InternalSovdevLogger {
    * Uses snake_case field names for consistency across all languages
    */
   private create_log_entry(
-    level: SovdevLogLevel,
+    level: sovdev_log_level,
     function_name: string,
     message: string,
     peer_service?: string,
@@ -592,7 +592,7 @@ class InternalSovdevLogger {
    * Main logging method - for transaction/request-response logs
    */
   public log(
-    level: SovdevLogLevel,
+    level: sovdev_log_level,
     function_name: string,
     message: string,
     peer_service: string,
@@ -609,7 +609,7 @@ class InternalSovdevLogger {
    * Job status logging - for batch job start/complete/failed events
    */
   public log_job_status(
-    level: SovdevLogLevel,
+    level: sovdev_log_level,
     function_name: string,
     job_name: string,
     status: string,
@@ -632,7 +632,7 @@ class InternalSovdevLogger {
    * Job progress logging - for tracking batch processing progress (X of Y)
    */
   public log_job_progress(
-    level: SovdevLogLevel,
+    level: sovdev_log_level,
     function_name: string,
     job_name: string,
     item_id: string,
@@ -978,7 +978,7 @@ function ensure_logger(): InternalSovdevLogger {
  * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
 export function sovdev_log(
-  level: SovdevLogLevel,
+  level: sovdev_log_level,
   function_name: string,
   message: string,
   peer_service: string,
@@ -1001,7 +1001,7 @@ export function sovdev_log(
  * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
 export function sovdev_log_job_status(
-  level: SovdevLogLevel,
+  level: sovdev_log_level,
   function_name: string,
   job_name: string,
   status: string,
@@ -1024,7 +1024,7 @@ export function sovdev_log_job_status(
  * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
 export function sovdev_log_job_progress(
-  level: SovdevLogLevel,
+  level: sovdev_log_level,
   function_name: string,
   item_id: string,
   current: number,
@@ -1037,7 +1037,7 @@ export function sovdev_log_job_progress(
 }
 
 // Export types for TypeScript consumers
-export type { SovdevLogLevel, StructuredLogEntry };
+export type { sovdev_log_level, StructuredLogEntry };
 
 /**
  * ARCHITECTURE SUMMARY:

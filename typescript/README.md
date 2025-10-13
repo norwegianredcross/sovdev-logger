@@ -663,7 +663,7 @@ sovdevInitialize(
 
 ```typescript
 sovdevLog(
-  level: SovdevLogLevel,
+  level: sovdev_log_level,
   functionName: string,
   message: string,
   peerService: string,
@@ -716,7 +716,7 @@ sovdevLog(
 
 ```typescript
 sovdevLogJobStatus(
-  level: SovdevLogLevel,
+  level: sovdev_log_level,
   functionName: string,
   jobName: string,
   status: string,
@@ -767,7 +767,7 @@ sovdevLogJobStatus(
 
 ```typescript
 sovdevLogJobProgress(
-  level: SovdevLogLevel,
+  level: sovdev_log_level,
   functionName: string,
   itemId: string,
   current: number,
