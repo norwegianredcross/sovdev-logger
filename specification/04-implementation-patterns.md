@@ -127,6 +127,9 @@ The `company-lookup` application is a **standardized E2E test** that:
 
 Every language implementation should produce functionally identical logs when running `company-lookup`.
 
+**For complete specification**, see:
+- **Test program specification**: `specification/09-testprogram-company-lookup.md` - Complete documentation of the company-lookup E2E test including expected behavior, log output, cross-language requirements, and validation procedures
+
 ---
 
 ## Required File: .env

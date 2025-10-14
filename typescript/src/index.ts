@@ -12,7 +12,8 @@ export {
   sovdev_flush,
   sovdev_log,
   sovdev_log_job_status,
-  sovdev_log_job_progress
+  sovdev_log_job_progress,
+  sovdev_generate_trace_id
 } from './logger';
 
 // Export log levels

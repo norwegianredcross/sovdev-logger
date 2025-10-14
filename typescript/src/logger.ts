@@ -1036,6 +1036,38 @@ export function sovdev_log_job_progress(
   ensure_logger().log_job_progress(level, function_name, "BatchProcessing", item_id, current, total, peer_service, input_json, trace_id);
 }
 
+/**
+ * Generate a new trace ID for transaction correlation
+ *
+ * Use this to create a unique identifier that can be passed to multiple related log calls
+ * to correlate them as part of the same business transaction.
+ *
+ * @returns A 32-character hex string (OpenTelemetry trace ID format) for use as trace_id parameter
+ *
+ * @example
+ * ```typescript
+ * import { sovdev_generate_trace_id, sovdev_log, SOVDEV_LOGLEVELS, PEER_SERVICES } from '@sovdev/logger';
+ *
+ * // Generate trace_id once for the entire transaction
+ * const trace_id = sovdev_generate_trace_id();
+ * // Returns: "5458dd138cff4005bb15176b5bfd0262" (32 hex chars, no hyphens)
+ *
+ * // Use same trace_id in all related logs
+ * sovdev_log(SOVDEV_LOGLEVELS.INFO, 'processOrder', 'Starting order processing',
+ *            PEER_SERVICES.INTERNAL, { order_id: '123' }, null, null, trace_id);
+ *
+ * const result = await callExternalAPI();
+ *
+ * sovdev_log(SOVDEV_LOGLEVELS.INFO, 'processOrder', 'Order completed',
+ *            PEER_SERVICES.INTERNAL, { order_id: '123' }, result, null, trace_id);
+ * // Both logs have same trace_id = correlated transaction!
+ * ```
+ */
+export function sovdev_generate_trace_id(): string {
+  // Generate UUID v4 and remove hyphens to match OpenTelemetry trace ID format (32 hex chars)
+  return uuidv4().replace(/-/g, '');
+}
+
 // Export types for TypeScript consumers
 export type { sovdev_log_level, structured_log_entry };
 

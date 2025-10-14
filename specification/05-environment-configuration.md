@@ -51,7 +51,7 @@ The `/workspace` directory inside the container is **bind-mounted** to the proje
 
 This mount configuration enables LLMs to:
 1. ✅ **Read/Edit files on host** using native Read/Edit/Write tools (fast, direct access)
-2. ✅ **Execute code in container** using `docker exec` commands (consistent runtimes)
+2. ✅ **Execute code in container** using `in-devcontainer.sh` wrapper (consistent runtimes)
 3. ✅ **See changes immediately** - edits on host are instantly available in container
 4. ✅ **No sync delays** - changes propagate in real-time (not copied, same inode)
 
@@ -61,8 +61,8 @@ This mount configuration enables LLMs to:
 Edit /Users/terje.christensen/learn/redcross-public/sovdev-logger/typescript/src/logger.ts
 
 # File is immediately available in container at /workspace/typescript/src/logger.ts
-# LLM runs code in container
-docker exec devcontainer-toolbox bash -c "cd /workspace/typescript && npm test"
+# LLM runs code in container using wrapper
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && npm test"
 
 # Test runs with the just-edited file (no sync needed)
 ```
@@ -80,48 +80,53 @@ docker exec devcontainer-toolbox bash -c "cd /workspace/typescript && npm test"
 | **C#/.NET** | (via install script) | `dotnet --version` | Run `.devcontainer/additions/install-dotnet.sh` |
 | **Rust** | (via install script) | `rustc --version` | Run `.devcontainer/additions/install-rust.sh` |
 
-### Command Execution Pattern
+### Command Execution Pattern (for LLM Developers)
+
+**IMPORTANT:** LLM developers working on the host machine must use the `in-devcontainer.sh` wrapper to execute code inside the DevContainer.
 
 **Template:**
 ```bash
-docker exec devcontainer-toolbox bash -c "cd /workspace/[subdir] && [command]"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/[subdir] && [command]"
 ```
 
 **Examples:**
 ```bash
 # Run TypeScript tests
-docker exec devcontainer-toolbox bash -c "cd /workspace/typescript && npm test"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && npm test"
 
 # Run Python tests
-docker exec devcontainer-toolbox bash -c "cd /workspace/python && python -m pytest"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python && python -m pytest"
 
 # Install TypeScript dependencies
-docker exec devcontainer-toolbox bash -c "cd /workspace/typescript && npm install"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && npm install"
 
 # Install Python dependencies
-docker exec devcontainer-toolbox bash -c "cd /workspace/python && pip install -e ."
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python && pip install -e ."
 
 # Check Node.js version
-docker exec devcontainer-toolbox node --version
+./specification/tools/in-devcontainer.sh -e "node --version"
 
 # Check Python version
-docker exec devcontainer-toolbox python --version
+./specification/tools/in-devcontainer.sh -e "python --version"
 ```
 
-### Important Restrictions
-
-**❌ Never use `-it` flags:**
+**Or call tools through the wrapper** (recommended pattern for LLMs):
 ```bash
-# WRONG - will fail with "input device is not a TTY"
-docker exec -it devcontainer-toolbox bash
+# Run company-lookup test
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh {language}"
 
-# CORRECT - works in non-interactive environments
-docker exec devcontainer-toolbox bash -c "command"
+# Validate log format
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
+
+# Complete validation
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh {language}"
 ```
+
+**Note for Human Developers:** If you're working inside VSCode with the DevContainer extension, your terminal is already inside the container - run commands directly without the wrapper.
 
 **✅ File Operations:**
 - **Read/Edit/Write files**: Use host filesystem paths (fast, direct access)
-- **Execute code**: Use DevContainer (consistent runtimes)
+- **Execute code**: Use `in-devcontainer.sh` wrapper (consistent runtimes)
 
 **Why?** File changes on host are immediately visible in container (same filesystem mount).
 
@@ -543,9 +548,9 @@ LOG_FILE_PATH=./logs/dev.log
 # Check container is running
 docker ps --filter name=devcontainer-toolbox
 
-# Check languages available
-docker exec devcontainer-toolbox node --version
-docker exec devcontainer-toolbox python --version
+# Check languages available (LLM developers use wrapper)
+./specification/tools/in-devcontainer.sh -e "node --version"
+./specification/tools/in-devcontainer.sh -e "python --version"
 ```
 
 **Check Kubernetes Cluster:**
@@ -564,23 +569,28 @@ kubectl get pods -n monitoring
 
 ### 3. Run Tests
 
-**Using Verification Tool (Recommended):**
+**LLM developers (use wrapper for ALL commands):**
 ```bash
-# Run TypeScript E2E test
-cd specification/tools
-./run-company-lookup.sh typescript
+# Run TypeScript E2E test (call tool through wrapper)
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh typescript"
 
-# Run Python E2E test
-./run-company-lookup.sh python
+# Run Python E2E test (call tool through wrapper)
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh python"
+
+# Or manually run test script directly:
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript/test/e2e/company-lookup && ./run-test.sh"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python/test/e2e/company-lookup && ./run-test.sh"
 ```
 
-**Or directly (using Docker exec):**
+**Human developers (VSCode terminal):**
 ```bash
 # TypeScript
-docker exec devcontainer-toolbox bash -c "cd /workspace/typescript/test/e2e/company-lookup && ./run-test.sh"
+cd typescript/test/e2e/company-lookup
+./run-test.sh
 
 # Python
-docker exec devcontainer-toolbox bash -c "cd /workspace/python/test/e2e/company-lookup && ./run-test.sh"
+cd python/test/e2e/company-lookup
+./run-test.sh
 ```
 
 ### 4. Verify Logs in Grafana
@@ -635,13 +645,13 @@ docker ps
 # Check container name
 docker ps --filter name=devcontainer-toolbox
 
-# Test basic command
-docker exec devcontainer-toolbox echo "hello"
+# Test basic command (LLM developers)
+./specification/tools/in-devcontainer.sh -e "echo 'hello'"
 ```
 
 **File changes not visible:**
 - File changes on host should be immediately visible in container
-- Check mount: `docker exec devcontainer-toolbox ls -la /workspace`
+- Check mount (LLM developers): `./specification/tools/in-devcontainer.sh -e "ls -la /workspace"`
 
 ### Kubernetes Cluster Issues
 
@@ -690,8 +700,8 @@ open http://localhost:3000
 
 **DevContainer cannot reach host:**
 ```bash
-# Test from inside container
-docker exec devcontainer-toolbox curl -v http://host.docker.internal/
+# Test from inside container (LLM developers)
+./specification/tools/in-devcontainer.sh -e "curl -v http://host.docker.internal/"
 
 # Should return response from Traefik
 ```
@@ -726,10 +736,15 @@ Application (DevContainer)
 
 ### Development Loop
 
+**For complete development workflow documentation**, see **[10-development-loop.md](./10-development-loop.md)**.
+
+**Quick Reference:**
 1. **Edit code** on host (fast file operations)
-2. **Run code** in DevContainer (consistent runtimes)
-3. **Logs flow** to Kubernetes cluster (OTLP)
-4. **Verify** in Grafana or via backend queries
+2. **Run test** in DevContainer (consistent runtimes)
+3. **Validate log files FIRST** ⚡ (instant, local, catches 90% of issues)
+4. **Validate OTLP backends SECOND** 🔄 (after log files pass, requires wait)
+
+**Key Principle:** Always validate log files before checking OTLP backends - this provides instant feedback and catches most issues without waiting for infrastructure.
 
 This environment ensures **consistent behavior** across all developers and **reliable testing** of all language implementations.
 

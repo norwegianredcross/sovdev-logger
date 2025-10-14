@@ -979,10 +979,12 @@ docker ps --filter name=devcontainer-toolbox
 
 #### 3. Command Execution Pattern
 
-All validation tools and test commands run **inside the devcontainer**. Use the `in-devcontainer.sh` wrapper script:
+All validation tools and test commands run **inside the devcontainer**.
+
+**For LLM developers** (working on host machine): Use the `in-devcontainer.sh` wrapper script:
 
 ```bash
-# From host machine (recommended)
+# From host machine
 ./specification/tools/in-devcontainer.sh <command>
 
 # Examples:
@@ -990,10 +992,7 @@ All validation tools and test commands run **inside the devcontainer**. Use the 
 ./specification/tools/in-devcontainer.sh run-company-lookup.sh typescript
 ```
 
-**Alternative**: Execute directly inside container:
-```bash
-docker exec devcontainer-toolbox bash -c "cd /workspace && <command>"
-```
+**For Human developers** (VSCode terminal inside container): Run commands directly without wrapper.
 
 **File editing**: Edit files on your **host machine** (using your IDE). Changes are immediately visible inside the container via bind mount at `/workspace`.
 
@@ -1028,11 +1027,11 @@ The `specification/tools/` directory contains validation scripts that provide im
 
 **How to run**:
 ```bash
-# From repository root (using in-devcontainer.sh wrapper - recommended)
+# For LLM developers (from host machine - use wrapper)
 ./specification/tools/in-devcontainer.sh validate-log-format.sh typescript/test/logs/dev.log
 
-# Alternative: Execute directly inside container
-docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && ./validate-log-format.sh ../typescript/test/logs/dev.log"
+# For Human developers (VSCode terminal inside container - run directly)
+validate-log-format.sh typescript/test/logs/dev.log
 ```
 
 **Success output**:
@@ -1060,11 +1059,11 @@ docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && .
 
 **How to run**:
 ```bash
-# From repository root (using in-devcontainer.sh wrapper - recommended)
+# For LLM developers (from host machine - use wrapper)
 ./specification/tools/in-devcontainer.sh run-company-lookup.sh typescript
 
-# Alternative: Execute directly inside container
-docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && ./run-company-lookup.sh typescript"
+# For Human developers (VSCode terminal inside container - run directly)
+run-company-lookup.sh typescript
 ```
 
 **Success output**:
@@ -1090,11 +1089,11 @@ docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && .
 
 **How to run**:
 ```bash
-# From repository root (using in-devcontainer.sh wrapper - recommended)
+# For LLM developers (from host machine - use wrapper)
 ./specification/tools/in-devcontainer.sh run-full-validation.sh typescript
 
-# Alternative: Execute directly inside container
-docker exec devcontainer-toolbox bash -c "cd /workspace/specification/tools && ./run-full-validation.sh typescript"
+# For Human developers (VSCode terminal inside container - run directly)
+run-full-validation.sh typescript
 ```
 
 **Success output**:

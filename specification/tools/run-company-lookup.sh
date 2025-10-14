@@ -96,6 +96,14 @@ CONTAINER_NAME="devcontainer-toolbox"
 TEST_PATH="test/e2e/company-lookup"
 TEST_SCRIPT="run-test.sh"
 
+# Detect if we're running inside the container or on the host
+# If /workspace exists and we're in it, we're inside the container
+if [ -d "/workspace" ] && [ "$(pwd | grep -c "^/workspace")" -gt 0 ]; then
+    RUNNING_IN_CONTAINER=true
+else
+    RUNNING_IN_CONTAINER=false
+fi
+
 ###############################################################################
 # Functions
 ###############################################################################
@@ -129,6 +137,12 @@ print_warning() {
 }
 
 check_devcontainer() {
+    # If we're already inside the container, skip this check
+    if [ "$RUNNING_IN_CONTAINER" = true ]; then
+        print_info "Running inside devcontainer - skipping container check"
+        return 0
+    fi
+
     print_info "Checking if devcontainer is running..."
 
     if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
@@ -152,16 +166,33 @@ check_test_script_exists() {
 
     print_info "Checking if test script exists: ${full_path}"
 
-    if ! docker exec "${CONTAINER_NAME}" bash -c "test -f ${full_path}"; then
-        print_error "Test script not found: ${full_path}"
-        echo ""
-        echo "Expected file structure:"
-        echo "  ${language}/"
-        echo "  └── ${TEST_PATH}/"
-        echo "      └── ${TEST_SCRIPT}"
-        echo ""
-        echo "See specification/06-test-scenarios.md for required structure"
-        return 1
+    # Check if file exists - method depends on where we're running
+    if [ "$RUNNING_IN_CONTAINER" = true ]; then
+        # Inside container - check directly
+        if [ ! -f "${full_path}" ]; then
+            print_error "Test script not found: ${full_path}"
+            echo ""
+            echo "Expected file structure:"
+            echo "  ${language}/"
+            echo "  └── ${TEST_PATH}/"
+            echo "      └── ${TEST_SCRIPT}"
+            echo ""
+            echo "See specification/06-test-scenarios.md for required structure"
+            return 1
+        fi
+    else
+        # On host - use docker exec
+        if ! docker exec "${CONTAINER_NAME}" bash -c "test -f ${full_path}"; then
+            print_error "Test script not found: ${full_path}"
+            echo ""
+            echo "Expected file structure:"
+            echo "  ${language}/"
+            echo "  └── ${TEST_PATH}/"
+            echo "      └── ${TEST_SCRIPT}"
+            echo ""
+            echo "See specification/06-test-scenarios.md for required structure"
+            return 1
+        fi
     fi
 
     print_success "Test script found"
@@ -182,10 +213,17 @@ run_test() {
     echo "═════════════════════════════════════════════════════════════════"
     echo ""
 
-    # Run the test and capture exit code
-    # Note: We don't use 'set -e' here because we want to capture the exit code
-    docker exec "${CONTAINER_NAME}" bash -c "cd ${test_dir} && ./${TEST_SCRIPT}"
-    local exit_code=$?
+    # Run the test - method depends on where we're running
+    local exit_code
+    if [ "$RUNNING_IN_CONTAINER" = true ]; then
+        # Inside container - run directly
+        (cd "${test_dir}" && ./${TEST_SCRIPT})
+        exit_code=$?
+    else
+        # On host - use docker exec
+        docker exec "${CONTAINER_NAME}" bash -c "cd ${test_dir} && ./${TEST_SCRIPT}"
+        exit_code=$?
+    fi
 
     echo ""
     echo "═════════════════════════════════════════════════════════════════"

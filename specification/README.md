@@ -1,317 +1,375 @@
 # Sovdev Logger Specification
 
-## Overview
+## Purpose
 
-This directory contains the **canonical specification** for sovdev-logger - a multi-language structured logging library that produces identical output across all programming languages.
+This specification enables **implementation of sovdev-logger in any programming language** while ensuring **identical output** across all implementations.
 
-The specification is designed to be read by both humans and LLMs to enable:
-1. **Consistent implementations** across TypeScript, Python, Go, Java, C#, PHP, Rust
-2. **LLM-assisted development** where an LLM can generate a correct implementation by reading the specification
-3. **Cross-language verification** where contract tests validate that all implementations produce identical output
+**Target Audience:**
+- LLM assistants implementing sovdev-logger in new languages
+- Human developers creating or maintaining language implementations
+
+**Goal:** Any developer (human or LLM) should be able to read this specification, the TypeScript reference implementation, and create a correct implementation in their target language that produces identical output.
+
+---
+
+## How to Implement a New Language
+
+### The Process
+
+1. **Read the Specification Documents**
+   - Start with `00-design-principles.md` for philosophy
+   - Read `01-api-contract.md` for exact API requirements
+   - Review `02-field-definitions.md` for output format
+   - Read `10-development-loop.md` for iterative workflow
+   - Continue through all specification docs (00-10)
+
+2. **Study the Reference Implementation**
+   - Read `typescript/` - This is the source of truth
+   - Understand the API: 8 functions with specific signatures
+   - See how triple output works (console + file + OTLP)
+
+3. **Implement the API**
+   - Create the same 8 functions with identical behavior
+   - Match parameter names and types (adapted to your language)
+   - Produce identical output format (snake_case fields, same log structure)
+
+4. **Implement the E2E Test**
+   - Create `{language}/test/e2e/company-lookup/`
+   - Follow `09-testprogram-company-lookup.md` specification
+   - Must produce exactly 17 log entries with same structure as TypeScript
+
+5. **Validate Your Implementation**
+   - Run automated validation tools
+   - Verify output matches reference implementation
+   - Check all backends (Loki, Prometheus, Tempo)
+
+**Success Criteria:** When your implementation passes all validation tools, producing identical output to TypeScript for the same inputs, you're done.
+
+---
 
 ## Development Environment
 
-### ⚠️ Critical: DevContainer Toolbox Required
+### DevContainer Toolbox (Required)
 
-**This repository uses the DevContainer Toolbox for ALL code execution.**
+**⚠️ CRITICAL:** All code execution MUST happen inside the DevContainer using the `in-devcontainer.sh` wrapper.
 
-All programming language runtimes (Node.js, Python, Go, Java, PHP, etc.) are installed **inside the DevContainer only**. The host machine (Mac, Windows, Linux) does not require any language runtimes installed.
+**Why DevContainer?**
+- Provides consistent development environment across all machines (Mac, Windows, Linux)
+- All programming language runtimes pre-installed
+- Host machine requires NO language runtimes - everything runs in the container
+- Ensures identical behavior for all developers and LLMs
 
-**Key Points:**
-- ✅ **File operations**: Read/Edit/Write files on host filesystem (fast, direct access)
-- ✅ **Code execution**: Run commands inside DevContainer (consistent environment)
-- ❌ **Never run code on host**: Language runtimes only exist in DevContainer
+**Key Operating Principle:**
+- ✅ **File operations:** Read/Edit/Write files on host filesystem (fast, direct access)
+- ✅ **Code execution:** ALL commands run inside DevContainer (consistent environment)
+- ❌ **Never run code on host:** Language runtimes only exist in DevContainer
 
-**Container Details:**
-- **Name**: `devcontainer-toolbox`
-- **Base**: Debian 12 (bookworm)
-- **Languages**: Node.js 22, Python 3.11, Go, Java, PHP, C#, Rust (via install scripts)
-- **Mount**: Host project root → `/workspace` (read-write, bidirectional)
+**For DevContainer setup and details**, see `05-environment-configuration.md`
 
-### Running Commands in DevContainer
+### Running Commands with in-devcontainer.sh
+
+**IMPORTANT:** Always use the `in-devcontainer.sh` wrapper for ALL command execution.
 
 **Template:**
 ```bash
-docker exec devcontainer-toolbox bash -c "cd /workspace/[subdir] && [command]"
+./specification/tools/in-devcontainer.sh "cd /workspace/{language} && {command}"
 ```
 
-**Examples:**
+**Note:** Validation tools in `specification/tools/` automatically use `in-devcontainer.sh` internally, so you can call them directly without wrapping.
+
+**For complete usage examples and details**, see:
+- `specification/tools/README.md` - Tool documentation and examples
+- `specification/05-environment-configuration.md` - DevContainer setup and troubleshooting
+
+---
+
+## Available Resources
+
+### 1. Reference Implementation (TypeScript)
+
+**Location:** `typescript/` directory
+
+**What to learn from it:**
+- How the 8 API functions work
+- Triple output architecture (console + file + OTLP)
+- Transaction correlation with explicit trace_id
+- Error handling and credential removal
+- The company-lookup E2E test implementation
+
+**Key Files:**
+- `typescript/src/index.ts` - Public API exports
+- `typescript/src/logger.ts` - Core implementation
+- `typescript/test/e2e/company-lookup/company-lookup.ts` - E2E test example
+
+### 2. Specification Documents (00-10)
+
+Complete specification for implementing sovdev-logger:
+
+1. **[00-design-principles.md](./00-design-principles.md)** - Core philosophy and design goals
+2. **[01-api-contract.md](./01-api-contract.md)** - Public API that all languages MUST implement
+3. **[02-field-definitions.md](./02-field-definitions.md)** - Required fields in all log outputs
+4. **[04-implementation-patterns.md](./04-implementation-patterns.md)** - Required patterns (snake_case, directory structure, etc.)
+5. **[04-error-handling.md](./04-error-handling.md)** - Exception handling, credential removal, stack trace limits
+6. **[05-environment-configuration.md](./05-environment-configuration.md)** - Environment variables and configuration
+7. **[06-test-scenarios.md](./06-test-scenarios.md)** - Test scenarios and verification procedures
+8. **[08-anti-patterns.md](./08-anti-patterns.md)** - Common mistakes to avoid
+9. **[09-testprogram-company-lookup.md](./09-testprogram-company-lookup.md)** - E2E test specification (MUST implement this)
+10. **[10-development-loop.md](./10-development-loop.md)** - Iterative development workflow (validate logs first, then OTLP)
+
+### 3. Validation Tools (Automated Verification)
+
+**Location:** `specification/tools/`
+
+**Purpose:** Automatically validate that your implementation produces correct output
+
+**Main validation command:**
 ```bash
-# Run TypeScript test
-docker exec devcontainer-toolbox bash -c "cd /workspace/typescript && npm test"
-
-# Run Python test
-docker exec devcontainer-toolbox bash -c "cd /workspace/python && python -m pytest"
-
-# Install dependencies
-docker exec devcontainer-toolbox bash -c "cd /workspace/typescript && npm install"
+./specification/tools/run-company-lookup-validate.sh {language}
 ```
 
-**Important**: Do NOT use `-it` flags (causes "input device is not a TTY" error in non-interactive environments like Claude Code).
+**Validation Pipeline:**
+```
+JSON Schemas (schemas/)
+    ↓ (loaded by)
+Python Validators (tests/)
+    ↓ (called by)
+Shell Script Tools (tools/)
+```
 
-For complete DevContainer usage patterns, see `.terchris/rules-environment.md`.
+**For complete tool documentation**, see:
+- `specification/tools/README.md` - All validation tools and usage
+- `specification/schemas/README.md` - JSON Schema definitions
+- `specification/tests/README.md` - Python validation scripts
 
-### Verification Tools
+---
 
-Language-agnostic verification tools are available in `tools/` to simplify testing:
+## Development Workflow
 
+**For complete iterative development workflow**, see **[10-development-loop.md](./10-development-loop.md)**.
+
+**Key Best Practice:** Always validate log files FIRST (instant feedback), then validate OTLP backends SECOND (requires infrastructure). This provides 5-10x faster iteration during development.
+
+### Step-by-Step Implementation Guide
+
+**Step 1: Setup**
 ```bash
-# Quick smoke test (runs application, sends to OTLP)
-./specification/tools/run-company-lookup.sh python
+# Create language directory (file operation - can run on host)
+mkdir -p {language}/test/e2e/company-lookup
 
-# Complete E2E test (queries Loki/Prometheus/Tempo)
-./specification/tools/run-company-lookup-validate.sh python
+# Copy .env template from TypeScript (file operation - can run on host)
+cp typescript/test/e2e/company-lookup/.env {language}/test/e2e/company-lookup/
+# Edit: Change OTEL_SERVICE_NAME to "sovdev-test-company-lookup-{language}"
 ```
 
-**Two tools for different purposes:**
-- **`run-company-lookup.sh`**: Fast (seconds), runs application only, good for development
-- **`run-company-lookup-validate.sh`**: Complete (~30s), verifies all backends, required for official verification
+**Step 2: Implement Core Library**
+```bash
+# Create your library structure (file operation - can run on host)
+{language}/
+├── src/               # Your implementation
+└── test/
+    └── e2e/
+        └── company-lookup/
+```
 
-**Benefits:**
-- ✅ Abstracts devcontainer complexity (no need for docker exec syntax)
-- ✅ Works identically for all languages
-- ✅ Pre-flight checks (devcontainer running, test script exists)
-- ✅ Clear error messages with guidance
+Implement these 8 functions (see `01-api-contract.md`):
+1. `sovdev_initialize(service_name, service_version, peer_services_map)`
+2. `sovdev_log(level, function_name, message, peer_service, input_json, response_json, exception, trace_id)`
+3. `sovdev_log_job_status(level, function_name, job_name, job_status, peer_service, input_json)`
+4. `sovdev_log_job_progress(level, function_name, item_id, current_item, total_items, peer_service, input_json)`
+5. `sovdev_flush()`
+6. `sovdev_generate_trace_id()`
+7. `SOVDEV_LOGLEVELS` (constants)
+8. `create_peer_services(mappings)`
 
-See `tools/README.md` for complete documentation.
+**Step 3: Install Dependencies**
+```bash
+# Install language-specific dependencies (MUST use in-devcontainer.sh)
+./specification/tools/in-devcontainer.sh "cd /workspace/{language} && {install-command}"
 
-## Specification Documents
+# Examples:
+./specification/tools/in-devcontainer.sh "cd /workspace/python && pip install -r requirements.txt"
+./specification/tools/in-devcontainer.sh "cd /workspace/go && go mod download"
+./specification/tools/in-devcontainer.sh "cd /workspace/rust && cargo fetch"
+```
 
-### Core Specification (v1.0.0 - Complete)
+**Step 4: Implement E2E Test**
 
-These documents are **essential** for implementing sovdev-logger in any programming language:
+Follow `09-testprogram-company-lookup.md` exactly:
+- Must produce 17 log entries
+- Must use same 4 organization numbers
+- Must demonstrate all 8 API functions
+- Output must match TypeScript structure
 
-1. **[00-design-principles.md](./00-design-principles.md)** (15K, 309 lines)
-   - Core philosophy and design goals
-   - Key design decisions with rationale
-   - Versioning strategy for specification and implementations
-   - Success metrics for LLM-assisted development
+**Step 5: Run Tests**
+```bash
+# Run your tests (MUST use in-devcontainer.sh)
+./specification/tools/in-devcontainer.sh "cd /workspace/{language} && {test-command}"
 
-2. **[01-api-contract.md](./01-api-contract.md)** (21K, 677 lines)
-   - Public API that all languages MUST implement
-   - Complete function signatures with parameters
-   - Best practices: FUNCTIONNAME constant, input/response variables
-   - Real-world examples from TypeScript implementation
+# Examples:
+./specification/tools/in-devcontainer.sh "cd /workspace/python && pytest"
+./specification/tools/in-devcontainer.sh "cd /workspace/go && go test ./..."
+./specification/tools/in-devcontainer.sh "cd /workspace/typescript && npm test"
+```
 
-3. **[02-field-definitions.md](./02-field-definitions.md)** (12K, 295 lines)
-   - Required fields in all log outputs (OTLP, console, file)
-   - Field types, sources, and validation rules
-   - Loggeloven av 2025 compliance mapping
+**Step 6: Validate**
+```bash
+# Run quick test (tool automatically uses in-devcontainer.sh)
+./specification/tools/run-company-lookup.sh {language}
 
-4. **[04-error-handling.md](./04-error-handling.md)** (19K, 725 lines)
-   - Exception type standardization (always "Error")
-   - Credential removal regex patterns
-   - Stack trace limiting (350 chars max)
-   - Graceful degradation requirements
+# Run complete validation (tool automatically uses in-devcontainer.sh)
+./specification/tools/run-company-lookup-validate.sh {language}
+```
 
-5. **[05-environment-configuration.md](./05-environment-configuration.md)** (23K, 731 lines)
-   - DevContainer Toolbox setup and usage
-   - Kubernetes observability stack (Loki, Prometheus, Tempo, Grafana)
-   - Environment variables and defaults
-   - File rotation configuration (50MB/5 files main, 10MB/3 files error)
+**Step 7: Verify Cross-Language Equivalence**
 
-6. **[06-test-scenarios.md](./06-test-scenarios.md)** (17K, 707 lines)
-   - 11 comprehensive test scenarios
-   - Verification procedures for logs, metrics, traces
-   - Backend query examples (kubectl, Grafana API)
+Your implementation must produce **identical output structure** as TypeScript:
+- Same field names (snake_case)
+- Same log types (transaction, job.status, job.progress)
+- Same trace ID format (32 hex chars)
+- Same exception format (type/message/stacktrace)
 
-7. **[08-anti-patterns.md](./08-anti-patterns.md)** (13K, 430 lines)
-   - Common mistakes discovered during development
-   - Wrong vs. correct examples for each anti-pattern
-   - Rationale for best practices
+Use validation tools to verify:
+```bash
+# Check log format (tool automatically uses in-devcontainer.sh)
+./specification/tools/validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log
 
-**Total Core Specification**: ~120K, 3,874 lines
+# Verify in Loki (tool automatically uses in-devcontainer.sh)
+./specification/tools/query-loki.sh sovdev-test-company-lookup-{language}
+```
 
-### Implementation Templates
+---
 
-**See [templates/README.md](./templates/README.md) for complete usage instructions and example LLM prompts.**
+## Validation Requirements
 
-8. **[templates/implementation-plan-template.md](./templates/implementation-plan-template.md)**
-   - Step-by-step plan template for implementing sovdev-logger in a new language
-   - 8 stages with verification gates: setup → API → console/file → OTLP → metrics → traces → errors → E2E
-   - Progress tracking with checkboxes (❌ → 🔄 → ✅)
-   - Evidence collection sections for each stage
-   - Rollback instructions if verification fails
+### Required Validations
 
-9. **[templates/verification-plan-template.md](./templates/verification-plan-template.md)**
-   - Systematic verification template for checking implementation against specification
-   - 10 verification sections covering all specification requirements
-   - Field-by-field comparison tables with TypeScript reference
-   - Pass/Fail tracking for each requirement
-   - Evidence archive structure for compliance records
+Your implementation MUST pass all of these:
 
-**Quick Start for LLMs**: Copy template to `[language]/IMPLEMENTATION_PLAN.md`, replace placeholders, follow stages sequentially. See `templates/README.md` for detailed instructions and copy-paste prompts.
+1. **✅ Log Format Validation**
+   - All log entries conform to JSON Schema
+   - Fields use snake_case naming
+   - Trace IDs are 32 hex characters
+   - Exception fields present when errors occur
 
-### Archived Documents
+2. **✅ E2E Test Output**
+   - Produces exactly 17 log entries
+   - Log types: 11 transaction, 2 job.status, 4 job.progress
+   - 13 unique trace IDs for correlation
+   - Company 3 fails (intentional error demonstration)
 
-10. **[archive/plan-specification.md](./archive/plan-specification.md)** (22K, 632 lines)
-   - Original working document for specification development
-   - Language-agnostic testing strategy details
-   - Workflow examples for adding features
-   - Archived after vital information was moved to core specification documents
+3. **✅ Backend Verification**
+   - All logs appear in Loki with correct fields
+   - Metrics appear in Prometheus
+   - Traces appear in Tempo
+   - Data queryable from Grafana
 
-### Future Enhancements (Not Required for v1.0.0)
+4. **✅ Cross-Language Equivalence**
+   - Output structure identical to TypeScript
+   - Same field names and types
+   - Same error handling behavior
 
-The following documents may be created if needed for future versions:
-- **03-otlp-mapping.md** - Detailed OpenTelemetry specification compliance matrix
-- **07-grafana-verification.md** - Expected Grafana dashboard screenshots and queries
-- **09-versioning-strategy.md** - Extended version management guide (now in 00-design-principles.md)
-- **10-language-agnostic-testing.md** - Contract testing implementation details (overview in plan-specification.md)
+### Validation Tools Output
 
-The `examples/` directory may contain actual output samples:
-- **otlp/** - Real data from Loki, Prometheus, Tempo queries
-- **console/** - Terminal output from each language
-- **file/** - JSON log file output from each language
+**Expected success output:**
+```bash
+$ ./specification/tools/run-company-lookup-validate.sh {language}
 
-**Note**: Current E2E tests already verify output correctness by querying backends directly. Golden files may be added if contract testing is implemented.
+✅ All 17 log entries match schema
+✅ Found 13 unique trace IDs
+✅ All logs found in Loki
+✅ Metrics found in Prometheus
+✅ Traces found in Tempo
+✅ VALIDATION PASSED
+✅ Test PASSED for {language}
+```
 
-## Using This Specification
+---
 
-### For LLM Assistants
+## Implementation Checklist
 
-**When implementing a new language (e.g., Go):**
+Use this checklist when implementing a new language:
 
-1. Read all specification documents in order (00-10)
-2. Generate implementation based on API contract and field definitions
-3. Run contract tests to verify output matches golden files
-4. Query backends (Loki/Prometheus/Tempo) to verify E2E functionality
+### Project Structure
+- [ ] Created `{language}/test/e2e/company-lookup/` directory
+- [ ] Created `run-test.sh` script
+- [ ] Created `.env` configuration
+- [ ] Service name: `sovdev-test-company-lookup-{language}`
 
-**Remember:**
-- Execute ALL code inside DevContainer
-- Use host filesystem for file operations
-- Follow language-specific naming conventions while maintaining API parity
+### API Implementation
+- [ ] `sovdev_initialize()` - Logger initialization
+- [ ] `sovdev_log()` - General purpose logging
+- [ ] `sovdev_log_job_status()` - Job status tracking
+- [ ] `sovdev_log_job_progress()` - Job progress tracking
+- [ ] `sovdev_flush()` - Force export of batched telemetry
+- [ ] `sovdev_generate_trace_id()` - Generate correlation ID
+- [ ] `SOVDEV_LOGLEVELS` - Log level constants
+- [ ] `create_peer_services()` - Peer service helper
 
-### For Human Developers
+### Output Formats
+- [ ] Console output (human-readable)
+- [ ] File output (JSON Lines format)
+- [ ] OTLP output (OpenTelemetry Protocol)
 
-**When adding a new language:**
+### E2E Test (company-lookup)
+- [ ] Implements exact test scenario from `09-testprogram-company-lookup.md`
+- [ ] Uses same 4 organization numbers
+- [ ] Produces 17 log entries
+- [ ] Demonstrates all 8 API functions
+- [ ] Handles intentional error (company 3 fails)
 
-1. Set up language runtime in DevContainer (use `.devcontainer/additions/install-*.sh` if needed)
-2. Read specification documents
-3. Implement the 7 core functions following the API contract
-4. Run E2E tests to verify Grafana output matches reference
-5. Submit PR with implementation and test results
+### Validation
+- [ ] `run-company-lookup.sh {language}` passes
+- [ ] `run-company-lookup-validate.sh {language}` passes
+- [ ] All logs visible in Loki
+- [ ] Metrics visible in Prometheus
+- [ ] Traces visible in Tempo
 
-**When adding a new feature:**
-
-1. Update specification documents first
-2. Update golden files in `examples/`
-3. Use LLM to update all language implementations
-4. Run contract tests to verify consistency
+---
 
 ## Key Principles
 
 ### 1. Language-Agnostic Consistency
-All implementations MUST produce **identical output** when given identical inputs. This ensures:
-- Grafana queries work across all languages
-- Alert rules work regardless of service language
-- Operators see consistent data in dashboards
+All implementations MUST produce **identical output** when given identical inputs.
 
-### 2. Specification-First Development
-The specification is the **single source of truth**. Code is generated/maintained to match the specification, not the other way around.
+### 2. Specification is Source of Truth
+The specification documents define requirements. TypeScript is the reference implementation showing HOW to meet those requirements.
 
-### 3. LLM-Friendly Format
-If an LLM can read the specification and generate a correct implementation that passes tests, the specification is complete.
+### 3. Interface Consistency
+Function names, parameters, and behavior must match across languages (adapted to language conventions).
 
-### 4. Contract Testing
-Tests verify **output**, not implementation details. This allows language-specific idioms while ensuring behavioral consistency.
+### 4. Output Consistency
+Log format, field names (snake_case), and structure must be identical across languages.
 
-## Testing Strategy
+### 5. Automated Validation
+Validation tools verify correctness - if they pass, implementation is correct.
 
-### Three-Level Testing
-
-1. **Contract Tests** (Language-Agnostic)
-   - JSON test definitions
-   - Bash validator script
-   - Golden file comparison
-
-2. **Behavioral Tests** (Minimal Language-Specific)
-   - Edge cases and error handling
-   - Language-specific validation
-
-3. **E2E Tests** (Language-Agnostic)
-   - Backend queries via kubectl
-   - Grafana dashboard verification
-
-See `plan-specification.md` for detailed testing strategy.
-
-## Backend Verification
-
-All implementations are verified by querying the actual backends using the tools in `specification/tools/`:
-
-**Loki (Logs):**
-```bash
-# Human-readable output
-./specification/tools/query-loki.sh your-service
-
-# JSON output for automated verification
-./specification/tools/query-loki.sh your-service --json --limit 20
-```
-
-**Prometheus (Metrics):**
-```bash
-# Human-readable output
-./specification/tools/query-prometheus.sh your-service
-
-# JSON output for automated verification
-./specification/tools/query-prometheus.sh your-service --json
-```
-
-**Tempo (Traces):**
-```bash
-# Human-readable output
-./specification/tools/query-tempo.sh your-service
-
-# JSON output for automated verification
-./specification/tools/query-tempo.sh your-service --json --limit 10
-```
-
-See `specification/tools/README.md` for complete tool documentation.
-
-## Success Metrics
-
-An implementation is **correct** when:
-
-1. ✅ All 7 API functions work with identical signatures (language-adapted)
-2. ✅ JSON output structure matches reference implementations exactly
-3. ✅ Contract tests pass with no field differences
-4. ✅ E2E tests show data in Loki/Prometheus/Tempo with correct structure
-5. ✅ Grafana dashboards display logs with all required fields
-6. ✅ Security features work (credential removal, stack trace limiting)
-
-## Version History
-
-- **v1.0.1** (2025-10-07): Documentation and organizational improvements
-  - **Directory Refactoring**: Renamed `test/e2e/full-stack-verification/` → `test/e2e/company-lookup/`
-  - **Tool Refactoring**: Renamed `run-full-stack-verification.sh` → `run-company-lookup.sh`
-  - **Bug Fix**: Updated `python/test/e2e-test.sh` and `typescript/test/e2e-test.sh` to use new directory path
-  - **Rationale**: Names now match actual content (company lookup example) instead of describing what it tests
-  - **Updated**: All specification documents, templates, and tool scripts (20 files)
-  - **Verified**: Both Python and TypeScript complete E2E tests passing (10/10 tests each)
-  - **Tools Added**: `validate-log-format.sh` - JSON Schema-based log file validator
-
-- **v1.0.0** (2025-10-07): Complete specification based on TypeScript and Python implementations
-  - **Core Documents**: 00, 01, 02, 04, 05, 06, 08 (~120K, 3,874 lines)
-  - **API Contract**: 7 functions with complete signatures and best practices examples
-  - **Field Definitions**: All required fields for OTLP, console, and file outputs
-  - **Error Handling**: Credential removal, stack trace limiting, exception standardization
-  - **Environment Setup**: DevContainer Toolbox, Kubernetes stack, file rotation
-  - **Test Scenarios**: 11 comprehensive test cases with verification procedures
-  - **Anti-Patterns**: Common mistakes with rationale and correct examples
-  - **Design Decisions**: Key decisions documented with rationale and alternatives
-  - **Versioning Strategy**: Semantic versioning for specification and implementations
-
-## Contributing
-
-When updating the specification:
-
-1. **Breaking changes**: Increment major version
-2. **New fields/features**: Increment minor version
-3. **Documentation updates**: Increment patch version
-4. **Update all implementations**: Use LLM to propagate changes to all languages
-5. **Run all tests**: Verify no regressions across languages
+### 6. DevContainer for All Execution
+ALL code execution must happen in the DevContainer using `in-devcontainer.sh` to ensure consistent environment.
 
 ---
 
-**Specification Status**: ✅ v1.0.1 COMPLETE
-**Last Updated**: 2025-10-07
-**Next Review**: After Go or Java implementation begins
+## Success Metrics
+
+An implementation is **complete and correct** when:
+
+1. ✅ All 8 API functions implemented with correct signatures
+2. ✅ E2E test produces exactly 17 log entries matching specification
+3. ✅ Validation tools pass (`run-company-lookup-validate.sh`)
+4. ✅ Output visible in all backends (Loki, Prometheus, Tempo)
+5. ✅ Output structure identical to TypeScript reference
+6. ✅ Snake_case field naming throughout
+7. ✅ Security features work (credential removal, stack trace limiting)
+
+**Final Validation Command:**
+```bash
+./specification/tools/run-company-lookup-validate.sh {language}
+```
+
+If this passes, your implementation is ready for production use.
+
+---
+
+**Specification Status:** ✅ v1.0.1 COMPLETE
+**Last Updated:** 2025-10-14
+**Reference Implementation:** TypeScript (`typescript/`)
+**Development Environment:** DevContainer Toolbox (required)
