@@ -121,12 +121,9 @@ This document defines **every field** that must appear in log entries across all
 
 | Field | Type | Source | Example | OTLP | Console | File | Notes |
 |-------|------|--------|---------|------|---------|------|-------|
-| **exception_type** | string | ALWAYS "Error" | "Error" | ✅ | ❌ | ❌ | Standardized across languages |
+| **exception_type** | string | ALWAYS "Error" | "Error" | ✅ | ✅ | ✅ | Standardized across languages |
 | **exception_message** | string | exception message | "HTTP 404:" | ✅ | ✅ | ✅ | Exception message |
-| **exception_stack** | string | stack trace (max 350 chars) | "Traceback (most recent call last):\n  File..." | ✅ | ✅ | ✅ | Stack trace with security cleanup |
-| **exception.type** | string | ALWAYS "Error" | "Error" | ❌ | ❌ | ✅ | File format uses nested structure |
-| **exception.message** | string | exception message | "HTTP 404:" | ❌ | ❌ | ✅ | File format uses nested structure |
-| **exception.stack** | string | stack trace (max 350 chars) | "Traceback..." | ❌ | ❌ | ✅ | File format uses nested structure |
+| **exception_stacktrace** | string | stack trace (max 350 chars) | "Traceback (most recent call last):\n  File..." | ✅ | ✅ | ✅ | Stack trace with security cleanup |
 
 **Critical Standardization**:
 - **exception_type**: MUST be "Error" for ALL languages (not "Exception", "Throwable", etc.)
@@ -216,11 +213,9 @@ Example input_json:
   "message": "Failed to lookup company 974652846",
   "trace_id": "a511b23170d1efb01d110191712cb439",
   "span_id": "7bf8a401f109ebe9",
-  "exception": {
-    "type": "Error",
-    "message": "HTTP 404:",
-    "stack": "Traceback..."
-  }
+  "exception_type": "Error",
+  "exception_message": "HTTP 404:",
+  "exception_stacktrace": "Traceback..."
 }
 ```
 
@@ -231,7 +226,7 @@ Example input_json:
 Each log entry is a single line of JSON with snake_case field names:
 
 ```json
-{"timestamp":"2025-10-07T08:34:22.398784+00:00","level":"error","service_name":"sovdev-test-company-lookup-python","service_version":"1.0.0","session_id":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer_service":"SYS1234567","function_name":"lookupCompany","log_type":"transaction","message":"Failed to lookup company 974652846","trace_id":"a511b23170d1efb01d110191712cb439","span_id":"7bf8a401f109ebe9","event_id":"cf115688-513e-48fe-8049-538a515f608d","input_json":{"organisasjonsnummer":"974652846"},"response_json":null,"exception":{"type":"Error","message":"HTTP 404:","stack":"Traceback..."}}
+{"timestamp":"2025-10-07T08:34:22.398784+00:00","level":"error","service_name":"sovdev-test-company-lookup-python","service_version":"1.0.0","session_id":"18df09dd-c321-43d8-aa24-19dd7c149a56","peer_service":"SYS1234567","function_name":"lookupCompany","log_type":"transaction","message":"Failed to lookup company 974652846","trace_id":"a511b23170d1efb01d110191712cb439","span_id":"7bf8a401f109ebe9","event_id":"cf115688-513e-48fe-8049-538a515f608d","input_json":{"organisasjonsnummer":"974652846"},"response_json":null,"exception_type":"Error","exception_message":"HTTP 404:","exception_stacktrace":"Traceback..."}
 ```
 
 **Format Rules**:
@@ -265,7 +260,7 @@ Logs are sent to OpenTelemetry Collector via OTLP protocol using snake_case fiel
   "response_json": "null",
   "exception_type": "Error",
   "exception_message": "HTTP 404:",
-  "exception_stack": "Traceback...",
+  "exception_stacktrace": "Traceback...",
   "telemetry_sdk_language": "python",
   "telemetry_sdk_version": "1.37.0"
 }
@@ -305,9 +300,9 @@ Summary of which fields appear in which outputs:
 | peer_service | ✅ | ❌ | ✅ | ✅ |
 | input_json | ✅ | ❌ | ✅ | ✅ (even when "null") |
 | response_json | ✅ | ❌ | ✅ | ✅ (even when "null") |
-| exception_type | ✅ | ❌ | ❌ | ❌ (ERROR/FATAL only) |
+| exception_type | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
 | exception_message | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
-| exception_stack | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
+| exception_stacktrace | ✅ | ✅ | ✅ | ❌ (ERROR/FATAL only) |
 
 ---
 

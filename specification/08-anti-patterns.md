@@ -69,6 +69,118 @@ except Exception as e:
 
 ---
 
+## ❌ DON'T: Use Nested Objects in Log Entries
+
+### Problem
+
+All log entry fields MUST be at the root level with no nesting. OpenTelemetry OTLP protocol requires flat structure for proper ingestion into Loki, Prometheus, and Tempo. Nested objects cause validation errors and prevent fields from being queryable.
+
+### Python Bad Example
+
+```python
+# ❌ WRONG - Nested exception object
+log_entry['exception'] = {
+    'type': 'Error',
+    'message': 'HTTP 404: Not found',
+    'stacktrace': 'Traceback (most recent call last)...'
+}
+
+# ❌ WRONG - Nested custom fields
+log_entry['http'] = {
+    'status_code': 404,
+    'method': 'GET',
+    'url': '/api/company'
+}
+```
+
+### Python Correct Example
+
+```python
+# ✅ CORRECT - Flat structure with prefixed field names
+log_entry['exception_type'] = 'Error'
+log_entry['exception_message'] = 'HTTP 404: Not found'
+log_entry['exception_stacktrace'] = 'Traceback (most recent call last)...'
+
+# ✅ CORRECT - Flat structure for custom fields
+log_entry['http_status_code'] = 404
+log_entry['http_method'] = 'GET'
+log_entry['http_url'] = '/api/company'
+```
+
+### TypeScript Bad Example
+
+```typescript
+// ❌ WRONG - Nested objects
+const logEntry = {
+  timestamp: new Date().toISOString(),
+  level: 'ERROR',
+  message: 'Request failed',
+  exception: {  // Nested - will cause validation error
+    type: 'Error',
+    message: 'Connection timeout',
+    stack: 'Error: Connection timeout\n  at fetch...'
+  },
+  request: {  // Nested - fields not queryable
+    method: 'POST',
+    url: '/api/submit',
+    headers: { 'Content-Type': 'application/json' }
+  }
+};
+```
+
+### TypeScript Correct Example
+
+```typescript
+// ✅ CORRECT - All fields at root level
+const logEntry = {
+  timestamp: new Date().toISOString(),
+  level: 'ERROR',
+  message: 'Request failed',
+  exceptionType: 'Error',  // Flat structure
+  exceptionMessage: 'Connection timeout',
+  exceptionStack: 'Error: Connection timeout\n  at fetch...',
+  requestMethod: 'POST',  // Flat structure with prefixes
+  requestUrl: '/api/submit',
+  requestContentType: 'application/json'
+};
+```
+
+### Validation Error Example
+
+When using nested objects, JSON schema validation will fail:
+
+```
+❌ Additional properties are not allowed ('exception' was unexpected)
+❌ Additional properties are not allowed ('request' was unexpected)
+```
+
+Even if validation passes locally, OTLP backends will reject nested structures.
+
+### Why This Matters
+
+**OTLP Protocol Requirement**: OpenTelemetry OTLP format requires flat structure. Nested objects are not supported and will be rejected by Loki, Prometheus, and Tempo.
+
+**Field Queryability**: Grafana and Loki query languages expect flat fields:
+```logql
+# ✅ Works with flat structure:
+{service_name="payment-api"} | json | exception_type = "Error"
+
+# ❌ Fails with nested structure:
+{service_name="payment-api"} | json | exception.type = "Error"
+```
+
+**Consistency Across Outputs**: All three output destinations (console, file, OTLP) must have identical field structure. Nested objects break this consistency.
+
+**This Applies to ALL Fields**: The flat structure requirement is not specific to exceptions. ALL custom fields, metadata, and structured data must follow this pattern:
+- ✅ `http_status_code`, `http_method`, `http_url`
+- ✅ `db_query_time`, `db_connection_pool`
+- ✅ `cache_hit`, `cache_ttl`
+- ❌ Never `http: { status_code, method, url }`
+- ❌ Never `database: { query_time, pool }`
+- ❌ Never `cache: { hit, ttl }`
+
+---
+
 ## ❌ DON'T: Include Credentials in Stack Traces
 
 ### Problem
@@ -512,13 +624,14 @@ See `specification/00-design-principles.md` section 10 for complete implementati
 
 1. **Always use service name for `scope_name`** - Never module/package names
 2. **Always standardize `exceptionType` to "Error"** - Never language-specific types
-3. **Always remove credentials before truncating** - Security over stack trace completeness
-4. **Always reuse same `traceId` for related logs** - Enable trace correlation
-5. **Always call `sovdev_flush()` before exit** - Prevent log loss
-6. **Always use single `sessionId` per execution** - Enable session correlation
-7. **Always define `FUNCTIONNAME` constant** - Prevent typos and enable refactoring
-8. **Always define `input`/`response` variables** - Improve maintainability
-9. **Always configure file rotation** - Prevent disk exhaustion
-10. **Always use established logging libraries** - Never implement custom file writing/rotation
+3. **Always use flat structure for ALL fields** - Never nested objects (OTLP requirement)
+4. **Always remove credentials before truncating** - Security over stack trace completeness
+5. **Always reuse same `traceId` for related logs** - Enable trace correlation
+6. **Always call `sovdev_flush()` before exit** - Prevent log loss
+7. **Always use single `sessionId` per execution** - Enable session correlation
+8. **Always define `FUNCTIONNAME` constant** - Prevent typos and enable refactoring
+9. **Always define `input`/`response` variables** - Improve maintainability
+10. **Always configure file rotation** - Prevent disk exhaustion
+11. **Always use established logging libraries** - Never implement custom file writing/rotation
 
 Following these patterns ensures consistent, secure, and maintainable logging across all language implementations.

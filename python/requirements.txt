@@ -1,0 +1,13 @@
+# OpenTelemetry core
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+
+# OpenTelemetry OTLP exporters
+opentelemetry-exporter-otlp-proto-http>=1.20.0
+
+# OpenTelemetry instrumentation
+opentelemetry-instrumentation>=0.41b0
+
+# For E2E test (HTTP requests)
+requests>=2.31.0
+python-dotenv>=1.0.0

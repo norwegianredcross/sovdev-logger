@@ -51,6 +51,13 @@
 
 set -euo pipefail
 
+# Configure kubectl to use kubeconfig from workspace (devcontainer)
+if [ -f "/workspace/topsecret/.kube/config" ]; then
+    export KUBECONFIG="/workspace/topsecret/.kube/config"
+elif [ -f "$HOME/.kube/config" ]; then
+    export KUBECONFIG="$HOME/.kube/config"
+fi
+
 # Colors for human-readable output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

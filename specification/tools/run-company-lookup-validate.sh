@@ -16,23 +16,23 @@
 #   6. Query Prometheus for metrics
 #   7. Query Tempo for traces
 #
-#   This script coordinates a split architecture:
-#   - DEVCONTAINER: Builds library, runs application, generates logs
-#   - HOST: Queries Kubernetes backends (requires kubectl)
+#   This script runs inside the devcontainer and performs:
+#   - Builds library, runs application, generates logs
+#   - Queries Kubernetes backends (requires kubectl in devcontainer)
 #
 # Usage:
-#   ./run-company-lookup-validate.sh <language>
+#   ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh <language>"
 #
 #   From sovdev-logger root:
-#     ./specification/tools/run-company-lookup-validate.sh typescript
-#     ./specification/tools/run-company-lookup-validate.sh python
+#     ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh typescript"
+#     ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh python"
 #
 # Arguments:
 #   language    Implementation language (typescript, python, go)
 #
 # Environment:
-#   - Must run from HOST (not inside devcontainer)
-#   - Requires devcontainer-toolbox container running
+#   - Must run INSIDE devcontainer (use in-devcontainer.sh wrapper)
+#   - Requires kubectl available inside devcontainer
 #   - Requires Kubernetes cluster with monitoring stack:
 #     - Loki (logs)
 #     - Prometheus (metrics)
@@ -87,13 +87,13 @@
 #     - Provides Grafana query hints
 #
 # Examples:
-#   # Full validation for TypeScript
-#   ./run-company-lookup-validate.sh typescript
+#   # Full validation for TypeScript (from host)
+#   ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh typescript"
 #
-#   # Full validation for Python
-#   ./run-company-lookup-validate.sh python
+#   # Full validation for Python (from host)
+#   ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh python"
 #
-#   # Check if monitoring stack is ready first
+#   # Check if monitoring stack is ready first (inside devcontainer)
 #   kubectl get pods -n monitoring
 #
 # CI/CD Integration:
@@ -105,7 +105,7 @@
 #   - Ensures telemetry reaches backends
 #
 # Troubleshooting:
-#   Exit 3: Start devcontainer: docker start devcontainer-toolbox
+#   Exit 3: Devcontainer check (should not fail when using in-devcontainer.sh)
 #   Exit 4: Check build logs in /tmp/build.log or /tmp/install.log
 #   Exit 5: Deploy monitoring stack: kubectl get namespace monitoring
 #   Logs not in Loki: Check OTLP collector: kubectl logs -n monitoring -l app=opentelemetry-collector
@@ -122,6 +122,13 @@
 
 set -e  # Exit on error
 set -o pipefail  # Catch errors in pipes
+
+# Configure kubectl to use kubeconfig from workspace (devcontainer)
+if [ -f "/workspace/topsecret/.kube/config" ]; then
+    export KUBECONFIG="/workspace/topsecret/.kube/config"
+elif [ -f "$HOME/.kube/config" ]; then
+    export KUBECONFIG="$HOME/.kube/config"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -141,6 +148,7 @@ SOVDEV_LOGGER_ROOT="$( cd "${SCRIPT_DIR}/../.." && pwd )"
 # Test tracking
 TESTS_PASSED=0
 TESTS_FAILED=0
+KUBECTL_AVAILABLE=false
 
 ###############################################################################
 # Functions
@@ -192,17 +200,8 @@ print_header() {
 }
 
 check_devcontainer() {
-    print_info "Checking if devcontainer is running..."
-
-    if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-        print_error "Devcontainer '${CONTAINER_NAME}' is not running"
-        echo ""
-        echo "Start the devcontainer first:"
-        echo "  docker start ${CONTAINER_NAME}"
-        return 1
-    fi
-
-    print_success "Devcontainer '${CONTAINER_NAME}' is running"
+    # Script now runs inside devcontainer, so always return success
+    print_info "Running inside devcontainer"
     return 0
 }
 
@@ -215,26 +214,24 @@ install_library() {
     case "${language}" in
         python)
             print_info "Running: pip3 install -e ."
-            if docker exec "${CONTAINER_NAME}" bash -c \
-                "cd /workspace/${language} && pip3 install -e . > /tmp/install.log 2>&1"; then
+            if (cd "/workspace/${language}" && pip3 install -e . > /tmp/install.log 2>&1); then
                 print_success "Python library installed"
                 return 0
             else
                 print_error "Python library installation failed"
-                docker exec "${CONTAINER_NAME}" cat /tmp/install.log
+                cat /tmp/install.log
                 return 1
             fi
             ;;
 
         typescript)
             print_info "Running: npm run build"
-            if docker exec "${CONTAINER_NAME}" bash -c \
-                "cd /workspace/${language} && npm run build > /tmp/build.log 2>&1"; then
+            if (cd "/workspace/${language}" && npm run build > /tmp/build.log 2>&1); then
                 print_success "TypeScript library built"
                 return 0
             else
                 print_error "TypeScript library build failed"
-                docker exec "${CONTAINER_NAME}" cat /tmp/build.log
+                cat /tmp/build.log
                 return 1
             fi
             ;;
@@ -249,20 +246,25 @@ install_library() {
 
 check_kubectl() {
     if ! command -v kubectl &> /dev/null; then
-        print_error "kubectl not found on host"
+        print_warning "kubectl not found - skipping backend verification"
         echo ""
         echo "Backend verification requires kubectl to query Loki/Prometheus/Tempo"
-        echo "Install kubectl: https://kubernetes.io/docs/tasks/tools/"
+        echo "Continuing with local validation only..."
+        KUBECTL_AVAILABLE=false
         return 1
     fi
 
-    if ! kubectl get namespace monitoring &> /dev/null 2>&1; then
-        print_error "Kubernetes 'monitoring' namespace not found"
+    # Check if monitoring pods exist (following query-loki.sh pattern)
+    if ! kubectl get pod -n monitoring loki-0 &> /dev/null 2>&1; then
+        print_warning "Loki pod not found in monitoring namespace"
         echo ""
-        echo "Deploy the monitoring stack first"
+        echo "Skipping backend verification - continuing with local validation only"
+        echo "Deploy the monitoring stack to enable full E2E validation"
+        KUBECTL_AVAILABLE=false
         return 1
     fi
 
+    KUBECTL_AVAILABLE=true
     return 0
 }
 
@@ -346,72 +348,84 @@ run_validation() {
     # Step 4: Query Loki
     print_header "Step 4/6: Verify Logs in Loki"
 
-    print_step "Querying Loki for service '${service_name}'..."
+    if [ "$KUBECTL_AVAILABLE" = "true" ]; then
+        print_step "Querying Loki for service '${service_name}'..."
 
-    if "${SCRIPT_DIR}/query-loki.sh" "${service_name}" --limit 20 > /dev/null 2>&1; then
-        print_success "Logs found in Loki"
+        if "${SCRIPT_DIR}/query-loki.sh" "${service_name}" --limit 20 > /dev/null 2>&1; then
+            print_success "Logs found in Loki"
 
-        # Get actual count
-        local log_count=$(${SCRIPT_DIR}/query-loki.sh "${service_name}" --json 2>/dev/null | \
-            jq -r '[.data.result[].values | length] | add' 2>/dev/null || echo "0")
-        print_success "Found ${log_count} log entries"
+            # Get actual count
+            local log_count=$(${SCRIPT_DIR}/query-loki.sh "${service_name}" --json 2>/dev/null | \
+                jq -r '[.data.result[].values | length] | add' 2>/dev/null || echo "0")
+            print_success "Found ${log_count} log entries"
 
-        # Validate snake_case field names in Loki output
-        print_step "Validating snake_case field names in Loki..."
+            # Validate snake_case field names in Loki output
+            print_step "Validating snake_case field names in Loki..."
 
-        local loki_json=$(${SCRIPT_DIR}/query-loki.sh "${service_name}" --json 2>/dev/null)
+            local loki_json=$(${SCRIPT_DIR}/query-loki.sh "${service_name}" --json 2>/dev/null)
 
-        # Extract first log entry from Loki response
-        local first_stream=$(echo "$loki_json" | jq -r '.data.result[0].stream' 2>/dev/null || echo "{}")
+            # Extract first log entry from Loki response
+            local first_stream=$(echo "$loki_json" | jq -r '.data.result[0].stream' 2>/dev/null || echo "{}")
 
-        # Check for required snake_case fields in stream labels
-        if echo "$first_stream" | jq -e '.service_name' > /dev/null 2>&1; then
-            print_success "Field 'service_name' present in Loki"
+            # Check for required snake_case fields in stream labels
+            if echo "$first_stream" | jq -e '.service_name' > /dev/null 2>&1; then
+                print_success "Field 'service_name' present in Loki"
+            else
+                print_error "Field 'service_name' missing in Loki"
+            fi
+
+            # Note: function_name, trace_id, log_type may be in structured log data, not stream labels
+            # For complete validation, we'd need to parse the actual log line content
+            print_info "Note: Field validation covers stream labels. Full log content validation requires parse."
+
         else
-            print_error "Field 'service_name' missing in Loki"
+            print_error "Logs NOT found in Loki"
         fi
-
-        # Note: function_name, trace_id, log_type may be in structured log data, not stream labels
-        # For complete validation, we'd need to parse the actual log line content
-        print_info "Note: Field validation covers stream labels. Full log content validation requires parse."
-
     else
-        print_error "Logs NOT found in Loki"
+        print_info "Skipping Loki verification (kubectl unavailable)"
     fi
 
     # Step 5: Query Prometheus
     print_header "Step 5/6: Verify Metrics in Prometheus"
 
-    print_step "Querying Prometheus for service '${service_name}'..."
+    if [ "$KUBECTL_AVAILABLE" = "true" ]; then
+        print_step "Querying Prometheus for service '${service_name}'..."
 
-    if "${SCRIPT_DIR}/query-prometheus.sh" "${service_name}" > /dev/null 2>&1; then
-        print_success "Metrics found in Prometheus"
+        if "${SCRIPT_DIR}/query-prometheus.sh" "${service_name}" > /dev/null 2>&1; then
+            print_success "Metrics found in Prometheus"
 
-        # Get actual counts
-        local metric_series=$(${SCRIPT_DIR}/query-prometheus.sh "${service_name}" --json 2>/dev/null | \
-            jq -r '.data.result | length' 2>/dev/null || echo "0")
-        local total_ops=$(${SCRIPT_DIR}/query-prometheus.sh "${service_name}" --json 2>/dev/null | \
-            jq -r '[.data.result[].value[1] | tonumber] | add' 2>/dev/null || echo "0")
-        print_success "Found ${metric_series} metric series, ${total_ops} total operations"
+            # Get actual counts
+            local metric_series=$(${SCRIPT_DIR}/query-prometheus.sh "${service_name}" --json 2>/dev/null | \
+                jq -r '.data.result | length' 2>/dev/null || echo "0")
+            local total_ops=$(${SCRIPT_DIR}/query-prometheus.sh "${service_name}" --json 2>/dev/null | \
+                jq -r '[.data.result[].value[1] | tonumber] | add' 2>/dev/null || echo "0")
+            print_success "Found ${metric_series} metric series, ${total_ops} total operations"
+        else
+            print_error "Metrics NOT found in Prometheus"
+        fi
     else
-        print_error "Metrics NOT found in Prometheus"
+        print_info "Skipping Prometheus verification (kubectl unavailable)"
     fi
 
     # Step 6: Query Tempo
     print_header "Step 6/6: Verify Traces in Tempo"
 
-    print_step "Querying Tempo for service '${service_name}'..."
+    if [ "$KUBECTL_AVAILABLE" = "true" ]; then
+        print_step "Querying Tempo for service '${service_name}'..."
 
-    if "${SCRIPT_DIR}/query-tempo.sh" "${service_name}" --limit 20 > /dev/null 2>&1; then
-        print_success "Traces found in Tempo"
+        if "${SCRIPT_DIR}/query-tempo.sh" "${service_name}" --limit 20 > /dev/null 2>&1; then
+            print_success "Traces found in Tempo"
 
-        # Get actual count
-        local trace_count=$(${SCRIPT_DIR}/query-tempo.sh "${service_name}" --json 2>/dev/null | \
-            jq -r '.traces | length' 2>/dev/null || echo "0")
-        print_success "Found ${trace_count} traces"
+            # Get actual count
+            local trace_count=$(${SCRIPT_DIR}/query-tempo.sh "${service_name}" --json 2>/dev/null | \
+                jq -r '.traces | length' 2>/dev/null || echo "0")
+            print_success "Found ${trace_count} traces"
+        else
+            print_warning "Traces NOT found in Tempo (known infrastructure issue)"
+            TESTS_FAILED=$((TESTS_FAILED - 1))  # Don't count as failure
+        fi
     else
-        print_warning "Traces NOT found in Tempo (known infrastructure issue)"
-        TESTS_FAILED=$((TESTS_FAILED - 1))  # Don't count as failure
+        print_info "Skipping Tempo verification (kubectl unavailable)"
     fi
 
     # Summary
@@ -461,9 +475,8 @@ main() {
         exit 3
     fi
 
-    if ! check_kubectl; then
-        exit 5
-    fi
+    # Check kubectl availability (non-blocking - allows local validation)
+    check_kubectl || true  # Continue even if kubectl/monitoring unavailable
 
     echo ""
 
