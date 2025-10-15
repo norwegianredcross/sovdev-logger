@@ -1,7 +1,7 @@
 # Development Loop
 
-**Version:** 1.5.0
-**Last Updated:** 2025-10-14
+**Version:** 1.6.0
+**Last Updated:** 2025-10-15
 **Status:** Complete
 
 ---
@@ -15,6 +15,8 @@ This document describes the **iterative development workflow** for implementing 
 ---
 
 ## Developer Workflows: Human vs LLM
+
+**For environment architecture diagram**, see `05-environment-configuration.md` → **Architecture Diagram** section. This shows how Host Machine, DevContainer, and Kubernetes Cluster interact.
 
 There are **two different ways** to work with sovdev-logger, depending on whether you're a human or an LLM:
 
@@ -93,6 +95,29 @@ go test ./...
 The typical development cycle follows this 3-step pattern:
 
 **Note on file editing:** The DevContainer uses a bind mount, so files edited on the host are immediately visible in the container and vice versa. You don't need to think about "where" you edit - it's the same filesystem. The distinction below is only about **where commands execute**.
+
+---
+
+### For LLMs: Track Your Progress with the Checklist
+
+**⚠️ IMPORTANT:** As you work through the development loop, systematically update your implementation checklist.
+
+**Checklist Location:** `{language}/llm-work/llm-checklist-{language}.md`
+
+**How to use it:**
+1. **Before starting:** Copy `specification/12-llm-checklist-template.md` to `{language}/llm-work/llm-checklist-{language}.md`
+2. **During development:** Update checkboxes as you complete each step
+   - Mark items as `in_progress` when you start working on them
+   - Mark items as `completed` when finished
+3. **Before claiming complete:** Verify ALL completion criteria are checked
+
+**Why this matters:**
+- Prevents forgetting critical steps (language toolchain, SDK comparison, Grafana validation)
+- Provides workspace for SDK analysis and notes
+- Ensures systematic implementation
+- Prevents premature "complete" claims
+
+**See:** `12-llm-checklist-template.md` for the complete 7-phase checklist you should be following.
 
 ---
 
@@ -375,6 +400,34 @@ run-company-lookup-validate.sh {language}
    - Both log files AND backends must pass
    - Use `run-company-lookup-validate.sh {language}`
 
+### ⚠️ For LLMs Specifically
+
+**CRITICAL:** Follow the examples in this document exactly, with no variations.
+
+1. **Update your checklist as you work**
+   - Checklist location: `{language}/llm-work/llm-checklist-{language}.md`
+   - Mark items `in_progress` when starting, `completed` when done
+   - Prevents forgetting critical steps
+   - See "For LLMs: Track Your Progress with the Checklist" section above
+
+2. **Use tool commands EXACTLY as shown in examples**
+   - Do NOT add parameters (like `--limit`) unless example shows them
+   - Do NOT use manual inspection tools (`jq`, `python -m json.tool`, `cat`)
+   - Copy the command patterns character-for-character
+
+3. **Trust the validation tools**
+   - `validate-log-format.sh` checks everything automatically (schema, fields, types, trace IDs)
+   - If you think you need to manually inspect, you're wrong
+   - The tools give you all the information you need
+
+4. **Follow the sequence**
+   - Edit → Run → Validate Logs → Validate OTLP
+   - Don't query backends before running tests (query tools READ data, they don't GENERATE data)
+   - Run tests FIRST, then query results
+
+5. **When in doubt, re-read the examples**
+   - The examples in this document are complete and correct
+   - If your command doesn't match an example, you're doing it wrong
 
 ---
 
@@ -404,11 +457,13 @@ All validation tools support this workflow:
 
 ---
 
-**Document Status:** ✅ v1.5.0 COMPLETE
-**Last Updated:** 2025-10-14
-**Part of:** sovdev-logger specification v1.0.1
+**Document Status:** ✅ v1.7.0 COMPLETE
+**Last Updated:** 2025-10-15
+**Part of:** sovdev-logger specification v1.1.0
 
 **Version History:**
+- v1.7.0 (2025-10-15): Added "For LLMs: Track Your Progress with the Checklist" section and updated "⚠️ For LLMs Specifically" to reference systematic checklist tracking
+- v1.6.0 (2025-10-15): Added "⚠️ For LLMs Specifically" section with explicit anti-patterns (no --limit, no manual inspection, follow examples exactly)
 - v1.5.0 (2025-10-14): Changed to Mode 2 pattern - ALL commands use `in-devcontainer.sh -e "command"` for consistency
 - v1.4.0 (2025-10-14): Clarified LLMs MUST use `in-devcontainer.sh` wrapper for ALL commands (tools and custom commands)
 - v1.3.0 (2025-10-14): Emphasized validation tools over manual commands - use `validate-log-format.sh` (does everything)

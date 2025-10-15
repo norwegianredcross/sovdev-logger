@@ -11,6 +11,129 @@ Both components are **required** for developing and testing any language impleme
 
 ---
 
+## Architecture Diagram
+
+This diagram shows the complete development environment architecture and how components interact:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ HOST MACHINE (Mac/Windows/Linux)                                        │
+│                                                                          │
+│  Developer/LLM works here:                                              │
+│  • File editing (Read/Edit/Write tools or VSCode)                       │
+│  • Bash tool execution → calls in-devcontainer.sh                       │
+│                                                                          │
+│  Project Files: /Users/.../sovdev-logger/                               │
+│         ↕ [bind mount - bidirectional, real-time sync]                  │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ DEVCONTAINER (Docker Container)                                   │  │
+│  │                                                                    │  │
+│  │  Workspace: /workspace/ (same files as host via bind mount)      │  │
+│  │                                                                    │  │
+│  │  Code executes here:                                              │  │
+│  │  • Language runtimes (Node.js ✅, Python ✅, Go*, Rust*, etc.)   │  │
+│  │  • Test programs run                                              │  │
+│  │  • Validation tools run                                           │  │
+│  │  • OTLP export originates FROM here                              │  │
+│  │                                                                    │  │
+│  │  Your Test Program                                                │  │
+│  │  └─ sovdev_log() ───┐                                            │  │
+│  │                      │                                            │  │
+│  │                      ↓                                            │  │
+│  │              ┌──────────────────┐                                │  │
+│  │              │ OpenTelemetry SDK│                                │  │
+│  │              │ OTLP Exporter    │                                │  │
+│  │              └────────┬─────────┘                                │  │
+│  │                       │                                           │  │
+│  │                       │ HTTP POST with header:                   │  │
+│  │                       │ Host: otel.localhost                     │  │
+│  │                       │                                           │  │
+│  └───────────────────────┼───────────────────────────────────────────┘  │
+│                          │                                              │
+└──────────────────────────┼──────────────────────────────────────────────┘
+                           │
+                           │ http://host.docker.internal/v1/logs
+                           │ http://host.docker.internal/v1/metrics
+                           │ http://host.docker.internal/v1/traces
+                           │ Header: Host=otel.localhost ⚠️ REQUIRED
+                           │
+                           ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ KUBERNETES CLUSTER (Local K3s via Rancher Desktop)                      │
+│                                                                          │
+│  Traefik Ingress (Port 80)                                              │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │ Routes based on Host header:                                    │    │
+│  │                                                                  │    │
+│  │  Host: otel.localhost     → OTLP Collector (port 4318)         │    │
+│  │  Host: grafana.localhost  → Grafana (port 80)                  │    │
+│  │  Host: loki.localhost     → Loki (port 80) [optional]          │    │
+│  │  (No Host header)         → 404 Not Found ❌                   │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                           │                                              │
+│                           ↓                                              │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │ OTLP Collector (otel-collector-opentelemetry-collector)        │    │
+│  │                                                                  │    │
+│  │  Receives: Logs, Metrics, Traces via OTLP/HTTP                 │    │
+│  │  Exports to: Loki, Prometheus, Tempo                           │    │
+│  └──────────┬──────────────────┬──────────────────┬────────────────┘    │
+│             │                  │                  │                      │
+│      ┌──────┘                  │                  └──────┐               │
+│      ↓                         ↓                         ↓               │
+│  ┌────────┐            ┌──────────────┐            ┌─────────┐          │
+│  │ LOKI   │            │ PROMETHEUS   │            │  TEMPO  │          │
+│  │        │            │              │            │         │          │
+│  │ Stores │            │ Stores       │            │ Stores  │          │
+│  │ Logs   │            │ Metrics      │            │ Traces  │          │
+│  └────┬───┘            └──────┬───────┘            └────┬────┘          │
+│       │                       │                         │                │
+│       │                       │                         │                │
+│       └───────────────────────┼─────────────────────────┘                │
+│                               ↓                                          │
+│                        ┌─────────────┐                                  │
+│                        │   GRAFANA   │                                  │
+│                        │             │                                  │
+│                        │ Dashboards  │                                  │
+│                        │ Queries all │                                  │
+│                        │ 3 backends  │                                  │
+│                        └─────────────┘                                  │
+│                                                                          │
+│  Access from browser: http://grafana.localhost                          │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Validation Flow (from DevContainer):
+  • query-loki.sh → Loki API → Check logs received
+  • query-prometheus.sh → Prometheus API → Check metrics received
+  • Open browser → http://grafana.localhost → View ALL data
+```
+
+**Key Points:**
+
+1. **Host Machine**: Where you edit files (LLM tools or VSCode)
+2. **DevContainer**: Where code executes (language runtimes, tests, OTLP export)
+3. **Bind Mount**: Host files ↔ `/workspace/` in container (same filesystem, instant sync)
+4. **Network Path**: DevContainer → `host.docker.internal` → Traefik (port 80) → Kubernetes services
+5. **Traefik Routing**: REQUIRES `Host` header to route requests correctly
+   - Missing header = 404 error
+   - Wrong header = 404 error
+   - Correct header = routes to appropriate service
+6. **OTLP Collector**: Receives telemetry, forwards to storage backends
+7. **Storage**: Loki (logs), Prometheus (metrics), Tempo (traces)
+8. **Visualization**: Grafana queries all 3 backends
+
+**Critical for LLMs:**
+- ✏️ **Edit files**: Use host filesystem paths (fast)
+- ⚙️ **Run code**: Use `in-devcontainer.sh` wrapper (consistent runtimes)
+- 📤 **OTLP export**: Happens FROM DevContainer with `Host: otel.localhost` header
+- 🔍 **Validation**: Query backends FROM DevContainer or open Grafana in browser
+
+**Why `Host: otel.localhost` is required:**
+Traefik cannot route requests without the Host header. The URL alone (`http://host.docker.internal/v1/logs`) doesn't tell Traefik which backend service to use. The Host header specifies the routing rule.
+
+---
+
 ## Component 1: DevContainer Toolbox
 
 ### Purpose
@@ -67,18 +190,41 @@ Edit /Users/terje.christensen/learn/redcross-public/sovdev-logger/typescript/src
 # Test runs with the just-edited file (no sync needed)
 ```
 
-### Pre-installed Language Runtimes
+### Language Runtimes
 
-| Language | Version | Command | Notes |
-|----------|---------|---------|-------|
-| **Node.js** | 22.20.0 | `node --version` | Includes npm |
-| **Python** | 3.11.13 | `python --version` | Includes pip |
-| **PowerShell** | 7.5.2 | `pwsh --version` | Cross-platform |
-| **Go** | (via install script) | `go version` | Run `.devcontainer/additions/install-go.sh` |
-| **Java** | (via install script) | `java -version` | Run `.devcontainer/additions/install-java.sh` |
-| **PHP** | (via install script) | `php --version` | Run `.devcontainer/additions/install-php.sh` |
-| **C#/.NET** | (via install script) | `dotnet --version` | Run `.devcontainer/additions/install-dotnet.sh` |
-| **Rust** | (via install script) | `rustc --version` | Run `.devcontainer/additions/install-rust.sh` |
+**⚠️ CRITICAL FOR LLMs:** Only Node.js, Python, and PowerShell are pre-installed. All other languages MUST be installed before use.
+
+| Language | Version | Check Command | Installation |
+|----------|---------|---------------|--------------|
+| **Node.js** ✅ | 22.20.0 | `node --version` | Pre-installed |
+| **Python** ✅ | 3.11.13 | `python --version` | Pre-installed |
+| **PowerShell** ✅ | 7.5.2 | `pwsh --version` | Pre-installed |
+| **Go** | (install required) | `go version` | `.devcontainer/additions/install-dev-golang.sh` |
+| **Java** | (install required) | `java -version` | `.devcontainer/additions/install-dev-java.sh` |
+| **PHP** | (install required) | `php --version` | `.devcontainer/additions/install-dev-php.sh` |
+| **C#/.NET** | (install required) | `dotnet --version` | `.devcontainer/additions/install-dev-dotnet.sh` |
+| **Rust** | (install required) | `rustc --version` | `.devcontainer/additions/install-dev-rust.sh` |
+
+#### Installation Process (LLMs: Required Before Implementation)
+
+**Step 1: Check if installed**
+```bash
+.devcontainer/toolbox/in-devcontainer.sh -e "go version"
+```
+
+**Step 2: If "command not found", install**
+```bash
+.devcontainer/toolbox/in-devcontainer.sh -e ".devcontainer/additions/install-dev-golang.sh"
+```
+
+**Step 3: Verify installation**
+```bash
+.devcontainer/toolbox/in-devcontainer.sh -e "go version"
+```
+
+**DO NOT:**
+- ❌ Write code without verifying language is installed
+- ❌ Assume languages other than Node.js/Python/PowerShell are available
 
 ### Command Execution Pattern (for LLM Developers)
 
@@ -210,6 +356,108 @@ Note: Prometheus and Tempo are accessed via kubectl port-forward (no ingress)
 | **Monitoring Namespace** | `monitoring` | All observability components |
 | **Ingress Controller** | Traefik | Routes traffic to services |
 | **DNS Pattern** | `*.localhost` | Automatic on Mac/Linux, requires hosts file on Windows |
+
+### Traefik Ingress and Host Header Routing
+
+**⚠️ CRITICAL FOR LLMs:** Traefik routes requests based on the `Host` header. Applications MUST include the correct Host header or requests will fail with 404 errors.
+
+#### How Traefik Routing Works
+
+Traefik inspects the `Host` header to determine which backend service to route to:
+
+```
+Request → Traefik → Check Host Header → Route to Backend
+```
+
+**Example Routing Rules:**
+- `Host: grafana.localhost` → Routes to Grafana service
+- `Host: otel.localhost` → Routes to OTLP Collector service
+- No Host header or wrong value → 404 Not Found
+
+#### Required Headers for OTLP Export
+
+**All OTLP requests MUST include:**
+```
+Host: otel.localhost
+```
+
+**Environment Variable:**
+```bash
+OTEL_EXPORTER_OTLP_HEADERS={"Host":"otel.localhost"}
+```
+
+#### Language-Specific HTTP Client Issues
+
+**Problem:** Some language HTTP clients override or ignore custom Host headers.
+
+##### Go - Custom HTTP Transport Required
+
+Go's `http.Client` automatically sets the Host header from the URL, **overwriting** any custom headers.
+
+**Symptom:** 404 errors when exporting to OTLP despite correct configuration.
+
+**Solution:** Create a custom HTTP transport that forces the Host header:
+
+```go
+type hostOverrideTransport struct {
+    base http.RoundTripper
+    host string
+}
+
+func (t *hostOverrideTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    if t.host != "" {
+        req.Host = t.host
+        req.Header.Set("Host", t.host)
+    }
+    return t.base.RoundTrip(req)
+}
+
+// Use with OTLP exporter
+httpClient := &http.Client{
+    Transport: &hostOverrideTransport{
+        base: http.DefaultTransport,
+        host: "otel.localhost",
+    },
+}
+// Pass httpClient to OTLP exporter via WithHTTPClient() option
+```
+
+##### TypeScript/Node.js - Works as Expected
+
+Node.js respects custom Host headers set via the headers option. No special handling needed.
+
+```typescript
+headers: { 'Host': 'otel.localhost' }  // Works correctly
+```
+
+##### Python - Verify Behavior
+
+Python's `requests` library typically respects custom Host headers, but verify with your OTEL SDK version.
+
+If you encounter 404 errors, the HTTP client is likely overriding the Host header. Implement a custom HTTP client or transport layer.
+
+##### Other Languages
+
+When implementing in Java, Rust, PHP, etc., verify that custom Host headers work correctly:
+
+1. **Test first:** Try setting Host header via OTEL SDK configuration
+2. **If 404 errors occur:** The HTTP client is overriding the Host header
+3. **Solution:** Implement a custom HTTP client/transport that forces the Host header (similar to Go's custom transport above)
+
+#### Testing Traefik Routing
+
+**Test from DevContainer:**
+```bash
+# Should succeed
+curl -H 'Host: otel.localhost' http://host.docker.internal/v1/logs
+
+# Should fail with 404
+curl http://host.docker.internal/v1/logs  # No Host header
+```
+
+**Common Errors:**
+- **404 Not Found** - Missing or incorrect Host header
+- **Connection refused** - Traefik not running or wrong endpoint
 
 ### Required Services
 
