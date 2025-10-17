@@ -265,7 +265,7 @@ Edit /Users/terje.christensen/learn/redcross-public/sovdev-logger/typescript/src
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
 
 # Complete validation
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh {language}"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
 ```
 
 **Note for Human Developers:** If you're working inside VSCode with the DevContainer extension, your terminal is already inside the container - run commands directly without the wrapper.

@@ -7,14 +7,20 @@
 #   including backend telemetry verification. This is the most comprehensive test
 #   that validates the entire observability stack.
 #
-#   Test Flow (6 steps):
+#   Test Flow (with schema and consistency validation):
 #   1. Install/build language library (pip install or npm run build)
 #   2. Run company-lookup application via run-company-lookup.sh
 #   3. Validate local log files for snake_case compliance
-#   4. Wait for telemetry export to backends (15 seconds)
-#   5. Query Loki for logs
-#   6. Query Prometheus for metrics
-#   7. Query Tempo for traces
+#   3. Wait for telemetry export to backends (15 seconds)
+#   4. Loki Validation:
+#      4.1) Validate Loki response against loki-response-schema.json
+#      4.2) Compare log file entries with Loki logs (consistency validation)
+#   5. Prometheus Validation:
+#      5.1) Validate Prometheus response against prometheus-response-schema.json
+#      5.2) Compare log file entries with Prometheus metrics (consistency validation)
+#   6. Tempo Validation:
+#      6.1) Validate Tempo response against tempo-response-schema.json
+#      6.2) Compare log file trace_ids with Tempo traces (consistency validation)
 #
 #   This script runs inside the devcontainer and performs:
 #   - Builds library, runs application, generates logs
@@ -49,12 +55,18 @@
 #   4. Log format matches strict snake_case schema
 #   5. All required fields present (service_name, function_name, etc.)
 #
-#   BACKEND (Telemetry Stack):
-#   6. Logs exported to Loki via OTLP
-#   7. Metrics exported to Prometheus via OTLP
-#   8. Traces exported to Tempo via OTLP
-#   9. Service name searchable in backends
-#   10. Field names use snake_case in Loki stream labels
+#   BACKEND (Telemetry Stack - Schema Validation):
+#   6. Loki response matches loki-response-schema.json
+#   7. Prometheus response matches prometheus-response-schema.json
+#   8. Tempo response matches tempo-response-schema.json
+#   9. All responses have required fields (timestamp, service_name, etc.)
+#   10. Field names use snake_case in backend responses
+#
+#   BACKEND (Telemetry Stack - Consistency Validation):
+#   11. Log entries in file match log entries in Loki (same values)
+#   12. Metrics derived from file match metrics in Prometheus
+#   13. Trace IDs in file match trace IDs in Tempo
+#   14. Data consistency across observability stack
 #
 # Exit Codes:
 #   0 - All tests passed (local + backend validation)
@@ -69,17 +81,26 @@
 #     - pip install or npm run build
 #   Step 2/6: Run Company Lookup Application
 #     - Executes run-company-lookup.sh
-#   Step 3.5/6: Validate File Log Format
-#     - Validates dev.log and error.log for snake_case
 #   Step 3/6: Wait for Telemetry Export
 #     - 15 second delay for OTLP batch export
-#   Step 4/6: Verify Logs in Loki
-#     - Queries Loki for service logs
-#     - Validates field names (service_name, etc.)
-#   Step 5/6: Verify Metrics in Prometheus
-#     - Queries for sovdev.operations.total metric
-#   Step 6/6: Verify Traces in Tempo
-#     - Queries for trace spans
+#   Step 3.5/6: Validate File Log Format
+#     - Validates dev.log against log-entry-schema.json
+#   Step 4/6: Loki Validation
+#     Step 4.1: Validate Loki Response Using Schema
+#       - Queries Loki and validates against loki-response-schema.json
+#       - Checks required fields (timestamp, service_name, etc.)
+#     Step 4.2: Compare Log File With Loki Response
+#       - Cross-validates file log entries match Loki logs
+#   Step 5/6: Prometheus Validation
+#     Step 5.1: Validate Prometheus Response Using Schema
+#       - Queries Prometheus and validates against prometheus-response-schema.json
+#     Step 5.2: Compare Log File With Prometheus Metrics
+#       - Cross-validates metrics derived from file match Prometheus
+#   Step 6/6: Tempo Validation
+#     Step 6.1: Validate Tempo Response Using Schema
+#       - Queries Tempo and validates against tempo-response-schema.json
+#     Step 6.2: Compare Log File With Tempo Traces
+#       - Cross-validates trace IDs from file match Tempo traces
 #
 #   Test Summary:
 #     - Shows pass/fail counts
@@ -144,6 +165,7 @@ WAIT_TIME=15  # Seconds to wait for telemetry export
 # Determine script directory and sovdev-logger root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SOVDEV_LOGGER_ROOT="$( cd "${SCRIPT_DIR}/../.." && pwd )"
+TEST_SCRIPT_DIR="$(dirname "$SCRIPT_DIR")/tests"
 
 # Test tracking
 TESTS_PASSED=0
@@ -345,85 +367,141 @@ run_validation() {
 
     print_info "Service Name: ${service_name}"
 
-    # Step 4: Query Loki
-    print_header "Step 4/6: Verify Logs in Loki"
+    # Step 4: Loki Validation
+    print_header "Step 4/6: Loki - Validate Logs Sent Via OTEL"
 
     if [ "$KUBECTL_AVAILABLE" = "true" ]; then
-        print_step "Querying Loki for service '${service_name}'..."
+        # Count entries in file to determine limit
+        local entry_count=$(wc -l < "$log_file" | tr -d ' ')
+        local limit=$((entry_count + 10))  # Add buffer
 
-        if "${SCRIPT_DIR}/query-loki.sh" "${service_name}" --limit 20 > /dev/null 2>&1; then
-            print_success "Logs found in Loki"
+        # Step 4.1: Validate Loki response using schema
+        print_header "Step 4.1: Validate Loki Response Using Schema"
+        print_step "Querying Loki and validating against loki-response-schema.json..."
+        echo ""
 
-            # Get actual count
-            local log_count=$(${SCRIPT_DIR}/query-loki.sh "${service_name}" --json 2>/dev/null | \
-                jq -r '[.data.result[].values | length] | add' 2>/dev/null || echo "0")
-            print_success "Found ${log_count} log entries"
+        set +e
+        "${SCRIPT_DIR}/query-loki.sh" "${service_name}" --limit "$limit" --json | \
+            python3 "$TEST_SCRIPT_DIR/validate-loki-response.py" -
+        local loki_schema_exit=$?
+        set -e
 
-            # Validate snake_case field names in Loki output
-            print_step "Validating snake_case field names in Loki..."
-
-            local loki_json=$(${SCRIPT_DIR}/query-loki.sh "${service_name}" --json 2>/dev/null)
-
-            # Extract first log entry from Loki response
-            local first_stream=$(echo "$loki_json" | jq -r '.data.result[0].stream' 2>/dev/null || echo "{}")
-
-            # Check for required snake_case fields in stream labels
-            if echo "$first_stream" | jq -e '.service_name' > /dev/null 2>&1; then
-                print_success "Field 'service_name' present in Loki"
-            else
-                print_error "Field 'service_name' missing in Loki"
-            fi
-
-            # Note: function_name, trace_id, log_type may be in structured log data, not stream labels
-            # For complete validation, we'd need to parse the actual log line content
-            print_info "Note: Field validation covers stream labels. Full log content validation requires parse."
-
+        if [ $loki_schema_exit -eq 0 ]; then
+            print_success "Loki response schema validation passed"
         else
-            print_error "Logs NOT found in Loki"
+            print_error "Loki response schema validation failed"
         fi
+
+        # Step 4.2: Compare log file with Loki response
+        print_header "Step 4.2: Compare Log File With Loki Response"
+        print_step "Cross-validating file logs match Loki logs..."
+        echo ""
+
+        set +e
+        "${SCRIPT_DIR}/query-loki.sh" "${service_name}" --limit "$limit" --json | \
+            python3 "$TEST_SCRIPT_DIR/validate-log-consistency.py" "$log_file" -
+        local loki_consistency_exit=$?
+        set -e
+
+        if [ $loki_consistency_exit -eq 0 ]; then
+            print_success "Log consistency validation passed"
+        else
+            print_error "Log consistency validation failed"
+        fi
+
     else
         print_info "Skipping Loki verification (kubectl unavailable)"
     fi
 
-    # Step 5: Query Prometheus
-    print_header "Step 5/6: Verify Metrics in Prometheus"
+    # Step 5: Prometheus Validation
+    print_header "Step 5/6: Prometheus - Validate Metrics Sent Via OTEL"
 
     if [ "$KUBECTL_AVAILABLE" = "true" ]; then
-        print_step "Querying Prometheus for service '${service_name}'..."
+        # Step 5.1: Validate Prometheus response using schema
+        print_header "Step 5.1: Validate Prometheus Response Using Schema"
+        print_step "Querying Prometheus and validating against prometheus-response-schema.json..."
+        echo ""
 
-        if "${SCRIPT_DIR}/query-prometheus.sh" "${service_name}" > /dev/null 2>&1; then
-            print_success "Metrics found in Prometheus"
+        set +e
+        timeout 30 "${SCRIPT_DIR}/query-prometheus.sh" "${service_name}" --json 2>/dev/null | \
+            python3 "$TEST_SCRIPT_DIR/validate-prometheus-response.py" -
+        local prom_schema_exit=$?
+        set -e
 
-            # Get actual counts
-            local metric_series=$(${SCRIPT_DIR}/query-prometheus.sh "${service_name}" --json 2>/dev/null | \
-                jq -r '.data.result | length' 2>/dev/null || echo "0")
-            local total_ops=$(${SCRIPT_DIR}/query-prometheus.sh "${service_name}" --json 2>/dev/null | \
-                jq -r '[.data.result[].value[1] | tonumber] | add' 2>/dev/null || echo "0")
-            print_success "Found ${metric_series} metric series, ${total_ops} total operations"
+        if [ $prom_schema_exit -eq 0 ]; then
+            print_success "Prometheus response schema validation passed"
         else
-            print_error "Metrics NOT found in Prometheus"
+            print_error "Prometheus response schema validation failed"
         fi
+
+        # Step 5.2: Compare log file with Prometheus metrics
+        print_header "Step 5.2: Compare Log File With Prometheus Metrics"
+        print_step "Cross-validating file logs match Prometheus metrics..."
+        echo ""
+
+        set +e
+        timeout 30 "${SCRIPT_DIR}/query-prometheus.sh" "${service_name}" --json 2>/dev/null | \
+            python3 "$TEST_SCRIPT_DIR/validate-metrics-consistency.py" "$log_file" -
+        local prom_consistency_exit=$?
+        set -e
+
+        if [ $prom_consistency_exit -eq 0 ]; then
+            print_success "Metrics consistency validation passed"
+        else
+            print_error "Metrics consistency validation failed"
+        fi
+
     else
         print_info "Skipping Prometheus verification (kubectl unavailable)"
     fi
 
-    # Step 6: Query Tempo
-    print_header "Step 6/6: Verify Traces in Tempo"
+    # Step 6: Tempo Validation
+    print_header "Step 6/6: Tempo - Validate Traces Sent Via OTEL"
 
     if [ "$KUBECTL_AVAILABLE" = "true" ]; then
-        print_step "Querying Tempo for service '${service_name}'..."
+        # Step 6.1: Validate Tempo response using schema
+        print_header "Step 6.1: Validate Tempo Response Using Schema"
+        print_step "Waiting 30 seconds for traces to reach Tempo..."
+        echo ""
+        echo "Note: Tempo trace ingestion can be slow. Waiting longer than Loki/Prometheus..."
+        sleep 30
+        echo ""
 
-        if "${SCRIPT_DIR}/query-tempo.sh" "${service_name}" --limit 20 > /dev/null 2>&1; then
-            print_success "Traces found in Tempo"
+        print_step "Querying Tempo and validating against tempo-response-schema.json..."
+        echo ""
 
-            # Get actual count
-            local trace_count=$(${SCRIPT_DIR}/query-tempo.sh "${service_name}" --json 2>/dev/null | \
-                jq -r '.traces | length' 2>/dev/null || echo "0")
-            print_success "Found ${trace_count} traces"
+        set +e
+        timeout 30 "${SCRIPT_DIR}/query-tempo.sh" "${service_name}" --limit 50 --json 2>/dev/null | \
+            python3 "$TEST_SCRIPT_DIR/validate-tempo-response.py" -
+        local tempo_schema_exit=$?
+        set -e
+
+        if [ $tempo_schema_exit -eq 0 ]; then
+            print_success "Tempo response schema validation passed"
         else
-            print_warning "Traces NOT found in Tempo (known infrastructure issue)"
-            TESTS_FAILED=$((TESTS_FAILED - 1))  # Don't count as failure
+            print_error "Tempo response schema validation failed"
         fi
+
+        # Step 6.2: Compare log file with Tempo traces
+        print_header "Step 6.2: Compare Log File With Tempo Traces"
+        print_step "Cross-validating file trace_ids match Tempo traces..."
+        echo ""
+
+        set +e
+        timeout 30 "${SCRIPT_DIR}/query-tempo.sh" "${service_name}" --limit 50 --json 2>/dev/null | \
+            python3 "$TEST_SCRIPT_DIR/validate-trace-consistency.py" "$log_file" -
+        local tempo_consistency_exit=$?
+        set -e
+
+        if [ $tempo_consistency_exit -eq 0 ]; then
+            print_success "Trace consistency validation passed"
+        else
+            print_error "Trace consistency validation failed"
+            echo ""
+            echo "File trace_ids do not match Tempo trace IDs."
+            echo "This indicates a problem with trace ID correlation between logs and OTEL spans."
+        fi
+
     else
         print_info "Skipping Tempo verification (kubectl unavailable)"
     fi

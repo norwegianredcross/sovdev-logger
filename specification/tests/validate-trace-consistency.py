@@ -340,9 +340,58 @@ def main():
         print("ERROR: No valid trace_ids found in file", file=sys.stderr)
         sys.exit(2)
 
+    # CRITICAL: Empty Tempo when file has trace_ids indicates a problem
+    # This is NOT acceptable for production - distributed tracing is required
     if not tempo_trace_ids:
-        print("ERROR: No valid trace IDs found in Tempo response", file=sys.stderr)
-        sys.exit(2)
+        validator.print_error("TRACE VALIDATION FAILED - No traces in Tempo")
+        print(file=sys.stderr)
+        validator.print_error(f"File logs contain {len(file_trace_ids)} trace_ids, but Tempo has 0 traces")
+        print(file=sys.stderr)
+
+        # Diagnostic information to help identify root cause
+        validator.print_info("Diagnostic: Implementation is creating trace_ids in logs")
+        validator.print_info("Problem: Traces are NOT reaching Tempo via OTLP")
+        print(file=sys.stderr)
+
+        validator.print_info("Possible causes:")
+        validator.print_info("  1. OTLP trace export not configured in implementation")
+        validator.print_info("  2. OTLP Collector not forwarding traces to Tempo")
+        validator.print_info("  3. Tempo not receiving/storing traces")
+        validator.print_info("  4. Trace ingestion very slow (try waiting longer)")
+        print(file=sys.stderr)
+
+        validator.print_info("Investigation steps:")
+        validator.print_info("  - Check OTLP trace export is enabled in code")
+        validator.print_info("  - Check OTEL Collector traces pipeline configuration")
+        validator.print_info("  - Check Tempo receiver is running and configured")
+        validator.print_info("  - Check OTEL Collector logs for trace export errors")
+        print(file=sys.stderr)
+
+        # Print summary
+        if not args.json:
+            print(file=sys.stderr)
+            validator.print_error("TRACE CONSISTENCY VALIDATION FAILED")
+            print(file=sys.stderr)
+            print(f"File trace_ids: {len(file_trace_ids)}", file=sys.stderr)
+            print(f"Tempo traces: 0", file=sys.stderr)
+            print(file=sys.stderr)
+            validator.print_error("Distributed tracing is broken - this blocks production deployment")
+
+        if args.json:
+            result = {
+                'validation': 'failed',
+                'reason': 'no_traces_in_tempo',
+                'summary': {
+                    'file_trace_ids': len(file_trace_ids),
+                    'tempo_trace_ids': 0
+                },
+                'errors': validator.errors,
+                'diagnostic': 'Implementation creates trace_ids but traces not reaching Tempo'
+            }
+            print(json.dumps(result, indent=2))
+
+        # Exit with error - this is a critical failure
+        sys.exit(1)
 
     all_match = validator.compare_trace_ids(file_trace_ids, tempo_trace_ids)
 

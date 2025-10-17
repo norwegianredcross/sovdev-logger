@@ -37,7 +37,7 @@ This specification enables **implementation of sovdev-logger in any programming 
    - Must produce 17 log entries matching TypeScript structure
 
 5. **Validate**
-   - Run: `./specification/tools/run-company-lookup-validate.sh {language}`
+   - Run: `./specification/tools/run-full-validation.sh {language}`
    - Verify Grafana dashboard shows data in ALL 3 panels
    - Follow checklist in `{language}/llm-work/llm-checklist-{language}.md`
 
@@ -118,7 +118,7 @@ cp typescript/test/e2e/company-lookup/.env {language}/test/e2e/company-lookup/
 
 **3. Testing**
 - Implement E2E test per `09-testprogram-company-lookup.md`
-- Validate: `./specification/tools/run-company-lookup-validate.sh {language}`
+- Validate: `./specification/tools/run-full-validation.sh {language}`
 
 ---
 
@@ -126,7 +126,7 @@ cp typescript/test/e2e/company-lookup/.env {language}/test/e2e/company-lookup/
 
 ### Main Validation Command
 ```bash
-./specification/tools/run-company-lookup-validate.sh {language}
+./specification/tools/run-full-validation.sh {language}
 ```
 
 ### Success Criteria
@@ -157,7 +157,7 @@ An implementation is **complete and correct** when:
 ### 2. Validation Tools
 - **Location:** `specification/tools/`
 - **Documentation:** `specification/tools/README.md`
-- **Main tool:** `run-company-lookup-validate.sh {language}`
+- **Main tool:** `run-full-validation.sh {language}`
 
 ### 3. JSON Schemas
 - **Location:** `specification/schemas/`

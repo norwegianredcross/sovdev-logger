@@ -74,11 +74,48 @@ Help them get home to their family. Help yourself build a reputation as someone 
 | Language | Status | Documentation |
 |----------|--------|---------------|
 | **TypeScript** | ✅ Available | [typescript/README.md](typescript/README.md) |
-| **Python** | 🚧 Coming Soon | - |
-| **C#** | 🚧 Coming Soon | - |
-| **Go** | 🚧 Coming Soon | - |
-| **Rust** | 🚧 Coming Soon | - |
-| **PHP** | 🚧 Coming Soon | - |
+| **Go** | ✅ Available | [go/README.md](go/README.md) |
+| **Python** | ✅ Available | [python/README.md](python/README.md) |
+| **C#** | 📅 Planned | - |
+| **Rust** | 📅 Planned | - |
+| **PHP** | 📅 Planned | - |
+
+---
+
+## 👥 Choose Your Path
+
+### For Library Users
+**You want to USE sovdev-logger in your application**
+
+**→ Quick Start:**
+1. Choose your language: [TypeScript](typescript/README.md) | [Go](go/README.md) | [Python](python/README.md)
+2. Read [Configuration Guide](docs/README-configuration.md)
+3. See [Examples](#example-typescript) below or in [Log Data Structure](docs/logging-data.md)
+4. [Verify logs in Grafana](docs/README-observability-architecture.md)
+
+### For Language Implementers
+**You want to IMPLEMENT sovdev-logger in a new language**
+
+**→ Implementation Guide:**
+1. **Understand the development environment** - [specification/05-environment-configuration.md](specification/05-environment-configuration.md)
+2. Read [specification/README.md](specification/README.md) - Complete implementation guide
+3. Read [specification/11-otel-sdk.md](specification/11-otel-sdk.md) ⚠️ **CRITICAL**: OTEL SDK differences
+4. Copy [specification/12-llm-checklist-template.md](specification/12-llm-checklist-template.md) to track progress
+5. Study [typescript/src/logger.ts](typescript/src/logger.ts) - Reference implementation
+
+**Current implementations:**
+- ✅ TypeScript (complete) - [typescript/](typescript/)
+- ✅ Go (complete) - [go/](go/)
+- ✅ Python (complete) - [python/](python/)
+
+**Validation (run in DevContainer):**
+```bash
+# Direct (if inside VSCode DevContainer)
+./specification/tools/run-company-lookup-validate.sh {language}
+
+# Or via wrapper (from host machine)
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh {language}"
+```
 
 ---
 
@@ -92,22 +129,26 @@ npm install @sovdev/logger
 
 See [typescript/README.md](typescript/README.md) for complete documentation.
 
-### Python (Coming Soon)
+### Go
+
+```bash
+go get github.com/norwegianredcross/sovdev-logger
+```
+
+See [go/README.md](go/README.md) for complete documentation.
+
+### Python
 
 ```bash
 pip install sovdev-logger
 ```
 
-### C# (Coming Soon)
+See [python/README.md](python/README.md) for complete documentation.
+
+### C# (Planned)
 
 ```bash
 dotnet add package SovdevLogger
-```
-
-### Go (Coming Soon)
-
-```bash
-go get github.com/norwegianredcross/sovdev-logger
 ```
 
 ---
@@ -136,6 +177,8 @@ sovdev_log(INFO, FUNCTIONNAME, 'Order processed', PEER_SERVICES.INTERNAL, input,
 - ✅ **Local testing**: Full observability stack on your laptop (no cloud costs)
 - ✅ **Azure-compatible**: OpenTelemetry Protocol (OTLP) works with Azure Monitor
 - ✅ **Future-proof**: Microsoft recommends OpenTelemetry for new applications
+
+**→ Complete Azure setup guide**: [Microsoft/Azure Integration](docs/README-microsoft-opentelemetry.md)
 
 ---
 
@@ -290,27 +333,9 @@ process.on('beforeExit', async () => {
 
 ## Configuration
 
-### Local Development (Console + File Only)
+**Local Development:** No configuration needed! Just install and use. Logs to console and `./logs/` directory.
 
-**No configuration needed!** Just install and use. The library will:
-- ✅ Log to console (colored, human-readable)
-- ✅ Log to files (JSON, structured in `./logs/`)
-- ❌ Not send to OTLP (Grafana/Loki) yet
-
-### Grafana/Loki/Tempo (Local Observability Stack)
-
-Create `.env` file:
-
-```bash
-OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://127.0.0.1/v1/logs
-OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://127.0.0.1/v1/metrics
-OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1/v1/traces
-OTEL_EXPORTER_OTLP_HEADERS={"Host":"otel.localhost"}
-
-NODE_ENV=development
-```
-
-See language-specific documentation for complete configuration details.
+**Production/Observability Stack:** Configure OTLP endpoints via environment variables. See [Configuration Guide](docs/README-configuration.md) for complete setup.
 
 ---
 
@@ -319,23 +344,16 @@ See language-specific documentation for complete configuration details.
 ### Quick Start by Language
 
 - **TypeScript**: [typescript/README.md](typescript/README.md) - Complete API reference, examples, patterns
-- **Python**: Coming soon
-- **C#**: Coming soon
-- **Go**: Coming soon
+- **Go**: [go/README.md](go/README.md) - Complete implementation with Go conventions
+- **Python**: [python/README.md](python/README.md) - Complete implementation with Python PEP 8 style
 
 ### Detailed Documentation
 
 - **[Configuration Guide](docs/README-configuration.md)** - Environment variables, OTLP setup, file logging
 - **[Log Data Structure](docs/logging-data.md)** - Field reference, logging patterns, correlation strategies
-- **[Observability Architecture](docs/README-observability-architecture.md)** - Dashboard setup, systemId naming, verification
+- **[Observability Architecture](docs/README-observability-architecture.md)** - Dashboard setup, service name naming, verification
 - **[Loggeloven Compliance](docs/README-loggeloven.md)** - Norwegian Red Cross logging requirements
 - **[Microsoft/Azure Integration](docs/README-microsoft-opentelemetry.md)** - Azure Monitor, Application Insights setup
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ---
 
@@ -356,8 +374,18 @@ See [LICENSE](LICENSE) for details.
 
 ## Repository Status
 
-This repository is currently under development. The TypeScript implementation is complete and ready for use. Additional language implementations are planned for 2025.
+This repository implements a multi-language logging library with identical output across all languages.
 
-**Phase 1**: TypeScript (✅ Complete)
-**Phase 2**: Python (🚧 In Progress)
-**Phase 3**: C#, Go, Rust, PHP (📅 Planned)
+**Development Status:**
+
+- ✅ **Specification v1.1.0** - Complete implementation guide
+- ✅ **TypeScript** - Complete, reference implementation (snake_case API)
+- ✅ **Go** - Complete, validated (PascalCase API per Go conventions)
+- ✅ **Python** - Complete, validated (snake_case API)
+- 📅 **C#, Rust, PHP** - Planned for 2025
+
+**All implementations follow:**
+- Identical API (8 functions)
+- Identical output format (JSON with snake_case fields)
+- Identical validation requirements
+- Source of truth: [specification/](specification/)

@@ -166,10 +166,13 @@ TRACE_COUNT=$(echo "$SEARCH_RESULT" | jq -r '.traces | length' 2>/dev/null || ec
 if [[ "$TRACE_COUNT" == "0" || "$TRACE_COUNT" == "null" ]]; then
     if [[ "$JSON_MODE" == false ]]; then
         echo -e "${YELLOW}⚠️  No traces found for service: ${SERVICE_NAME}${NC}"
+        exit 1
     else
-        echo "{\"error\": \"No traces found\", \"service\": \"${SERVICE_NAME}\"}" >&2
+        # Return valid empty Tempo response instead of error
+        # This allows validators to process it properly
+        echo "{\"traces\": [], \"metrics\": {\"inspectedTraces\": 0, \"inspectedSpans\": 0, \"inspectedBytes\": 0}}"
+        exit 0
     fi
-    exit 1
 fi
 
 # Output based on mode

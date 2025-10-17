@@ -1,15 +1,17 @@
 # 📊 sovdev Observability Architecture
 
+> **📖 For Complete Architecture Details:** See [specification/05-environment-configuration.md](../specification/05-environment-configuration.md) for DevContainer setup, architecture diagrams, and infrastructure configuration.
+
 ## 🎯 Overview
 
-This document explains how the sovdev multi-language logging system integrates with Grafana dashboards for comprehensive observability. The architecture separates concerns between testing verification and production monitoring while maintaining consistency across all programming languages.
+This document explains how to verify that your sovdev-logger implementation is working correctly by checking logs in Grafana dashboards. The architecture separates concerns between testing verification and production monitoring while maintaining consistency across all programming languages.
 
 ## 📋 Three-Dashboard Architecture
 
 ### 1. Infrastructure Testing Dashboard
 - **File**: `dev-observability-stack/grafana/dashboards/test-dev-observability-infra-dashboard.json`
 - **Purpose**: Verify OTLP pipeline connectivity and observability stack health
-- **Filter**: `systemId =~ /^sovdev-test-infra-.*/`
+- **Filter**: `service_name =~ /^sovdev-test-infra-.*/`
 - **Use Cases**:
   - OTLP collector connectivity verification
   - Loki ingestion testing
@@ -19,7 +21,7 @@ This document explains how the sovdev multi-language logging system integrates w
 ### 2. Structured Logging Testing Dashboard
 - **File**: `dev-observability-stack/grafana/dashboards/test-dev-observability-structuredlog-dashboard.json`
 - **Purpose**: Verify structured logging library implementations across all languages
-- **Filter**: `systemId =~ /^sovdev-test-structuredlog-.*/`
+- **Filter**: `service_name =~ /^sovdev-test-structuredlog-.*/`
 - **Use Cases**:
   - Library implementation verification
   - Cross-language consistency checking
@@ -29,53 +31,62 @@ This document explains how the sovdev multi-language logging system integrates w
 ### 3. Production Monitoring Dashboard
 - **File**: `dev-observability-stack/grafana/dashboards/structuredlog-dashboard.json`
 - **Purpose**: Monitor real application logs in production and development
-- **Filter**: `systemId AND systemId !~ /^sovdev-test-.*/`
+- **Filter**: `service_name AND service_name !~ /^sovdev-test-.*/`
 - **Use Cases**:
   - Application health monitoring
   - Error tracking and alerting
   - Performance insights
   - Business logic monitoring
 
-## 🏷️ SystemId Naming Convention
+## 🏷️ Service Name Naming Convention
 
-The `systemId` parameter passed to `sovdevInitialize()` determines which dashboard will display the logs:
+The `service_name` parameter passed to `sovdev_initialize()` determines which dashboard will display the logs:
 
 ### Infrastructure Testing
 ```bash
 # Used by dev-observability-stack/test-*.sh scripts
-sovdevInitialize("sovdev-test-infra-raw-logs")
-sovdevInitialize("sovdev-test-infra-otlp-connectivity")
-sovdevInitialize("sovdev-test-infra-loki-ingestion")
+sovdev_initialize("sovdev-test-infra-raw-logs")
+sovdev_initialize("sovdev-test-infra-otlp-connectivity")
+sovdev_initialize("sovdev-test-infra-loki-ingestion")
 ```
 
 ### Structured Logging Testing
+
+**Available Implementations:**
 ```typescript
-// TypeScript
-sovdevInitialize("sovdev-test-structuredlog-typescript")
+// TypeScript ✅
+sovdev_initialize("sovdev-test-structuredlog-typescript")
+```
 
-// PHP
-sovdevInitialize("sovdev-test-structuredlog-php")
+```go
+// Go ✅
+SovdevInitialize("sovdev-test-structuredlog-go")
+```
 
-// Go
-sovdevInitialize("sovdev-test-structuredlog-go")
+```python
+# Python ✅
+sovdev_initialize("sovdev-test-structuredlog-python")
+```
 
-// Java
-sovdevInitialize("sovdev-test-structuredlog-java")
+**Planned Implementations:**
+```csharp
+// C# (planned)
+SovdevLogger.Initialize("sovdev-test-structuredlog-csharp")
 
-// Python
-sovdevInitialize("sovdev-test-structuredlog-python")
+// PHP (planned)
+sovdev_initialize("sovdev-test-structuredlog-php")
 
-// C#
-sovdevInitialize("sovdev-test-structuredlog-csharp")
+// Rust (planned)
+sovdev_initialize("sovdev-test-structuredlog-rust")
 ```
 
 ### Production Applications
 ```typescript
 // Real application names
-sovdevInitialize("user-management-service")
-sovdevInitialize("payment-processor")
-sovdevInitialize("inventory-system")
-sovdevInitialize("INT0001001")  // Red Cross style system IDs
+sovdev_initialize("user-management-service")
+sovdev_initialize("payment-processor")
+sovdev_initialize("inventory-system")
+sovdev_initialize("INT0001001")  // Red Cross style system IDs
 ```
 
 ## 🔍 How to Verify Your Implementation
@@ -83,30 +94,42 @@ sovdevInitialize("INT0001001")  // Red Cross style system IDs
 ### For Library Developers
 
 #### 1. Run Your Language's Test
-```bash
-# TypeScript
-npm run lib-test
 
-# PHP (future)
+**Available Languages:**
+```bash
+# TypeScript ✅
+cd typescript && npm run lib-test
+
+# Go ✅
+cd go && ./test/e2e/company-lookup/run-test.sh
+
+# Python ✅
+cd python && ./test/e2e/company-lookup/run-test.sh
+```
+
+**Or use the validation wrapper (recommended):**
+```bash
+./specification/tools/run-company-lookup-validate.sh typescript
+./specification/tools/run-company-lookup-validate.sh go
+./specification/tools/run-company-lookup-validate.sh python
+```
+
+**Planned Languages:**
+```bash
+# C# (planned)
+dotnet run lib-test
+
+# PHP (planned)
 composer run lib-test
 
-# Go (future)
-go run lib-test
-
-# Java (future)
-mvn lib-test
-
-# Python (future)
-python lib-test.py
-
-# C# (future)
-dotnet run lib-test
+# Rust (planned)
+cargo run --example lib-test
 ```
 
 #### 2. Check the Structured Logging Dashboard
 - Open Grafana: `http://localhost:3000`
 - Navigate to: **test-dev-observability-structuredlog-dashboard**
-- Look for logs with your systemId: `sovdev-test-structuredlog-{language}`
+- Look for logs with your service_name: `sovdev-test-structuredlog-{language}`
 
 #### 3. Verify Required Functionality
 The dashboard should show evidence of:
@@ -128,7 +151,7 @@ cd dev-observability-stack
 #### 2. Check the Infrastructure Dashboard
 - Open Grafana: `http://localhost:3000`
 - Navigate to: **test-dev-observability-infra-dashboard**
-- Look for logs with systemIds: `sovdev-test-infra-*`
+- Look for logs with service_names: `sovdev-test-infra-*`
 
 #### 3. Verify Pipeline Health
 The dashboard should show:
@@ -141,20 +164,20 @@ The dashboard should show:
 #### 1. Deploy Your Application
 ```typescript
 // In your application code
-sovdevInitialize("my-application-name");
+sovdev_initialize("my-application-name");
 ```
 
 #### 2. Check the Production Dashboard
 - Open Grafana: `http://localhost:3000`
 - Navigate to: **structuredlog-dashboard**
-- Look for logs with your application's systemId
+- Look for logs with your application's service_name
 
 ## 🏗️ Architecture Flow
 
 ```mermaid
 graph TD
-    A[Application Code] --> B[sovdevInitialize]
-    B --> C{SystemId Pattern}
+    A[Application Code] --> B[sovdev_initialize]
+    B --> C{Service Name Pattern}
     
     C -->|sovdev-test-infra-*| D[Infrastructure Dashboard]
     C -->|sovdev-test-structuredlog-*| E[Structured Logging Dashboard]
@@ -174,10 +197,23 @@ graph TD
 ## 📊 Data Flow
 
 ### 1. Log Generation
+
+**TypeScript:**
 ```typescript
-// Developer writes code
-sovdevLog(SOVDEV_LOGLEVELS.INFO, "MyFunction", "Processing started", PEER_SERVICES.INTERNAL,
+sovdev_log(SOVDEV_LOGLEVELS.INFO, "MyFunction", "Processing started", PEER_SERVICES.INTERNAL,
        {userId: 123}, {status: "started"});
+```
+
+**Go:**
+```go
+sovdevlogger.SovdevLog(sovdevlogger.INFO, "MyFunction", "Processing started", peerServices.INTERNAL,
+       map[string]interface{}{"userId": 123}, map[string]interface{}{"status": "started"}, nil, "")
+```
+
+**Python:**
+```python
+sovdev_log(SOVDEV_LOGLEVELS.INFO, "MyFunction", "Processing started", PEER_SERVICES['INTERNAL'],
+       {'userId': 123}, {'status': 'started'})
 ```
 
 ### 2. OpenTelemetry Processing
@@ -191,7 +227,7 @@ sovdevLog(SOVDEV_LOGLEVELS.INFO, "MyFunction", "Processing started", PEER_SERVIC
 - Grafana queries both for correlated observability
 
 ### 4. Dashboard Display
-- Grafana filters logs by systemId pattern
+- Grafana filters logs by service_name pattern
 - Displays in appropriate dashboard
 - Shows trace-log correlation
 
@@ -206,7 +242,7 @@ sovdevLog(SOVDEV_LOGLEVELS.INFO, "MyFunction", "Processing started", PEER_SERVIC
 All programming languages implement:
 - Identical `lib-test` functionality
 - Same structured log format
-- Consistent systemId naming
+- Consistent service_name naming
 - Same verification process
 
 ### Future-Proof Naming
@@ -244,30 +280,39 @@ export NODE_ENV=development
 ## 🚀 Getting Started
 
 ### 1. Start the Observability Stack
-```bash
-cd dev-observability-stack
-docker-compose up -d
-```
+See [specification/05-environment-configuration.md](../specification/05-environment-configuration.md) for complete setup instructions.
 
 ### 2. Run a Library Test
+
+**Choose your language:**
+
 ```bash
-cd typescript
-npm run lib-test
+# TypeScript
+./specification/tools/run-company-lookup-validate.sh typescript
+
+# Go
+./specification/tools/run-company-lookup-validate.sh go
+
+# Python
+./specification/tools/run-company-lookup-validate.sh python
 ```
 
 ### 3. Verify in Grafana
-- Open http://localhost:3000
-- Check **test-dev-observability-structuredlog-dashboard**
-- Look for `sovdev-test-structuredlog-typescript` logs
+- Open http://localhost:3000 (or http://grafana.localhost)
+- Navigate to **test-dev-observability-structuredlog-dashboard**
+- Look for logs with your service name:
+  - `sovdev-test-structuredlog-typescript`
+  - `sovdev-test-structuredlog-go`
+  - `sovdev-test-structuredlog-python`
 
 ### 4. Understand the Output
-The dashboard should show your test logs with all required structured fields and trace correlation.
+The dashboard should show your test logs with all required structured fields and trace correlation. All three language implementations produce identical log structures.
 
 ## 📋 Troubleshooting
 
 ### No Logs in Dashboard
 1. **Check OTLP endpoints**: Verify environment variables are set
-2. **Check systemId**: Ensure it matches the expected pattern
+2. **Check service_name**: Ensure it matches the expected pattern
 3. **Check observability stack**: Verify all Docker containers are running
 4. **Check time range**: Grafana might be showing wrong time period
 
@@ -277,16 +322,27 @@ The dashboard should show your test logs with all required structured fields and
 3. **Verify active spans**: Check that spans are active when logging occurs
 
 ### Wrong Dashboard
-1. **Check systemId pattern**: Ensure it matches the intended dashboard filter
+1. **Check service_name pattern**: Ensure it matches the intended dashboard filter
 2. **Verify naming convention**: Follow the `sovdev-test-{category}-{specific}` pattern
 3. **Check filters**: Verify dashboard queries are using correct regex patterns
 
 ## 📚 Related Documentation
 
-- [README-loggeloven.md](./README-loggeloven.md) - "Loggeloven av 2025" requirements
-- [README-sovdev-logger.md](./README-sovdev-logger.md) - General usage guide
-- [typescript/README-typescript.md](./typescript/README-typescript.md) - TypeScript implementation
-- [dev-observability-stack/README-dev-observability-stack.md](./dev-observability-stack/README-dev-observability-stack.md) - Stack setup
+**For Library Users:**
+- [Configuration Guide](./README-configuration.md) - Environment variables and setup
+- [Log Data Structure](./logging-data.md) - Field reference and patterns
+- [TypeScript README](../typescript/README.md) - TypeScript-specific guide
+- [Go README](../go/README.md) - Go-specific guide (coming soon)
+- [Python README](../python/README.md) - Python-specific guide (coming soon)
+
+**For Library Implementers:**
+- [Specification](../specification/README.md) - Complete implementation requirements
+- [Environment Configuration](../specification/05-environment-configuration.md) - DevContainer setup and architecture
+- [OTEL SDK Guide](../specification/11-otel-sdk.md) - Critical SDK differences across languages
+- [Implementation Checklist](../specification/12-llm-checklist-template.md) - Track your progress
+
+**For Compliance:**
+- [Loggeloven Requirements](./README-loggeloven.md) - Norwegian Red Cross logging requirements
 
 ## 🎯 Summary
 

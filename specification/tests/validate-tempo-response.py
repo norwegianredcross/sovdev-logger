@@ -130,28 +130,56 @@ class TempoResponseValidator:
         return True
 
     def _validate_traces(self, tempo_data: Dict[str, Any]) -> bool:
-        """Validate trace entries from Tempo response"""
+        """
+        Validate trace entries from Tempo response
+
+        Checks required trace-level fields:
+        - traceID: OpenTelemetry trace identifier (16-32 char hex)
+        - rootServiceName: Name of the root service
+        - startTimeUnixNano: Trace start time in nanoseconds
+        """
         traces = tempo_data.get('traces', [])
         if not traces:
             return True  # No traces to validate
 
-        self.print_info("Validating trace entries...")
+        self.print_info("Validating trace entries (required fields)...")
 
         all_valid = True
 
-        for trace_idx, trace in enumerate(traces):
-            trace_id = trace.get('traceID')
-            root_service = trace.get('rootServiceName')
+        # Required fields that must be present in each trace
+        required_fields = [
+            'traceID',           # Trace identifier
+            'rootServiceName',   # Root service name
+            'startTimeUnixNano', # Trace start timestamp
+        ]
 
-            if not trace_id:
-                self.print_error(f"Trace {trace_idx}: Missing traceID")
+        for trace_idx, trace in enumerate(traces):
+            # Check for required fields
+            missing_fields = []
+            for field in required_fields:
+                if field not in trace or not trace.get(field):
+                    missing_fields.append(field)
+
+            if missing_fields:
+                self.print_error(f"Trace {trace_idx}: Missing required fields: {missing_fields}")
+                self.print_error(f"    Trace has: {list(trace.keys())}")
                 all_valid = False
                 continue
 
+            trace_id = trace.get('traceID')
+            root_service = trace.get('rootServiceName')
+            start_time = trace.get('startTimeUnixNano')
+
             # Validate trace_id format (16-32 char hex)
-            if not self._is_valid_trace_id(trace_id):
+            if trace_id and not self._is_valid_trace_id(trace_id):
                 self.print_error(f"Trace {trace_idx}: Invalid traceID format: {trace_id}")
                 self.print_error(f"    Expected: 16-32 character hex string")
+                all_valid = False
+
+            # Validate startTimeUnixNano format (19-digit nanosecond timestamp)
+            if start_time and not self._is_valid_timestamp(start_time):
+                self.print_error(f"Trace {trace_idx}: Invalid startTimeUnixNano format: {start_time}")
+                self.print_error(f"    Expected: 19-digit nanosecond timestamp (e.g., 1234567890123456789)")
                 all_valid = False
 
             # Track stats
@@ -171,6 +199,18 @@ class TempoResponseValidator:
             return False
         try:
             int(trace_id, 16)  # Check if it's valid hex
+            return True
+        except ValueError:
+            return False
+
+    def _is_valid_timestamp(self, timestamp: str) -> bool:
+        """Check if timestamp is valid 19-digit nanosecond Unix timestamp"""
+        if not timestamp or not isinstance(timestamp, str):
+            return False
+        if len(timestamp) != 19:
+            return False
+        try:
+            int(timestamp)  # Check if it's a valid number
             return True
         except ValueError:
             return False

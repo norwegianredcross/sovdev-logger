@@ -52,7 +52,7 @@ const FUNCTIONNAME = 'processPayment';
 const input = { orderId: '123', amount: 99.99 };
 const output = { transactionId: 'tx-456', status: 'approved' };
 
-sovdevLog(INFO, FUNCTIONNAME, 'Payment processed', PEER_SERVICES.PAYMENT_GATEWAY, input, output);
+sovdev_log(INFO, FUNCTIONNAME, 'Payment processed', PEER_SERVICES.PAYMENT_GATEWAY, input, output);
 // ↑ Automatic logs + metrics + traces + correlation
 ```
 
@@ -73,22 +73,22 @@ npm install @sovdev/logger
 Create `test.ts`:
 
 ```typescript
-import { sovdevInitialize, sovdevLog, sovdevFlush, SOVDEV_LOGLEVELS, createPeerServices } from '@sovdev/logger';
+import { sovdev_initialize, sovdev_log, sovdev_flush, SOVDEV_LOGLEVELS, create_peer_services } from '@sovdev/logger';
 
 // INTERNAL is auto-generated, just pass empty object if no external systems
-const PEER_SERVICES = createPeerServices({});
+const PEER_SERVICES = create_peer_services({});
 
 async function main() {
   const FUNCTIONNAME = 'main';
 
   // Initialize
-  sovdevInitialize('my-app');
+  sovdev_initialize('my-app');
 
   // Log with full context
   const input = { userId: '123', action: 'processOrder' };
   const output = { orderId: '456', status: 'success' };
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Order processed successfully',
@@ -98,7 +98,7 @@ async function main() {
   );
 
   // Flush before exit (CRITICAL!)
-  await sovdevFlush();
+  await sovdev_flush();
 }
 
 main().catch(console.error);
@@ -122,7 +122,7 @@ npx tsx test.ts
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Your Code: sovdevLog(...)                         │
+│  Your Code: sovdev_log(...)                        │
 │             ↓                                       │
 │  One Log Call                                       │
 └──────────────┬──────────────────────────────────────┘
@@ -137,7 +137,7 @@ npx tsx test.ts
 └────────┘ └────────┘ └────────┘ └────────┘
 ```
 
-Every `sovdevLog()` call generates:
+Every `sovdev_log()` call generates:
 - **Logs**: Structured JSON with full context (what happened, input, output)
 - **Metrics**: Counters, histograms, gauges for Azure Monitor, Prometheus, or Grafana
 - **Traces**: Distributed tracing spans with automatic correlation (Azure Application Insights, Tempo)
@@ -275,7 +275,7 @@ Good news! This library uses **OpenTelemetry** - Microsoft's recommended standar
 
 ```typescript
 // Same code works everywhere
-sovdevLog(INFO, FUNCTIONNAME, 'Order processed', PEER_SERVICES.INTERNAL, input, output);
+sovdev_log(INFO, FUNCTIONNAME, 'Order processed', PEER_SERVICES.INTERNAL, input, output);
 ```
 
 **Where your logs go**:
@@ -302,7 +302,7 @@ Choose your path:
 
 | Goal | Next Section |
 |------|-------------|
-| 📖 Just logging to console/file? | You're done! Keep using `sovdevLog()` |
+| 📖 Just logging to console/file? | You're done! Keep using `sovdev_log()` |
 | ☁️ Send to Azure Monitor? | [Configuration for Azure](#configuration-for-azure) |
 | 📊 Send to Grafana/Loki/Tempo? | [Configuration](#configuration) |
 | 🔄 Processing batches/jobs? | [Batch Job Pattern](#batch-job-pattern) |
@@ -317,7 +317,7 @@ Choose your path:
 
 ```typescript
 // Define peer services once at the top of your file
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   PAYMENT_GATEWAY: 'SYS2034567'   // External payment system (system ID)
   // INTERNAL is auto-generated - no need to declare it
 });
@@ -337,7 +337,7 @@ async function processPayment(orderId: string, amount: number) {
     const output = { transactionId: result.id, status: 'approved' };
 
     // Log success: input + output = complete audit trail
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
       FUNCTIONNAME,
       'Payment processed successfully',
@@ -352,7 +352,7 @@ async function processPayment(orderId: string, amount: number) {
     const output = { status: 'failed', reason: error.message };
 
     // Log failure: input + output + exception
-    sovdevLog(
+    sovdev_log(
       SOVDEV_LOGLEVELS.ERROR,
       FUNCTIONNAME,
       'Payment failed',
@@ -381,7 +381,7 @@ async function importUsers(users: User[]) {
   const FUNCTIONNAME = 'importUsers';
 
   // 1. Log job START - marks beginning of batch operation
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'UserImportJob',              // Job name (for filtering in Grafana)
@@ -404,7 +404,7 @@ async function importUsers(users: User[]) {
 
       // ✅ BEST PRACTICE: Log progress every N items (avoid log spam)
       if ((i + 1) % 10 === 0 || i === users.length - 1) {
-        sovdevLogJobProgress(
+        sovdev_log_job_progress(
           SOVDEV_LOGLEVELS.INFO,
           FUNCTIONNAME,
           user.id,                  // itemId: Identifier for the item being processed (shows in logs)
@@ -418,7 +418,7 @@ async function importUsers(users: User[]) {
       failureCount++;
 
       // ✅ IMPORTANT: Always log individual failures (don't skip errors)
-      sovdevLogJobProgress(
+      sovdev_log_job_progress(
         SOVDEV_LOGLEVELS.ERROR,
         FUNCTIONNAME,
         user.id,                  // itemId: Which user failed (for troubleshooting)
@@ -431,7 +431,7 @@ async function importUsers(users: User[]) {
   }
 
   // 3. Log job COMPLETION - marks end of batch with final statistics
-  sovdevLogJobStatus(
+  sovdev_log_job_status(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'UserImportJob',
@@ -454,20 +454,20 @@ async function importUsers(users: User[]) {
 **Use Case**: Process one company through multiple steps (lookup → validate → save). You want all 3 operations grouped together in Grafana.
 
 ```typescript
-import { sovdevGenerateTraceId } from '@sovdev/logger';
+import { sovdev_generate_trace_id } from '@sovdev/logger';
 
 async function processCompany(orgNumber: string) {
   const FUNCTIONNAME = 'processCompany';
 
   // IMPORTANT: Generate ONE traceId at the start - use it for ALL operations
-  const companyTraceId = sovdevGenerateTraceId();
+  const companyTraceId = sovdev_generate_trace_id();
 
   // Step 1: Lookup company in external registry (BRREG)
   const input1 = { organisasjonsnummer: orgNumber };
   const companyData = await lookupInBREG(orgNumber);
   const output1 = { name: companyData.name };
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Company found',
@@ -483,7 +483,7 @@ async function processCompany(orgNumber: string) {
   const input2 = { name: companyData.name };
   const output2 = { valid: isValid };
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Validation complete',
@@ -499,7 +499,7 @@ async function processCompany(orgNumber: string) {
   const input3 = { organisasjonsnummer: orgNumber };
   const output3 = { saved: true };
 
-  sovdevLog(
+  sovdev_log(
     SOVDEV_LOGLEVELS.INFO,
     FUNCTIONNAME,
     'Company saved',
@@ -539,23 +539,23 @@ Complete flow for this company visible in one view!
 
 ```typescript
 async function main() {
-  sovdevLog(INFO, FUNCTIONNAME, 'Test', PEER_SERVICES.INTERNAL, input);
-  // Missing: await sovdevFlush();
+  sovdev_log(INFO, FUNCTIONNAME, 'Test', PEER_SERVICES.INTERNAL, input);
+  // Missing: await sovdev_flush();
 }
 // Result: Last logs lost!
 ```
 
-**Fix**: Always call `await sovdevFlush()` before exit.
+**Fix**: Always call `await sovdev_flush()` before exit.
 
 ```typescript
 async function main() {
-  sovdevLog(INFO, FUNCTIONNAME, 'Test', PEER_SERVICES.INTERNAL, input);
-  await sovdevFlush();  // ✅
+  sovdev_log(INFO, FUNCTIONNAME, 'Test', PEER_SERVICES.INTERNAL, input);
+  await sovdev_flush();  // ✅
 }
 
 main().catch(async (error) => {
   console.error('Fatal error:', error);
-  await sovdevFlush(); // ✅ Flush even on error!
+  await sovdev_flush(); // ✅ Flush even on error!
   process.exit(1);
 });
 ```
@@ -565,13 +565,13 @@ main().catch(async (error) => {
 ```typescript
 // ❌ Wrong - hardcoded string (typo-prone)
 function processPayment() {
-  sovdevLog(INFO, 'proccessPayment', msg, PEER_SERVICES.PAYMENT_GATEWAY, input, output); // Typo!
+  sovdev_log(INFO, 'proccessPayment', msg, PEER_SERVICES.PAYMENT_GATEWAY, input, output); // Typo!
 }
 
 // ✅ Correct - use constant
 function processPayment() {
   const FUNCTIONNAME = 'processPayment';
-  sovdevLog(INFO, FUNCTIONNAME, msg, PEER_SERVICES.PAYMENT_GATEWAY, input, output);
+  sovdev_log(INFO, FUNCTIONNAME, msg, PEER_SERVICES.PAYMENT_GATEWAY, input, output);
 }
 ```
 
@@ -585,13 +585,13 @@ function processPayment() {
 
 ```typescript
 // ❌ Wrong - hardcoded string (no type safety, hard to maintain)
-sovdevLog(INFO, FUNCTIONNAME, msg, 'SYS1234567', input, output);
+sovdev_log(INFO, FUNCTIONNAME, msg, 'SYS1234567', input, output);
 
 // ✅ Correct - use PEER_SERVICES constants
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   BRREG: 'SYS1234567'  // INTERNAL auto-generated
 });
-sovdevLog(INFO, FUNCTIONNAME, msg, PEER_SERVICES.BRREG, input, output);
+sovdev_log(INFO, FUNCTIONNAME, msg, PEER_SERVICES.BRREG, input, output);
 ```
 
 **Why**:
@@ -604,10 +604,13 @@ sovdevLog(INFO, FUNCTIONNAME, msg, PEER_SERVICES.BRREG, input, output);
 
 ## API Reference
 
+**API Naming Convention:**
+TypeScript uses **snake_case** function names (`sovdev_log`, `sovdev_initialize`, `create_peer_services`) for consistency with Python implementation and the specification. All field names are **snake_case** across all languages (`service_name`, `function_name`, `trace_id`, `peer_service`).
+
 ### sovdevInitialize
 
 ```typescript
-sovdevInitialize(
+sovdev_initialize(
   serviceName: string,
   serviceVersion?: string,
   peerServices: Record<string, string>
@@ -640,14 +643,14 @@ Initialize the logger with service information and peer system mappings. **Must 
 // ALTINN_SYSTEM_ID=INT1005678                     ← External system ID
 
 // Define which external systems (peer services) your app calls
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   // INTERNAL is auto-generated - no need to declare it!
   BRREG: process.env.BRREG_SYSTEM_ID!,      // External system: INT1001234
   ALTINN: process.env.ALTINN_SYSTEM_ID!     // External system: INT1005678
 });
 
 // Initialize with YOUR service name and peer services
-sovdevInitialize(
+sovdev_initialize(
   process.env.OTEL_SERVICE_NAME!,   // 'my-company-lookup-service' (OpenTelemetry standard)
   '1.0.0',                          // Your version
   PEER_SERVICES.mappings            // INTERNAL auto-added as 'my-company-lookup-service'
@@ -662,7 +665,7 @@ sovdevInitialize(
 ### sovdevLog
 
 ```typescript
-sovdevLog(
+sovdev_log(
   level: sovdev_log_level,
   functionName: string,
   message: string,
@@ -700,7 +703,7 @@ const FUNCTIONNAME = 'processPayment';
 const input = { orderId: '123', amount: 99.99 };
 const output = { transactionId: 'tx-456', status: 'approved' };
 
-sovdevLog(
+sovdev_log(
   SOVDEV_LOGLEVELS.INFO,
   FUNCTIONNAME,
   'Payment processed successfully',
@@ -715,7 +718,7 @@ sovdevLog(
 ### sovdevLogJobStatus
 
 ```typescript
-sovdevLogJobStatus(
+sovdev_log_job_status(
   level: sovdev_log_level,
   functionName: string,
   jobName: string,
@@ -739,7 +742,7 @@ Track the lifecycle of long-running jobs or batch processes (start, completion, 
 const FUNCTIONNAME = 'syncUserData';
 
 // Job start
-sovdevLogJobStatus(
+sovdev_log_job_status(
   SOVDEV_LOGLEVELS.INFO,
   FUNCTIONNAME,
   'UserSyncJob',
@@ -751,7 +754,7 @@ sovdevLogJobStatus(
 // ... process users ...
 
 // Job completion
-sovdevLogJobStatus(
+sovdev_log_job_status(
   SOVDEV_LOGLEVELS.INFO,
   FUNCTIONNAME,
   'UserSyncJob',
@@ -766,7 +769,7 @@ sovdevLogJobStatus(
 ### sovdevLogJobProgress
 
 ```typescript
-sovdevLogJobProgress(
+sovdev_log_job_progress(
   level: sovdev_log_level,
   functionName: string,
   itemId: string,
@@ -794,7 +797,7 @@ for (let i = 0; i < users.length; i++) {
 
   await createUser(user);
 
-  sovdevLogJobProgress(
+  sovdev_log_job_progress(
     SOVDEV_LOGLEVELS.INFO,
     'importUsers',
     user.id,
@@ -811,7 +814,7 @@ for (let i = 0; i < users.length; i++) {
 ### sovdevFlush
 
 ```typescript
-async sovdevFlush(): Promise<void>
+async sovdev_flush(): Promise<void>
 ```
 
 Flush logs to ensure they are sent to OTLP collector. **Must be called before application exit.**
@@ -824,17 +827,17 @@ OpenTelemetry uses a `BatchLogRecordProcessor` which batches logs for performanc
 
 ```typescript
 async function main() {
-  sovdevInitialize('my-service');
+  sovdev_initialize('my-service');
 
   // ... your application code ...
 
   // Always flush before exit
-  await sovdevFlush();
+  await sovdev_flush();
 }
 
 main().catch(async (error) => {
   console.error('Fatal error:', error);
-  await sovdevFlush(); // Flush even on error!
+  await sovdev_flush(); // Flush even on error!
   process.exit(1);
 });
 ```
@@ -883,27 +886,27 @@ npm install @azure/monitor-opentelemetry
 Update your app initialization:
 
 ```typescript
-import { sovdevInitialize, sovdevLog, sovdevFlush, SOVDEV_LOGLEVELS, createPeerServices } from '@sovdev/logger';
+import { sovdev_initialize, sovdev_log, sovdev_flush, SOVDEV_LOGLEVELS, create_peer_services } from '@sovdev/logger';
 import { useAzureMonitor } from '@azure/monitor-opentelemetry';
 
 // Initialize Azure Monitor (reads APPLICATIONINSIGHTS_CONNECTION_STRING from env)
 useAzureMonitor();
 
 // Initialize sovdev-logger
-const PEER_SERVICES = createPeerServices({
+const PEER_SERVICES = create_peer_services({
   DATABASE: 'INT1234567',
   PAYMENT_API: 'SYS7654321'
   // INTERNAL is auto-generated
 });
 
-sovdevInitialize('my-azure-app', '1.0.0');
+sovdev_initialize('my-azure-app', '1.0.0');
 
 // Your application code...
 async function main() {
   const FUNCTIONNAME = 'main';
-  sovdevLog(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Application started', PEER_SERVICES.INTERNAL);
+  sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Application started', PEER_SERVICES.INTERNAL);
 
-  await sovdevFlush();
+  await sovdev_flush();
 }
 ```
 
@@ -915,7 +918,7 @@ Set environment variable in Azure (App Service → Configuration → Application
 APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=xxxxx-xxxx-xxxx-xxxx-xxxxxxxxx;IngestionEndpoint=https://...
 ```
 
-**That's it!** Your `sovdevLog()` calls now send:
+**That's it!** Your `sovdev_log()` calls now send:
 - ✅ Logs → Azure Log Analytics
 - ✅ Metrics → Azure Monitor Metrics
 - ✅ Traces → Application Insights (transaction search, application map)

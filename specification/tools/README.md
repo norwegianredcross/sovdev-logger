@@ -50,10 +50,8 @@ Complete table of all verification tools:
 | Script | Purpose | Inside Container | From Host | Where It Runs |
 |--------|---------|------------------|-----------|---------------|
 | [**run-company-lookup.sh**](run-company-lookup.sh) | Quick smoke test - run app and send to OTLP | `./run-company-lookup.sh python` | `./in-devcontainer.sh run-company-lookup python` | Devcontainer |
-| [**run-company-lookup-validate.sh**](run-company-lookup-validate.sh) | Complete E2E test with backend queries | `./run-company-lookup-validate.sh python` | `./in-devcontainer.sh run-company-lookup-validate python` | Devcontainer |
-| [**run-full-validation.sh**](run-full-validation.sh) | Full E2E validation - all backends + Grafana | `./run-full-validation.sh python` | `./in-devcontainer.sh run-full-validation python` | Devcontainer |
-| [**run-full-validation-host.sh**](run-full-validation-host.sh) | Legacy wrapper - runs validation from host | N/A | `./run-full-validation-host.sh python` | Host wrapper (deprecated) |
-| [**run-grafana-validation.sh**](run-grafana-validation.sh) | Validate Grafana datasource queries | `./run-grafana-validation.sh <service> <logfile>` | `./in-devcontainer.sh run-grafana-validation <service> <logfile>` | Devcontainer |
+| [**run-full-validation.sh**](run-full-validation.sh) | **RECOMMENDED** - Complete E2E validation | `./run-full-validation.sh python` | `./in-devcontainer.sh run-full-validation python` | Devcontainer |
+| [**run-grafana-validation.sh**](run-grafana-validation.sh) | Validate Grafana datasource queries only | `./run-grafana-validation.sh <service> <logfile>` | `./in-devcontainer.sh run-grafana-validation <service> <logfile>` | Devcontainer |
 | [**query-loki.sh**](query-loki.sh) | Query Loki directly for service logs | `./query-loki.sh sovdev-test-company-lookup-python` | `./in-devcontainer.sh query-loki sovdev-test-company-lookup-python` | Devcontainer |
 | [**query-prometheus.sh**](query-prometheus.sh) | Query Prometheus directly for service metrics | `./query-prometheus.sh sovdev-test-company-lookup-python` | `./in-devcontainer.sh query-prometheus sovdev-test-company-lookup-python` | Devcontainer |
 | [**query-tempo.sh**](query-tempo.sh) | Query Tempo directly for service traces | `./query-tempo.sh sovdev-test-company-lookup-python` | `./in-devcontainer.sh query-tempo sovdev-test-company-lookup-python` | Devcontainer |
@@ -77,12 +75,13 @@ Complete table of all verification tools:
 
 ```bash
 # From host machine (most common)
-./in-devcontainer.sh run-company-lookup-validate python          # Complete verification
-./in-devcontainer.sh loki sovdev-test-company-lookup-python      # Query Loki (using alias)
-./in-devcontainer.sh validate-logs python/test/logs/dev.log      # Validate logs (using alias)
+./in-devcontainer.sh validate python                         # Complete verification (alias)
+./in-devcontainer.sh run-full-validation python              # Complete verification
+./in-devcontainer.sh loki sovdev-test-company-lookup-python  # Query Loki (using alias)
+./in-devcontainer.sh validate-logs python/test/logs/dev.log  # Validate logs (using alias)
 
 # Inside devcontainer (if you're already in there)
-./run-company-lookup-validate.sh python
+./run-full-validation.sh python
 ./query-loki.sh sovdev-test-company-lookup-python
 ./validate-log-format.sh python/test/logs/dev.log
 
@@ -90,6 +89,104 @@ Complete table of all verification tools:
 ./in-devcontainer.sh run-company-lookup python && \
 ./in-devcontainer.sh loki sovdev-test-company-lookup-python --json
 ```
+
+---
+
+## Validation Scripts Comparison
+
+**Which script should I use?** This table shows what each validation and query script does:
+
+### Validation Runner Scripts
+
+| Script | Runs App | File Log Validation | Loki Schema validation | Loki compared to log file validation | Prometheus Schema validation | Prometheus compared to log file validation | Tempo Schema validation | Tempo compared to log file validation | Grafana Proxy | Use Case |
+|--------|----------|---------------------|------------------------|--------------------------------------|------------------------------|--------------------------------------------| ------------------------|---------------------------------------|---------------|----------|
+| **run-company-lookup.sh** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Quick smoke test - file logs only |
+| **run-full-validation.sh** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **RECOMMENDED** - Complete E2E validation |
+| **run-grafana-validation.sh** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Grafana proxy validation only (logs must exist) |
+
+**Validation Script Purposes:**
+- **run-company-lookup.sh**: Quick smoke test - runs app, validates file logs only (no backend queries)
+- **run-full-validation.sh**: Complete validation - file logs + all backends (direct + Grafana proxy)
+- **run-grafana-validation.sh**: Grafana-only validation - assumes logs exist, only tests Grafana datasource queries
+
+### Query Scripts (Direct Backend Access)
+
+| Script | Queries Loki | Queries Prometheus | Queries Tempo | Queries Grafana | Validates Schema | Compares to Log File | Output Format | Use Case |
+|--------|--------------|-------------------|---------------|-----------------|------------------|----------------------|---------------|----------|
+| **query-loki.sh** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | JSON/Text | Query Loki directly - returns raw response |
+| **query-prometheus.sh** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | JSON/Text | Query Prometheus directly - returns raw response |
+| **query-tempo.sh** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | JSON/Text | Query Tempo directly - returns raw response |
+| **query-grafana.sh** | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | JSON/Text | Check Grafana datasource config |
+| **query-grafana-loki.sh** | ✅ via Grafana | ❌ | ❌ | ✅ | ❌ | ❌ | JSON/Text | Query Loki through Grafana - returns raw response |
+| **query-grafana-prometheus.sh** | ❌ | ✅ via Grafana | ❌ | ✅ | ❌ | ❌ | JSON/Text | Query Prometheus through Grafana - returns raw response |
+| **query-grafana-tempo.sh** | ❌ | ❌ | ✅ via Grafana | ✅ | ❌ | ❌ | JSON/Text | Query Tempo through Grafana - returns raw response |
+
+**Query Script Purposes:**
+- **Query scripts DO NOT validate** - they only query backends and return raw responses
+- **To validate responses**: Pipe query output to Python validators in `specification/tests/`
+- **Direct query scripts** (query-loki.sh, query-prometheus.sh, query-tempo.sh): Query backends directly using kubectl port-forward
+- **Grafana proxy scripts** (query-grafana-*.sh): Query backends through Grafana datasource proxy (tests Grafana integration)
+- **query-grafana.sh**: Checks Grafana datasource configuration without querying data
+- **Use `--json` flag** for JSON output (pipeable to validators or jq)
+
+**Example - Manual Validation:**
+```bash
+# 1. Query Loki (returns raw response)
+./query-loki.sh sovdev-test-company-lookup-python --json > /tmp/loki.json
+
+# 2. Validate schema (manually pipe to validator)
+python3 ../tests/validate-loki-response.py /tmp/loki.json
+
+# 3. Compare to log file (manually pipe to validator)
+python3 ../tests/validate-log-consistency.py logs/dev.log /tmp/loki.json
+```
+
+**Validation scripts DO this automatically** - `run-full-validation.sh` calls query scripts AND validators together
+
+**Legend:**
+- **Runs App**: Installs/builds library, runs company-lookup app to generate log files
+- **File Log Validation**: Validates log files (dev.log, error.log) against log-entry-schema.json
+- **Schema validation**: Validates backend response structure and required fields (timestamp, service_name, etc.)
+- **compared to log file validation**: Compares backend response with log file content (same entries, same values, same counts)
+- **Grafana Proxy**: Queries backends through Grafana datasource proxy (tests Grafana integration)
+
+**Validation Layers:**
+1. **Layer 1 - Schema Validation** ✅ Checks structure: Is JSON valid? Are required fields present? Are field types correct?
+2. **Layer 2 - compared to log file validation** ✅ Checks values: Do backend response values match log file content? Same counts?
+3. **Layer 3 - Business Logic** ⏳ Checks semantics: Is duration > 0? Are error rates acceptable? (future work)
+
+**Recommendations:**
+
+**For Development (Most Common - Use This!):**
+```bash
+# Use run-full-validation.sh or the "validate" alias
+./in-devcontainer.sh validate typescript
+# or
+./in-devcontainer.sh run-full-validation typescript
+```
+- ✅ Validates file logs + all backends (Loki, Prometheus, Tempo)
+- ✅ Schema + consistency validation (compares backend with log files)
+- ✅ Validates Grafana datasource configuration
+- ✅ Catches all implementation issues
+- **This is what you want for complete validation**
+
+**For Quick Smoke Test:**
+```bash
+# Use run-company-lookup.sh - just run the app
+./in-devcontainer.sh run-company-lookup typescript
+```
+- No backend queries
+- Just validates file log format
+- Use when testing code changes locally (fast feedback)
+
+**For Grafana-Only Testing:**
+```bash
+# Use run-grafana-validation.sh - validates Grafana queries only
+./in-devcontainer.sh run-grafana-validation sovdev-test-company-lookup-typescript logs/dev.log
+```
+- Assumes app already ran and logs exist
+- Only validates Grafana datasource queries
+- Use when testing Grafana dashboard changes
 
 ---
 
@@ -199,5 +296,5 @@ python3 ../tests/validate-loki-response.py /tmp/loki-response.json
 ---
 
 
-**Last Updated:** 2025-10-07
+**Last Updated:** 2025-10-16
 **Maintainer:** Claude Code / Terje Christensen

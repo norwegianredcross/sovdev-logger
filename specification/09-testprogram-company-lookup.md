@@ -669,7 +669,7 @@ All validation tools are documented in detail in the following specifications:
 ./specification/tools/run-company-lookup.sh {language}
 
 # Step 3: Complete E2E validation (30 seconds, queries all backends)
-./specification/tools/run-company-lookup-validate.sh {language}
+./specification/tools/run-full-validation.sh {language}
 ```
 
 **Expected result for company-lookup**:
@@ -728,7 +728,7 @@ Use this checklist when implementing company-lookup in a new language:
 ### Validation
 - [ ] `validate-log-format.sh` passes (17 entries validated)
 - [ ] `run-company-lookup.sh` passes (smoke test)
-- [ ] `run-company-lookup-validate.sh` passes (full E2E)
+- [ ] `run-full-validation.sh` passes (full E2E)
 - [ ] Logs visible in Loki
 - [ ] Metrics visible in Prometheus
 - [ ] Traces visible in Tempo
@@ -764,13 +764,13 @@ An implementation is **complete and correct** when:
 6. ✅ Implements transaction correlation with explicit trace_id
 7. ✅ Passes `validate-log-format.sh` validation
 8. ✅ Passes `run-company-lookup.sh` smoke test
-9. ✅ Passes `run-company-lookup-validate.sh` full E2E test
+9. ✅ Passes `run-full-validation.sh` full E2E test
 10. ✅ All data visible in Grafana dashboards
 
 **Validation Command**:
 ```bash
 # Complete validation in one command
-./specification/tools/run-company-lookup-validate.sh {language}
+./specification/tools/run-full-validation.sh {language}
 ```
 
 **Expected output**:

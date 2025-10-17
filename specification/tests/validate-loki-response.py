@@ -137,58 +137,86 @@ class LokiResponseValidator:
         Validate log entries from Loki OTLP format
 
         In Loki's OTLP storage:
-        - Structured fields (service_name, function_name, etc.) → stream labels
-        - Message text → values array as plain string
+        - Structured fields → stream labels (indexed, queryable)
+        - Log message → values array as plain text
 
-        We validate the stream labels, not the message text.
+        This validates:
+        1. Stream labels have all required fields
+        2. No camelCase fields (must be snake_case)
         """
         results = loki_data.get('data', {}).get('result', [])
         if not results:
             return True  # No logs to validate
 
-        self.print_info("Validating stream labels (structured fields)...")
+        self.print_info("Validating stream labels for required fields...")
 
         all_valid = True
         total_logs = 0
+
+        # Required fields that should be in stream labels
+        # From log-entry-schema.json required fields
+        required_fields = [
+            'timestamp',      # ISO 8601 timestamp (NOT observed_timestamp)
+            'service_name',
+            'function_name',
+            'log_type',
+            'trace_id',
+            'peer_service',
+            'event_id',
+            'session_id'
+        ]
 
         for stream_idx, stream_data in enumerate(results):
             stream_labels = stream_data.get('stream', {})
             values = stream_data.get('values', [])
             total_logs += len(values)
 
-            # Validate stream labels as a log entry (one per stream is sufficient)
-            if stream_labels:
-                # Note: We don't validate against full log_entry schema because
-                # stream labels don't include message (it's in values)
-                # Instead, we check for required snake_case fields
+            if not stream_labels:
+                self.print_error(f"Stream {stream_idx}: No stream labels found")
+                all_valid = False
+                continue
 
-                required_fields = ['service_name']  # Minimum required
-                missing_fields = [f for f in required_fields if f not in stream_labels]
+            # Check for camelCase fields (should not exist)
+            camel_case_fields = [
+                'serviceName', 'functionName', 'logType', 'traceId',
+                'eventId', 'sessionId', 'peerService'
+            ]
+            found_camel = [f for f in camel_case_fields if f in stream_labels]
+            if found_camel:
+                self.print_error(f"Stream {stream_idx}: Found camelCase fields: {found_camel}")
+                self.print_error(f"    All fields must use snake_case")
+                all_valid = False
 
-                if missing_fields:
-                    self.print_warning(f"Stream {stream_idx}: Missing fields: {missing_fields}")
+            # Check for required fields
+            missing_fields = []
+            for field in required_fields:
+                if field not in stream_labels:
+                    missing_fields.append(field)
 
-                # Check for camelCase fields (should not exist)
-                camel_case_fields = [
-                    'serviceName', 'functionName', 'logType', 'traceId',
-                    'eventId', 'sessionId', 'peerService'
-                ]
-                found_camel = [f for f in camel_case_fields if f in stream_labels]
-                if found_camel:
-                    self.print_error(f"Stream {stream_idx}: Found camelCase fields: {found_camel}")
-                    self.print_error(f"    All fields must use snake_case")
-                    all_valid = False
+            if missing_fields:
+                self.print_error(f"Stream {stream_idx}: Missing required fields: {missing_fields}")
+                self.print_error(f"    Stream has: {list(stream_labels.keys())[:15]}")
+                all_valid = False
 
-                # Track stats
-                if 'service_name' in stream_labels:
-                    self.stats['unique_services'].add(stream_labels['service_name'])
-                if 'log_type' in stream_labels:
-                    log_type = stream_labels['log_type']
-                    self.stats['log_types'][log_type] = self.stats['log_types'].get(log_type, 0) + 1
+                # Special note for timestamp vs observed_timestamp
+                if 'timestamp' in missing_fields and 'observed_timestamp' in stream_labels:
+                    self.print_error(f"    Found 'observed_timestamp' but missing 'timestamp'")
+                    self.print_error(f"    Note: Grafana dashboards require 'timestamp' (ISO 8601 string)")
+                    self.print_error(f"    'observed_timestamp' is an OTEL internal field and not sufficient")
+
+            # Track stats
+            if 'service_name' in stream_labels:
+                self.stats['unique_services'].add(stream_labels['service_name'])
+            if 'log_type' in stream_labels:
+                log_type = stream_labels['log_type']
+                self.stats['log_types'][log_type] = self.stats['log_types'].get(log_type, 0) + 1
 
         self.stats['total_logs'] = total_logs
+
         if all_valid:
             self.print_success(f"Stream label validation passed - {len(results)} streams, {total_logs} log entries")
+        else:
+            self.print_error(f"Stream label validation failed - see errors above")
 
         return all_valid
 

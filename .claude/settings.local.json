@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/terje.christensen/learn/redcross-public/urbalurba-infrastructure/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -217,7 +217,7 @@ Only after log files are correct, validate that telemetry reaches the observabil
 sleep 10
 
 # Run complete backend validation
-run-company-lookup-validate.sh {language}
+run-full-validation.sh {language}
 ```
 
 **LLM developers (host machine - use wrapper):**
@@ -226,7 +226,7 @@ run-company-lookup-validate.sh {language}
 sleep 10
 
 # Run complete backend validation
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh {language}"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
 ```
 
 **This validation checks:**
@@ -291,7 +291,7 @@ cd python/test/e2e/company-lookup
 # Step 4: If validation passes, check OTLP backends
 # ============================================
 sleep 10
-../../../specification/tools/run-company-lookup-validate.sh python
+../../../specification/tools/run-full-validation.sh python
 ```
 
 ---
@@ -326,7 +326,7 @@ Working on host machine - must use `in-devcontainer.sh -e "command"` for ALL cod
 # Step 4: If validation passes, check OTLP backends
 # ============================================
 sleep 10
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh python"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh python"
 ```
 
 ---
@@ -344,7 +344,7 @@ sleep 10
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
 
 # Validate backends (after 10s wait)
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup-validate.sh {language}"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
 ```
 
 **Human developers (VSCode terminal inside container - run directly):**
@@ -356,7 +356,7 @@ cd {language}/test/e2e/company-lookup && ./run-test.sh
 validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log
 
 # Validate backends (after 10s wait)
-run-company-lookup-validate.sh {language}
+run-full-validation.sh {language}
 ```
 
 
@@ -398,7 +398,7 @@ run-company-lookup-validate.sh {language}
 
 4. **Don't commit without full validation**
    - Both log files AND backends must pass
-   - Use `run-company-lookup-validate.sh {language}`
+   - Use `run-full-validation.sh {language}`
 
 ### ⚠️ For LLMs Specifically
 
@@ -439,7 +439,7 @@ All validation tools support this workflow:
 |------|---------|-------|-------------|
 | `validate-log-format.sh` | Check log file structure | Instant | After every test run |
 | `run-company-lookup.sh` | Run test program | 2-5 seconds | During development |
-| `run-company-lookup-validate.sh` | Complete validation | 15-20 seconds | Before committing |
+| `run-full-validation.sh` | Complete validation | 15-20 seconds | Before committing |
 | `query-loki.sh` | Query Loki backend | 5-10 seconds | Debugging OTLP issues |
 | `query-prometheus.sh` | Query Prometheus | 5-10 seconds | Debugging metrics |
 | `query-tempo.sh` | Query Tempo | 5-10 seconds | Debugging traces |

@@ -64,7 +64,22 @@ import {
   create_peer_services       // Function 8: Create peer service mappings
 } from '../../../dist/index.js';
 
-import https from 'https';
+// ============================================================================
+// IMPORTANT: Dynamic Import for Auto-Instrumentation
+// ============================================================================
+// NOTE: We do NOT import 'https' at the top of the file!
+//
+// WHY: OpenTelemetry auto-instrumentation must be initialized BEFORE the
+// instrumented modules (http/https) are imported. Since sovdev_initialize()
+// sets up auto-instrumentation but is called inside main(), we need to
+// delay importing https until after initialization.
+//
+// SOLUTION: Use dynamic import inside fetchCompanyData()
+//
+// For production applications, you would typically:
+// 1. Create a separate instrumentation.js file that runs before app code
+// 2. Use Node's --require flag: node --require ./instrumentation.js app.js
+// 3. Or use import() to load your app after instrumentation is set up
 
 // ============================================================================
 // PEER SERVICES - External System Mapping (CMDB Integration)
@@ -107,14 +122,21 @@ interface CompanyData {
 // NOTE: This function does NOT use sovdev-logger - logging happens in the
 //       calling function (lookupCompany) which wraps this call.
 //
+// IMPORTANT: Uses dynamic import for https module to enable auto-instrumentation
+// The https module is imported INSIDE this function (after sovdev_initialize()
+// has been called) so OpenTelemetry can automatically instrument HTTP calls.
+//
 // CROSS-LANGUAGE: Other languages should implement equivalent HTTP client
 // functionality but the logging patterns must remain identical.
 
 async function fetchCompanyData(orgNumber: string): Promise<CompanyData> {
+  // Dynamic import - loads https AFTER auto-instrumentation is set up
+  const https = await import('https');
+
   return new Promise((resolve, reject) => {
     const url = `https://data.brreg.no/enhetsregisteret/api/enheter/${orgNumber}`;
 
-    https
+    https.default
       .get(url, (res) => {
         let data = '';
         res.on('data', (chunk) => (data += chunk));

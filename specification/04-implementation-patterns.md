@@ -109,7 +109,7 @@ def create_log_entry(
 
 The validation tools in `specification/tools/` expect this exact structure:
 
-- `run-company-lookup-validate.sh` - Executes tests and validates output
+- `run-full-validation.sh` - Executes tests and validates output
 - `validate-log-format.sh` - Validates JSON log format
 - `query-loki.sh` - Queries logs from observability stack
 - `run-full-validation.sh` - Runs complete validation suite

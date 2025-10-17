@@ -40,7 +40,7 @@ sovdev_initialize(
 );
 ```
 
-#### Initialization (Other Languages - Future)
+#### Initialization (Python)
 
 ```python
 # Python
@@ -53,6 +53,24 @@ PEER_SERVICES = create_peer_services({
 
 sovdev_initialize('company-lookup-service', '1.0.0', PEER_SERVICES['mappings'])
 ```
+
+#### Initialization (Go)
+
+```go
+// Go
+import (
+  "github.com/norwegianredcross/sovdev-logger/go/sovdevlogger"
+)
+
+peerServices := sovdevlogger.CreatePeerServices(map[string]string{
+  "BRREG":    "SYS1234567",
+  "DATABASE": "INT0001234",
+})
+
+sovdevlogger.SovdevInitialize("company-lookup-service", "1.0.0", peerServices.Mappings)
+```
+
+#### Initialization (C# - Planned)
 
 ```csharp
 // C#
@@ -70,8 +88,8 @@ SovdevLogger.Initialize("company-lookup-service", "1.0.0", peerServices.Mappings
 
 Peer services track which external systems your service interacts with:
 
+**TypeScript Example:**
 ```typescript
-// Example usage
 import { sovdev_log, SOVDEV_LOGLEVELS } from '@sovdev/logger';
 
 // When calling external API
@@ -93,6 +111,60 @@ sovdev_log(
   { count: 10 },
   null
 );
+```
+
+**Go Example:**
+```go
+import "github.com/norwegianredcross/sovdev-logger/go/sovdevlogger"
+
+// When calling external API
+sovdevlogger.SovdevLog(
+  sovdevlogger.INFO,
+  "lookupCompany",
+  "Looking up company",
+  peerServices.BRREG,      // Tracks call to BRREG system
+  map[string]interface{}{"orgNr": "123456789"},
+  nil,
+  nil,
+  "",
+)
+
+// For internal operations
+sovdevlogger.SovdevLog(
+  sovdevlogger.INFO,
+  "processData",
+  "Processing batch",
+  peerServices.INTERNAL,   // Internal operation
+  map[string]interface{}{"count": 10},
+  nil,
+  nil,
+  "",
+)
+```
+
+**Python Example:**
+```python
+from sovdev_logger import sovdev_log, SOVDEV_LOGLEVELS
+
+# When calling external API
+sovdev_log(
+  SOVDEV_LOGLEVELS.INFO,
+  'lookupCompany',
+  'Looking up company',
+  PEER_SERVICES['BRREG'],  # Tracks call to BRREG system
+  {'orgNr': '123456789'},
+  None
+)
+
+# For internal operations
+sovdev_log(
+  SOVDEV_LOGLEVELS.INFO,
+  'processData',
+  'Processing batch',
+  PEER_SERVICES['INTERNAL'],  # Internal operation
+  {'count': 10},
+  None
+)
 ```
 
 **Log Output:**

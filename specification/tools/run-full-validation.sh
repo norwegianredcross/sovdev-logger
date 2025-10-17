@@ -30,7 +30,7 @@
 #
 # Usage (from inside devcontainer):
 #   cd /workspace/specification/tools
-#   ./run-full-validation.sh [typescript|python]
+#   ./run-full-validation.sh [typescript|python|go]
 #
 # Exit codes:
 #   0 - All validations passed
@@ -94,9 +94,9 @@ print_header() {
 # Parse arguments
 LANGUAGE=${1:-typescript}
 
-if [[ "$LANGUAGE" != "typescript" && "$LANGUAGE" != "python" ]]; then
+if [[ "$LANGUAGE" != "typescript" && "$LANGUAGE" != "python" && "$LANGUAGE" != "go" ]]; then
     print_error "Invalid language: $LANGUAGE"
-    echo "Usage: $0 [typescript|python]"
+    echo "Usage: $0 [typescript|python|go]"
     exit 2
 fi
 
@@ -108,6 +108,10 @@ if [[ "$LANGUAGE" == "typescript" ]]; then
 elif [[ "$LANGUAGE" == "python" ]]; then
     TEST_DIR="/workspace/python/test/e2e/company-lookup"
     SERVICE_NAME="sovdev-test-company-lookup-python"
+    LOG_FILE="$TEST_DIR/logs/dev.log"
+elif [[ "$LANGUAGE" == "go" ]]; then
+    TEST_DIR="/workspace/go/test/e2e/company-lookup"
+    SERVICE_NAME="sovdev-test-company-lookup-go"
     LOG_FILE="$TEST_DIR/logs/dev.log"
 fi
 

@@ -157,11 +157,11 @@ ${YELLOW}Notes:${NC}
   - MODE 2: Use quotes for complex commands with spaces/special chars
   - All arguments are passed through to scripts/commands
 
-${YELLOW}Alternative:${NC}
-  For the most common workflow, you can use:
-    ./run-full-validation-host.sh python
-
-  (Kept for backward compatibility and convenience)
+${YELLOW}Quick Start:${NC}
+  For full end-to-end validation:
+    ./in-devcontainer.sh run-full-validation.sh python
+    # or using alias:
+    ./in-devcontainer.sh validate python
 
 EOF
 }

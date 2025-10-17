@@ -148,6 +148,14 @@ class PrometheusResponseValidator:
         all_valid = True
         total_operations = 0
 
+        # Required labels that should be in Prometheus metrics
+        # These are essential for querying and filtering metrics
+        required_labels = [
+            'service_name',  # Service identifier (or peer_service for external calls)
+            'log_type',      # Type of operation (transaction, job.status, job.progress)
+            'log_level',     # Log level (info, error, etc.)
+        ]
+
         # List of camelCase labels that should NOT exist
         camel_case_labels = [
             'serviceName', 'logType', 'logLevel', 'peerService',
@@ -166,9 +174,19 @@ class PrometheusResponseValidator:
                 except (ValueError, TypeError):
                     self.print_warning(f"Series {series_idx}: Invalid metric value: {value[1]}")
 
-            # Check for required snake_case labels
-            if 'service_name' not in metric_labels:
-                self.print_warning(f"Series {series_idx}: Missing 'service_name' label")
+            # Check for required labels
+            missing_labels = []
+            for label in required_labels:
+                if label not in metric_labels:
+                    # Special case: service_name OR peer_service can satisfy service requirement
+                    if label == 'service_name' and 'peer_service' in metric_labels:
+                        continue  # peer_service is acceptable instead of service_name
+                    missing_labels.append(label)
+
+            if missing_labels:
+                self.print_error(f"Series {series_idx}: Missing required labels: {missing_labels}")
+                self.print_error(f"    Metric has: {list(metric_labels.keys())}")
+                all_valid = False
 
             # Check for camelCase labels (should not exist)
             found_camel = [label for label in camel_case_labels if label in metric_labels]

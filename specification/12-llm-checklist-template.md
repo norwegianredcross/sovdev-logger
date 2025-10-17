@@ -202,7 +202,7 @@
 ```
 
 ### OTLP Validation
-- [ ] Ran full validation: `run-company-lookup-validate.sh <language>`
+- [ ] Ran full validation: `run-full-validation.sh <language>`
 - [ ] Verified logs in Loki
 - [ ] Verified metrics in Prometheus
 - [ ] Verified traces in Tempo (if applicable)
@@ -215,8 +215,8 @@
 ### Grafana Dashboard Validation (MOST CRITICAL)
 
 **Step 1: Run both tests**
-- [ ] Ran TypeScript test: `run-company-lookup-validate.sh typescript`
-- [ ] Ran language test: `run-company-lookup-validate.sh <language>`
+- [ ] Ran TypeScript test: `run-full-validation.sh typescript`
+- [ ] Ran language test: `run-full-validation.sh <language>`
 
 **Step 2: Open Grafana**
 - [ ] Opened http://grafana.localhost

@@ -26,7 +26,7 @@ All sovdev-logger implementations are tested the same way, regardless of languag
 ./specification/tools/run-company-lookup.sh {language}
 
 # Complete E2E validation with backend queries (30 seconds)
-./specification/tools/run-company-lookup-validate.sh {language}
+./specification/tools/run-full-validation.sh {language}
 ```
 
 ### Example Workflow
@@ -35,12 +35,12 @@ All sovdev-logger implementations are tested the same way, regardless of languag
 # TypeScript implementation
 ./specification/tools/validate-log-format.sh typescript/test/e2e/company-lookup/logs/dev.log
 ./specification/tools/run-company-lookup.sh typescript
-./specification/tools/run-company-lookup-validate.sh typescript
+./specification/tools/run-full-validation.sh typescript
 
 # Python implementation
 ./specification/tools/validate-log-format.sh python/test/e2e/company-lookup/logs/dev.log
 ./specification/tools/run-company-lookup.sh python
-./specification/tools/run-company-lookup-validate.sh python
+./specification/tools/run-full-validation.sh python
 ```
 
 ### Why Use These Tools?
@@ -159,8 +159,8 @@ The `specification/tools/` directory provides **language-agnostic verification t
 
 ### Complete E2E Test
 ```bash
-./specification/tools/run-company-lookup-validate.sh python
-./specification/tools/run-company-lookup-validate.sh typescript
+./specification/tools/run-full-validation.sh python
+./specification/tools/run-full-validation.sh typescript
 ```
 - Runs application inside devcontainer
 - Waits for telemetry export (15s)
@@ -784,7 +784,7 @@ This tool automatically:
 
 **3. Complete E2E validation:**
 ```bash
-./specification/tools/run-company-lookup-validate.sh {language}
+./specification/tools/run-full-validation.sh {language}
 ```
 
 This tool automatically verifies:

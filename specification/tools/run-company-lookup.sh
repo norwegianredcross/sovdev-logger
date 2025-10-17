@@ -17,7 +17,7 @@
 #   - Generates local log files (dev.log, error.log) for validation
 #
 #   For COMPLETE E2E verification including backend queries (Loki, Prometheus,
-#   Tempo), use run-company-lookup-validate.sh instead.
+#   Tempo), use run-full-validation.sh instead.
 #
 # Usage:
 #   ./run-company-lookup.sh <language>
@@ -75,7 +75,7 @@
 #   - Self-contained (doesn't require backend queries)
 #
 # Related Scripts:
-#   - run-company-lookup-validate.sh: Full E2E with backend verification
+#   - run-full-validation.sh: Full E2E with backend verification
 #   - validate-log-format.sh: Standalone log validation
 #   - <language>/test/e2e/company-lookup/run-test.sh: Language-specific test
 #
