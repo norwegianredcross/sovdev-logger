@@ -1,8 +1,8 @@
-# Logging Concepts: trace_id vs Spans
+# Logging Concepts: Distributed Tracing with Spans
 
 **Date:** 2025-10-17
 **Status:** DRAFT
-**Purpose:** Explain the difference between trace_id (log correlation) and spans (distributed tracing) to help developers understand when and how to use each.
+**Purpose:** Explain distributed tracing concepts (trace_id, spans) and how to use the sovdev-logger library to implement distributed tracing in your applications.
 
 ---
 
@@ -10,14 +10,13 @@
 
 1. [Introduction](#introduction)
 2. [The Relationship Between trace_id and Spans](#the-relationship-between-trace_id-and-spans)
-3. [Current Approach: trace_id (Log Correlation)](#current-approach-trace_id-log-correlation)
-4. [Distributed Tracing: Spans (Operations with Timing)](#distributed-tracing-spans-operations-with-timing)
-5. [Visual Examples](#visual-examples)
-6. [When to Use What](#when-to-use-what)
-7. [Implementation: Manual Pattern](#implementation-manual-pattern)
-8. [API Reference](#api-reference)
-9. [Cross-Language Examples](#cross-language-examples)
-10. [TODO: Future Language-Specific Patterns](#todo-future-language-specific-patterns)
+3. [Distributed Tracing: Spans (Operations with Timing)](#distributed-tracing-spans-operations-with-timing)
+4. [Visual Examples](#visual-examples)
+5. [When to Use Spans](#when-to-use-spans)
+6. [Implementation: Manual Pattern](#implementation-manual-pattern)
+7. [API Reference](#api-reference)
+8. [Cross-Language Examples](#cross-language-examples)
+9. [Summary](#summary)
 
 ---
 
@@ -32,10 +31,12 @@ When building distributed systems, you need to answer questions like:
 - **"How did this request flow through our services?"** → Need to trace the path
 - **"What happened during this transaction?"** → Need correlated logs
 
-This document explains two complementary approaches:
+This document explains **distributed tracing with spans** - a powerful approach that automatically:
 
-1. **trace_id** (Simple) → Groups related logs together
-2. **Spans** (Powerful) → Traces operations with timing and hierarchy
+- **Groups related logs** under a trace_id
+- **Tracks operation timing** (start, end, duration)
+- **Shows call hierarchy** (parent-child relationships)
+- **Enables visualization** in Grafana
 
 ---
 
@@ -94,76 +95,14 @@ This document explains two complementary approaches:
 **When you create spans:**
 - First span creates a new trace and generates a trace_id automatically
 - All child spans (nested inside) inherit their parent's trace_id
-- All sibling spans (same level) can share a trace_id if you pass it explicitly
 - Logs inside any span automatically get the trace_id AND span_id from the active span
+- No manual trace_id generation needed - spans handle it all
 
-**When you manually pass trace_id:**
-- You can create multiple independent spans that share the same trace_id
-- Use `sovdev_generate_trace_id()` once, then pass it to multiple `sovdev_start_span()` calls
-- This groups unrelated operations under the same trace
-
-**Backwards Compatibility:**
-- You can still use `sovdev_generate_trace_id()` without spans (log correlation only)
-- When you add spans, logs still work the same way (just with additional span_id)
-- trace_id works alone (simple grouping) or with spans (full distributed tracing)
-
----
-
-## Current Approach: trace_id (Log Correlation)
-
-### What is trace_id?
-
-**trace_id is a UUID string used to GROUP related log entries together.**
-
-It's like putting the same label on all photos from a single event - you know they're related, but you don't know the order or timing.
-
-### Example: Looking Up a Company
-
-```typescript
-const FUNCTIONNAME = 'lookupCompany';
-const trace_id = sovdev_generate_trace_id();
-// Result: "7c5d36d44e5a4a2f9b94e20299561c70"
-
-sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Looking up company 971277882', PEER_SERVICES.BRREG, input, null, null, trace_id);
-// ... HTTP call to external API ...
-sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Company found: NORAD', PEER_SERVICES.BRREG, input, response, null, trace_id);
-```
-
-### What You See in Loki
-
-```json
-{"timestamp":"2025-10-17T06:59:16.156Z", "trace_id":"7c5d36d44e5a4a2f9b94e20299561c70", "message":"Looking up company 971277882"}
-{"timestamp":"2025-10-17T06:59:16.332Z", "trace_id":"7c5d36d44e5a4a2f9b94e20299561c70", "message":"Company found: NORAD"}
-```
-
-### What You Can Do
-
-✅ Query Loki: `{trace_id="7c5d36d44e5a4a2f9b94e20299561c70"}`
-✅ See all logs from this transaction
-✅ Correlate related log entries
-✅ Simple to implement (just pass a string)
-
-### What You CANNOT Do
-
-❌ See timing (you must manually calculate: 332ms - 156ms = 176ms)
-❌ See call hierarchy (which function called which?)
-❌ See performance breakdown (where was time spent?)
-❌ Query in Grafana (no spans = no distributed traces)
-❌ Visualize the request flow
-
-### Trade-offs
-
-**Advantages:**
-- Simple to understand (just a correlation ID)
-- No performance overhead
-- Works in any logging system
-- Easy to implement across languages
-
-**Limitations:**
-- Manual timestamp analysis required
-- No automatic timing information
-- No visualization tools
-- Cannot see operation hierarchy
+**trace_id is generated automatically by OpenTelemetry when you create a span:**
+- You don't call `sovdev_generate_trace_id()` - it happens automatically
+- Parent span creates trace_id, all children inherit it
+- Same trace_id groups all related operations together
+- Logs automatically detect and use the active span's trace_id
 
 ---
 
@@ -381,61 +320,27 @@ Trace: 7c5d36d44e5a4a2f9b94e20299561c70
 (No parent span = no total time shown, but all three grouped by trace_id)
 ```
 
-### Example 4: Current Approach (trace_id only)
-
-**What you see in Loki with just trace_id:**
-
-```
-13 different trace_ids (hard to see big picture):
-
-trace_id: 114284e9... | Company Lookup Service started
-trace_id: 29d8b733... | Job Started: CompanyLookupBatch
-trace_id: 461210234... | Processing 971277882 (1/4)
-trace_id: 7c5d36d4... | Looking up company 971277882
-trace_id: 7c5d36d4... | Company found: NORAD
-trace_id: 532c9595... | Processing 915933149 (2/4)
-trace_id: 5abea192... | Looking up company 915933149
-trace_id: 5abea192... | Company found: DIREKTORATET...
-trace_id: 6ae43094... | Processing 974652846 (3/4)
-trace_id: 46adff37... | Looking up company 974652846
-trace_id: 46adff37... | Failed to lookup company 974652846
-trace_id: 55e0b115... | Batch item 3 failed
-trace_id: 9570aa21... | Processing 916201478 (4/4)
-...
-```
-
-**Problem:** Need to mentally correlate 13 different trace_ids. No timing information visible.
-
 ---
 
-## When to Use What
+## When to Use Spans
 
-### Use trace_id Only (Simple Correlation)
+### Always Use Spans for Distributed Tracing
 
-**Good for:**
-- Simple scripts and utilities
-- When you just need to group related logs
-- Quick prototypes
-- When performance overhead must be zero
-- When Tempo is not available
+**Spans should be used for:**
+- ✅ **Production services** - Full observability and debugging capability
+- ✅ **Operations that call external APIs** - Track timing and failures
+- ✅ **Performance-critical code paths** - Identify bottlenecks
+- ✅ **Debugging latency issues** - See exactly where time is spent
+- ✅ **Multi-service architectures** - Trace requests across services
+- ✅ **Batch processing jobs** - Track progress and failures
+- ✅ **Simple scripts and utilities** - Even simple operations benefit from timing
 
-**Example:**
-```typescript
-const FUNCTIONNAME = 'processData';
-const trace_id = sovdev_generate_trace_id();
-sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Starting', PEER_SERVICES.INTERNAL, input, null, null, trace_id);
-sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Finished', PEER_SERVICES.INTERNAL, input, result, null, trace_id);
-```
-
-### Use Spans (Distributed Tracing)
-
-**Good for:**
-- Production services
-- Operations that call external APIs
-- Performance-critical code paths
-- When you need to debug latency issues
-- Multi-service architectures
-- Batch processing jobs
+**Why always use spans?**
+- Automatic trace_id generation (no manual work)
+- Automatic timing calculation (no manual timestamp math)
+- Visual traces in Grafana (better than text logs)
+- Logs automatically get trace_id from active spans (no parameters to pass)
+- Minimal performance overhead (negligible in practice)
 
 **Example:**
 ```typescript
@@ -454,19 +359,15 @@ try {
 
 ### Progressive Enhancement
 
-**Start simple, add spans when needed:**
+**Start simple, add spans when ready:**
 
 ```typescript
 const FUNCTIONNAME = 'myFunction';
 
-// Phase 1: Just logs (works!)
+// Phase 1: Just logs (basic observability)
 sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Processing', PEER_SERVICES.EXTERNAL_API, input);
 
-// Phase 2: Add trace_id for correlation (better!)
-const trace_id = sovdev_generate_trace_id();
-sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Processing', PEER_SERVICES.EXTERNAL_API, input, null, null, trace_id);
-
-// Phase 3: Add spans for timing (best!)
+// Phase 2: Add spans for timing and tracing (recommended)
 const span = sovdev_start_span(FUNCTIONNAME);
 try {
   sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Processing', PEER_SERVICES.EXTERNAL_API, input);
@@ -477,7 +378,7 @@ try {
 }
 ```
 
-No breaking changes. Each step adds more capability.
+Logs work with or without spans. Adding spans enhances existing logs with trace_id and timing.
 
 ---
 
@@ -569,13 +470,11 @@ const span = sovdev_start_span(FUNCTIONNAME);
 // Grafana shows: calculateDiscount() - 5ms
 ```
 
-### Grouping Multiple Operations (Sibling Spans)
+### Grouping Multiple Operations
 
 **Use Case:** You want to group multiple separate operations under the same trace_id (e.g., read user, calculate something, send email).
 
-**Two approaches:**
-
-#### Approach 1: Parent Span with Child Spans (Recommended)
+**Recommended Approach: Parent Span with Child Spans**
 
 ```typescript
 const FUNCTIONNAME = 'processUserWorkflow';
@@ -633,63 +532,12 @@ Trace: 7c5d36d44e5a4a2f9b94e20299561c70
    └─ sendEmail (Child) - 600ms
 ```
 
-**When active:** All three child spans automatically share the parent's trace_id. All logs inside any span get the shared trace_id automatically.
-
-#### Approach 2: Sibling Spans with Manual trace_id (When No Parent Makes Sense)
-
-```typescript
-const FUNCTIONNAME = 'userWorkflow';
-
-// Generate trace_id once for the entire workflow
-const trace_id = sovdev_generate_trace_id();
-
-// Span 1: Read user
-const readSpan = sovdev_start_span('readUser', { trace_id });  // ← Pass trace_id
-try {
-  sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Reading user', PEER_SERVICES.DATABASE, input);
-  const user = await readUser(userId);
-  sovdev_end_span(readSpan);
-} catch (error) {
-  sovdev_end_span(readSpan, error);
-  throw error;
-}
-
-// Span 2: Calculate (separate span, same trace_id)
-const calcSpan = sovdev_start_span('calculateRecommendations', { trace_id });  // ← Reuse trace_id
-try {
-  sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Calculating', PEER_SERVICES.INTERNAL, null);
-  const recommendations = calculateRecommendations(user);
-  sovdev_end_span(calcSpan);
-} catch (error) {
-  sovdev_end_span(calcSpan, error);
-  throw error;
-}
-
-// Span 3: Send email (separate span, same trace_id)
-const emailSpan = sovdev_start_span('sendEmail', { trace_id });  // ← Reuse trace_id
-try {
-  sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Sending email', PEER_SERVICES.EMAIL_SERVICE, null);
-  await sendEmail(user.email, recommendations);
-  sovdev_end_span(emailSpan);
-} catch (error) {
-  sovdev_end_span(emailSpan, error);
-  throw error;
-}
-```
-
-**What you see in Grafana:**
-```
-Trace: 7c5d36d44e5a4a2f9b94e20299561c70
-├─ readUser - 200ms
-├─ calculateRecommendations - 50ms
-└─ sendEmail - 600ms
-```
-
-**All three spans share the same trace_id** but appear as siblings (no parent-child hierarchy).
-
-**When to use each:**
-- **Approach 1 (Parent span):** When operations are part of a single logical workflow and you want to see total time
-- **Approach 2 (Sibling spans):** When operations are independent but related (e.g., batch processing items)
+**How it works:**
+- Parent span creates trace_id automatically
+- All child spans automatically inherit parent's trace_id
+- All logs inside any span get the shared trace_id automatically
+- Parent span shows total workflow time (850ms)
+- Child spans show individual operation times
 
 ---
 
@@ -731,29 +579,11 @@ const FUNCTIONNAME = 'calculateTotal';
 const span = sovdev_start_span(FUNCTIONNAME);
 ```
 
-**Example 3 (Reuse existing trace_id for sibling spans):**
-```typescript
-const trace_id = sovdev_generate_trace_id();
-
-// First operation
-const FUNCTIONNAME_1 = 'readUser';
-const span1 = sovdev_start_span(FUNCTIONNAME_1, { trace_id, userId: '123' });
-// ... operation ...
-sovdev_end_span(span1);
-
-// Second operation (same trace_id)
-const FUNCTIONNAME_2 = 'sendEmail';
-const span2 = sovdev_start_span(FUNCTIONNAME_2, { trace_id, userId: '123' });
-// ... operation ...
-sovdev_end_span(span2);
-```
-
 **What it does internally:**
 1. Creates an OpenTelemetry span
 2. Records start timestamp
-3. **Determines trace_id:**
+3. **Determines trace_id automatically:**
    - If this span is nested inside an active parent span → Inherit parent's trace_id
-   - If `trace_id` provided in attributes → Use that trace_id (groups sibling spans)
    - Otherwise → Generate new trace_id (creates a new trace)
 4. Generates unique span_id for this specific operation
 5. **Sets span attributes** (if provided):
@@ -767,7 +597,7 @@ sovdev_end_span(span2);
 - **With attributes**: Recommended for production - makes traces searchable and debuggable
 - **Without attributes**: OK for simple operations where timing alone is sufficient
 - **Key fields only**: Pass identifying fields (ids, keys) rather than full data structures
-- **Child spans**: Automatically inherit parent's trace_id (no need to pass it manually)
+- **Child spans**: Automatically inherit parent's trace_id and appear nested in Grafana
 
 **Remember:** trace_id identifies the entire trace (the book), span_id identifies this specific operation (the chapter)
 
@@ -999,202 +829,24 @@ function lookupCompany(string $orgNumber): CompanyData
 
 ---
 
-## TODO: Future Language-Specific Patterns
-
-**Status:** Deferred until manual pattern is proven in production.
-
-The manual start/end pattern works universally, but each language has more idiomatic convenience patterns. These could be added in the future as optional wrappers around the manual pattern.
-
-### TypeScript: Async Wrapper
-
-```typescript
-/**
- * Convenience wrapper for TypeScript async functions.
- * Automatically handles span lifecycle and error handling.
- */
-async function sovdev_with_span<T>(
-  operation_name: string,
-  callback: () => Promise<T>,
-  attributes?: Record<string, any>
-): Promise<T> {
-  const span = sovdev_start_span(operation_name, attributes);
-  try {
-    const result = await callback();
-    sovdev_end_span(span);
-    return result;
-  } catch (error) {
-    sovdev_end_span(span, error);
-    throw error;
-  }
-}
-
-// Usage:
-const FUNCTIONNAME = 'lookupCompany';
-await sovdev_with_span(FUNCTIONNAME, async () => {
-  sovdev_log(...);
-  return result;
-});
-```
-
-**Advantages:**
-- Automatic cleanup
-- No risk of forgetting to end span
-- Concise syntax
-
-**Limitations:**
-- Only works with async functions
-- Callback syntax may feel unnatural for some developers
-
-### Python: Context Manager
-
-```python
-"""
-Convenience context manager for Python.
-Automatically handles span lifecycle using with statement.
-"""
-class sovdev_with_span:
-    def __init__(self, operation_name: str, attributes: dict = None):
-        self.operation_name = operation_name
-        self.attributes = attributes
-        self.span = None
-
-    def __enter__(self):
-        self.span = sovdev_start_span(self.operation_name, self.attributes)
-        return self.span
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_val:
-            sovdev_end_span(self.span, exc_val)
-        else:
-            sovdev_end_span(self.span)
-        return False  # Re-raise exception if present
-
-# Usage:
-FUNCTIONNAME = 'lookupCompany'
-with sovdev_with_span(FUNCTIONNAME):
-    sovdev_log(...)
-```
-
-**Advantages:**
-- Pythonic idiom (with statement)
-- Automatic cleanup
-- Clear scope
-
-**Limitations:**
-- Requires understanding of context managers
-- Less familiar to developers from other languages
-
-### C#: Using Statement with IDisposable
-
-```csharp
-/// <summary>
-/// Convenience wrapper for C# using statements.
-/// Automatically handles span lifecycle via IDisposable.
-/// </summary>
-public class SovdevSpan : IDisposable
-{
-    private readonly SpanHandle _span;
-    private Exception _exception;
-
-    public SovdevSpan(string operationName, object attributes = null)
-    {
-        _span = sovdev_start_span(operationName, attributes);
-    }
-
-    public void SetException(Exception ex)
-    {
-        _exception = ex;
-    }
-
-    public void Dispose()
-    {
-        if (_exception != null)
-            sovdev_end_span(_span, _exception);
-        else
-            sovdev_end_span(_span);
-    }
-}
-
-// Usage:
-const string FUNCTIONNAME = "lookupCompany";
-using (var span = new SovdevSpan(FUNCTIONNAME))
-{
-    try
-    {
-        sovdev_log(...);
-    }
-    catch (Exception ex)
-    {
-        span.SetException(ex);
-        throw;
-    }
-}
-```
-
-**Advantages:**
-- C# idiom (using statement)
-- Automatic disposal
-- RAII pattern
-
-**Limitations:**
-- Still requires try/catch for error handling
-- More verbose than Python context manager
-
-### Go: Defer (Already Idiomatic)
-
-Go's `defer` statement already provides clean syntax:
-
-```go
-const FUNCTIONNAME = "lookupCompany"
-span := sovdev_start_span(FUNCTIONNAME, attributes)
-defer sovdev_end_span(span)
-
-// Operation code...
-// Span automatically ended when function returns or panics
-```
-
-**Note:** Go's manual pattern IS the idiomatic pattern. No wrapper needed.
-
-### PHP: No Idiomatic Pattern
-
-PHP has no automatic cleanup mechanism (no RAII, no context managers, no defer).
-
-**Recommendation:** Document the manual try/catch pattern as the standard for PHP.
-
-```php
-const FUNCTIONNAME = 'operation';
-$span = sovdev_start_span(FUNCTIONNAME);
-try {
-    // Operation code...
-    sovdev_end_span($span);
-} catch (Exception $e) {
-    sovdev_end_span($span, $e);
-    throw $e;
-}
-```
-
----
-
 ## Summary
 
 ### Quick Reference
 
 | Approach | When to Use | What You Get | Complexity |
 |----------|-------------|--------------|------------|
-| **trace_id only** | Simple scripts, correlation only | Grouped logs in Loki | Low |
-| **Manual spans** | Production code, performance analysis | Timing, hierarchy, traces in Grafana | Medium |
-| **Language wrappers** | Future convenience | Same as manual, cleaner syntax | Low (hides complexity) |
+| **Manual spans** | All production code, recommended everywhere | Timing, hierarchy, traces in Grafana, automatic trace_id | Low |
 
 ### Key Takeaways
 
 1. **Hierarchy** → Trace (book) > trace_id (ISBN) > Spans (chapters) > span_id (chapter numbers)
-2. **trace_id = Correlation** → Groups logs and spans together into one trace
-3. **Span = Stopwatch** → Records operation timing and belongs to a trace
+2. **trace_id = Automatically Generated** → Created by spans, groups all related operations
+3. **Span = Stopwatch** → Records operation timing and creates/inherits trace_id
 4. **Trace = Collection of Spans** → Shows complete request flow, identified by trace_id
 5. **Manual pattern works everywhere** → Use this first (universal across languages)
-6. **Logs auto-detect active spans** → Don't pass trace_id when using spans
+6. **Logs auto-detect active spans** → No parameters needed - trace_id added automatically
 7. **Always end spans** → Memory leak if you forget
-8. **Progressive enhancement** → Start simple, add spans when needed
+8. **Progressive enhancement** → Start with logs, add spans when ready
 
 **Think of it like a book:**
 - **Trace** = The entire book (your complete request)
@@ -1205,5 +857,6 @@ try {
 ---
 
 **Last Updated:** 2025-10-17
-**Status:** DRAFT - Ready for implementation
-**Next Step:** Implement `sovdev_start_span()` and `sovdev_end_span()` in TypeScript, Python, and Go
+**Status:** DRAFT - Target state documented (spans-only approach)
+**Next Step:** Implement `sovdev_start_span()` and `sovdev_end_span()` in TypeScript (reference implementation), then Python and Go
+**See Also:** terchris/plans-current/changing-traceid2span-plan.md for detailed implementation plan

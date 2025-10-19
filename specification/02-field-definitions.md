@@ -271,8 +271,6 @@ Logs are sent to OpenTelemetry Collector via OTLP protocol using snake_case fiel
 - **snake_case**: All field names use underscores (service_name, peer_service, session_id, function_name, log_type, etc.)
 - **No Transformations**: OTLP Collector receives fields as-is and passes them through unchanged to Loki
 
-**Migration Note**: Previous versions used dot notation (`service.name`) and camelCase (`functionName`). Version 2.0.0+ uses snake_case everywhere for consistency.
-
 ---
 
 ## Field Presence Matrix
@@ -335,6 +333,6 @@ All implementations MUST validate that these fields are present in every log ent
 
 ---
 
-**Document Status**: Updated for snake_case naming convention (v2.0.0)
-**Last Updated**: 2025-10-08
-**Specification Version**: 2.0.0
+**Document Status**: Active
+**Last Updated**: 2025-10-19
+**Specification Version**: 1.0.0

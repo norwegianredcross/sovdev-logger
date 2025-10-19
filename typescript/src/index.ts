@@ -13,7 +13,8 @@ export {
   sovdev_log,
   sovdev_log_job_status,
   sovdev_log_job_progress,
-  sovdev_generate_trace_id
+  sovdev_start_span,
+  sovdev_end_span
 } from './logger';
 
 // Export log levels

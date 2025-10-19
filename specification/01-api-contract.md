@@ -2,7 +2,9 @@
 
 ## Overview
 
-All sovdev-logger implementations MUST provide these 7 core functions with identical behavior across languages. Function names and parameter names are standardized, but parameter types should follow language conventions (e.g., `string | undefined` in TypeScript, `Optional<String>` in Java, `Option<String>` in Rust).
+All sovdev-logger implementations MUST provide these 8 core functions with identical behavior across languages. Function names and parameter names are standardized, but parameter types should follow language conventions (e.g., `string | undefined` in TypeScript, `Optional<String>` in Java, `Option<String>` in Rust).
+
+**NOTE**: This specification has been updated to use OpenTelemetry spans for distributed tracing instead of manual trace_id management. See sections 6-7 for `sovdev_start_span()` and `sovdev_end_span()`.
 
 ---
 
@@ -563,82 +565,178 @@ process.on('beforeExit', async () => {
 
 ---
 
-## 6. sovdev_generate_trace_id
+## 6. sovdev_start_span
 
-**Purpose**: Generate a UUID v4 for trace correlation.
+**Purpose**: Start an OpenTelemetry span for distributed tracing of an operation.
 
 **TypeScript Signature**:
 ```typescript
-sovdev_generate_trace_id(): string
+sovdev_start_span(operation_name: string): void
 ```
 
 **Python Signature**:
 ```python
-def sovdev_generate_trace_id() -> str:
+def sovdev_start_span(operation_name: str) -> None:
     """
-    Generate UUID v4 for trace correlation.
+    Start an OpenTelemetry span for distributed tracing.
 
-    Returns:
-        Lowercase UUID string with hyphens (36 characters)
+    Args:
+        operation_name: Name of the operation being traced (e.g., 'lookupCompany', 'processOrder')
 
-    Example:
-        >>> sovdev_generate_trace_id()
-        '50ba0e1d-c46d-4dee-98d3-a0d3913f74ee'
+    Behavior:
+        Creates a new OpenTelemetry span and makes it active.
+        All subsequent sovdev_log() calls will automatically include:
+        - trace_id: OpenTelemetry trace ID (links all operations in this distributed transaction)
+        - span_id: Unique identifier for this specific operation
+
+    Note:
+        Must call sovdev_end_span() when the operation completes.
+        Spans are sent to Tempo for distributed tracing visualization.
     """
 ```
 
 **Behavior**:
-- MUST return a UUID v4 string
-- MUST be lowercase
-- MUST be 36 characters (8-4-4-4-12 format with hyphens)
-- MUST be unique (cryptographically random)
+- MUST create a new OpenTelemetry span with the given operation name
+- MUST make the span active so subsequent logs inherit trace_id and span_id
+- MUST be paired with `sovdev_end_span()` when operation completes
+- Logs within the span will have both `trace_id` and `span_id` fields
+- Logs outside a span will only have `trace_id` (fallback UUID for correlation)
 
-**Example - Linking Related Operations**:
+**Example - Basic Span Usage**:
 ```typescript
-// Generate ONE trace_id for related operations
-const company_trace_id = sovdev_generate_trace_id();
-// Returns: "c3d75d26-d783-48a2-96c3-1e62a37419c7"
+async function lookupCompany(orgNumber: string): Promise<void> {
+  const FUNCTIONNAME = 'lookupCompany';
+  const input = { organisasjonsnummer: orgNumber };
 
-// All these operations share the same trace_id - linkable in Grafana
-sovdev_log(
-  SOVDEV_LOGLEVELS.INFO,
-  'lookupCompany',
-  'Looking up company',
-  PEER_SERVICES.BRREG,
-  { orgNumber: '971277882' },
-  null,
-  null,
-  company_trace_id  // Shared trace_id
-);
+  // Start span for this operation
+  sovdev_start_span(FUNCTIONNAME);
 
-sovdev_log(
-  SOVDEV_LOGLEVELS.INFO,
-  'validateCompany',
-  'Validating company data',
-  PEER_SERVICES.INTERNAL,
-  { orgNumber: '971277882' },
-  { valid: true },
-  null,
-  company_trace_id  // SAME trace_id
-);
+  try {
+    // All logs within this span automatically get trace_id + span_id
+    sovdev_log(
+      SOVDEV_LOGLEVELS.INFO,
+      FUNCTIONNAME,
+      `Looking up company ${orgNumber}`,
+      PEER_SERVICES.BRREG,
+      input
+    );
 
-sovdev_log(
-  SOVDEV_LOGLEVELS.INFO,
-  'saveCompany',
-  'Saving to database',
-  PEER_SERVICES.INTERNAL,
-  { orgNumber: '971277882' },
-  { success: true },
-  null,
-  company_trace_id  // SAME trace_id
-);
+    const companyData = await fetchCompanyData(orgNumber);
+    const response = { navn: companyData.navn };
 
-// In Grafana: {trace_id="c3d75d26-d783-48a2-96c3-1e62a37419c7"} shows all 3 operations together
+    sovdev_log(
+      SOVDEV_LOGLEVELS.INFO,
+      FUNCTIONNAME,
+      `Company found: ${response.navn}`,
+      PEER_SERVICES.BRREG,
+      input,
+      response
+    );
+  } catch (error) {
+    sovdev_log(
+      SOVDEV_LOGLEVELS.ERROR,
+      FUNCTIONNAME,
+      `Failed to lookup company ${orgNumber}`,
+      PEER_SERVICES.BRREG,
+      input,
+      null,
+      error
+    );
+    throw error;
+  } finally {
+    // Always end the span (even on error)
+    sovdev_end_span();
+  }
+}
+
+// Result: All 3 logs share same trace_id and span_id
+// In Tempo: This appears as a single trace with 3 log events
+```
+
+**When to Use Spans**:
+- ✅ **Use for**: HTTP requests, database queries, external API calls, batch processing operations
+- ❌ **Don't use for**: Every single log (creates overhead), simple internal calculations
+
+---
+
+## 7. sovdev_end_span
+
+**Purpose**: End the currently active OpenTelemetry span.
+
+**TypeScript Signature**:
+```typescript
+sovdev_end_span(): void
+```
+
+**Python Signature**:
+```python
+def sovdev_end_span() -> None:
+    """
+    End the currently active OpenTelemetry span.
+
+    Behavior:
+        Closes the active span and clears it from context.
+        Subsequent logs will not include span_id (only trace_id).
+        The span is sent to Tempo for distributed tracing.
+
+    Important:
+        Always call this in a finally block to ensure spans are closed
+        even when errors occur.
+    """
+```
+
+**Behavior**:
+- MUST end the currently active span
+- MUST clear the span from active context
+- MUST flush the span to OpenTelemetry (sent to Tempo)
+- Subsequent logs will NOT have `span_id` until next `sovdev_start_span()`
+- Should be called in `finally` block to ensure cleanup even on errors
+
+**Example - Nested Spans**:
+```typescript
+async function batchLookup(orgNumbers: string[]): Promise<void> {
+  const FUNCTIONNAME = 'batchLookup';
+
+  // Start span for the entire batch operation
+  sovdev_start_span('batchProcessing');
+
+  try {
+    sovdev_log(
+      SOVDEV_LOGLEVELS.INFO,
+      FUNCTIONNAME,
+      'Starting batch lookup',
+      PEER_SERVICES.INTERNAL,
+      { totalCompanies: orgNumbers.length }
+    );
+
+    for (const orgNumber of orgNumbers) {
+      // Each item gets its own span (nested within batch span)
+      await lookupCompany(orgNumber);  // This creates its own span
+    }
+
+    sovdev_log(
+      SOVDEV_LOGLEVELS.INFO,
+      FUNCTIONNAME,
+      'Batch lookup completed',
+      PEER_SERVICES.INTERNAL,
+      { totalCompanies: orgNumbers.length }
+    );
+  } finally {
+    // Always end the batch span
+    sovdev_end_span();
+  }
+}
+
+// Result in Tempo: Hierarchical trace structure
+// - Batch span (parent)
+//   - Company lookup span 1 (child)
+//   - Company lookup span 2 (child)
+//   - Company lookup span 3 (child)
 ```
 
 ---
 
-## 7. create_peer_services
+## 8. create_peer_services
 
 **Purpose**: Create type-safe peer service mapping with INTERNAL auto-generation.
 

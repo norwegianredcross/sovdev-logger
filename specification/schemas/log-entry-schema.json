@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://sovdev.no/schemas/log-entry-v2.json",
-  "title": "Sovdev Logger - File Log Entry Schema v2.0 (snake_case)",
+  "$id": "https://sovdev.no/schemas/log-entry-v1.json",
+  "title": "Sovdev Logger - File Log Entry Schema v1.0 (snake_case)",
   "description": "Strict JSON Schema for validating file log entries. Uses snake_case field names consistently throughout, including exception fields (exception_type, exception_message, exception_stacktrace).",
   "type": "object",
   "required": [

@@ -131,17 +131,23 @@ class TraceConsistencyValidator:
 
     def read_file_trace_ids(self, file_path: Path) -> Set[str]:
         """
-        Read unique trace_ids from NDJSON log file
+        Read unique trace_ids from NDJSON log file that have associated spans
+
+        Only includes trace_ids that have a span_id field, as these are the ones
+        that should appear in Tempo. Log entries without spans only have a
+        fallback UUID trace_id for correlation, not an OpenTelemetry span.
 
         Args:
             file_path: Path to NDJSON log file
 
         Returns:
-            Set of unique trace_ids (normalized to 32-char hex)
+            Set of unique trace_ids (normalized to 32-char hex) that have spans
         """
         self.print_info(f"Reading trace_ids from {file_path}...")
         trace_ids = set()
         line_num = 0
+        total_trace_ids = 0
+        trace_ids_with_spans = 0
 
         try:
             with open(file_path, 'r') as f:
@@ -154,11 +160,17 @@ class TraceConsistencyValidator:
                     try:
                         log_entry = json.loads(line)
                         trace_id = log_entry.get('trace_id')
+                        span_id = log_entry.get('span_id')
 
                         if trace_id:
-                            # Normalize to 32-char hex format
-                            normalized = self.normalize_trace_id(trace_id)
-                            trace_ids.add(normalized)
+                            total_trace_ids += 1
+                            # Only include trace_ids that have an associated span_id
+                            # These are the ones that should appear in Tempo
+                            if span_id:
+                                trace_ids_with_spans += 1
+                                # Normalize to 32-char hex format
+                                normalized = self.normalize_trace_id(trace_id)
+                                trace_ids.add(normalized)
 
                     except json.JSONDecodeError as e:
                         self.print_warning(f"Line {line_num}: Invalid JSON - {e}")
@@ -167,7 +179,9 @@ class TraceConsistencyValidator:
             self.print_error(f"File not found: {file_path}")
             return set()
 
-        self.print_success(f"Found {len(trace_ids)} unique trace_ids in file")
+        self.print_success(f"Found {len(trace_ids)} unique trace_ids with spans in file")
+        if not self.json_mode and trace_ids_with_spans < total_trace_ids:
+            self.print_info(f"Note: {total_trace_ids - trace_ids_with_spans} log entries have trace_id but no span_id (not expected in Tempo)")
         return trace_ids
 
     def read_tempo_trace_ids(self, tempo_path: Path) -> Set[str]:

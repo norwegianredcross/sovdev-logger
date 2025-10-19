@@ -1,7 +1,7 @@
 # Development Loop
 
-**Version:** 1.6.0
-**Last Updated:** 2025-10-15
+**Version:** 1.8.0
+**Last Updated:** 2025-10-17
 **Status:** Complete
 
 ---
@@ -79,6 +79,9 @@ go test ./...
 
 | Task | Human Developer (VSCode Terminal) | LLM Developer (Host + Bash Tool) |
 |------|-----------------------------------|----------------------------------|
+| **Build TypeScript library** | `cd typescript && ./build-sovdevlogger.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && ./build-sovdevlogger.sh"` |
+| **Build Python library** | `cd python && ./build-sovdevlogger.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/python && ./build-sovdevlogger.sh"` |
+| **Build Go library** | `cd go && ./build-sovdevlogger.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/go && ./build-sovdevlogger.sh"` |
 | **Run TypeScript test** | `cd typescript/test/e2e/company-lookup && ./run-test.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh typescript"` |
 | **Run Python test** | `cd python/test/e2e/company-lookup && ./run-test.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh python"` |
 | **Install dependencies** | `cd typescript && npm install` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && npm install"` |
@@ -128,6 +131,60 @@ Edit source files using your preferred tools:
 - LLM developers: Use Read/Edit/Write tools on host filesystem
 
 **Important:** Because of the bind mount, there's no difference between "editing on host" vs "editing in container" - they're the same files.
+
+---
+
+### 1.5. Build Library (When Needed)
+
+After editing library source code, you need to build the library before running tests.
+
+**When to build:**
+- After modifying TypeScript source files (must compile to JavaScript)
+- After modifying Python package files (install in editable mode)
+- After modifying Go source files (download dependencies)
+- After pulling updates from git
+- After initial clone
+
+**Human developers (VSCode terminal inside container):**
+```bash
+# TypeScript
+cd typescript
+./build-sovdevlogger.sh              # Standard build
+./build-sovdevlogger.sh clean        # Clean build
+./build-sovdevlogger.sh watch        # Watch mode for development
+
+# Python
+cd python
+./build-sovdevlogger.sh              # Install in editable mode
+./build-sovdevlogger.sh wheel        # Build distribution wheel
+./build-sovdevlogger.sh clean        # Clean build artifacts
+
+# Go
+cd go
+./build-sovdevlogger.sh              # Download dependencies and verify build
+./build-sovdevlogger.sh test         # Run tests
+./build-sovdevlogger.sh clean        # Clean build cache
+```
+
+**LLM developers (host machine):**
+```bash
+# TypeScript
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && ./build-sovdevlogger.sh"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && ./build-sovdevlogger.sh clean"
+
+# Python
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python && ./build-sovdevlogger.sh"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python && ./build-sovdevlogger.sh wheel"
+
+# Go
+./specification/tools/in-devcontainer.sh -e "cd /workspace/go && ./build-sovdevlogger.sh"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/go && ./build-sovdevlogger.sh test"
+```
+
+**Build scripts:**
+- `{language}/build-sovdevlogger.sh` - Language-specific build script
+- Each language knows its own build process
+- Handles dependencies, compilation, and verification
 
 ---
 
@@ -457,11 +514,12 @@ All validation tools support this workflow:
 
 ---
 
-**Document Status:** ✅ v1.7.0 COMPLETE
-**Last Updated:** 2025-10-15
+**Document Status:** ✅ v1.8.0 COMPLETE
+**Last Updated:** 2025-10-17
 **Part of:** sovdev-logger specification v1.1.0
 
 **Version History:**
+- v1.8.0 (2025-10-17): Added language-specific build scripts (build-sovdevlogger.sh) and "Build Library" step in development loop
 - v1.7.0 (2025-10-15): Added "For LLMs: Track Your Progress with the Checklist" section and updated "⚠️ For LLMs Specifically" to reference systematic checklist tracking
 - v1.6.0 (2025-10-15): Added "⚠️ For LLMs Specifically" section with explicit anti-patterns (no --limit, no manual inspection, follow examples exactly)
 - v1.5.0 (2025-10-14): Changed to Mode 2 pattern - ALL commands use `in-devcontainer.sh -e "command"` for consistency

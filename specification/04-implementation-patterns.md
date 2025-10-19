@@ -81,6 +81,7 @@ def create_log_entry(
 
 ```
 <language>/                  # Language directory (typescript, python, php, go, rust, etc.)
+├── build-sovdevlogger.sh    # REQUIRED: Language-specific build script
 ├── <package>/               # Main package/library code
 │   ├── (source files)       # Implementation files
 │   └── ...
@@ -97,13 +98,14 @@ def create_log_entry(
 
 ### Critical Requirements
 
-1. **Directory name**: MUST be `test/` (singular), NOT `tests/` (plural)
-2. **E2E directory**: MUST be `test/e2e/`
-3. **Standard test app**: MUST be `test/e2e/company-lookup/` directory
-4. **Environment file**: MUST include `.env` with OTLP configuration
-5. **Test script name**: MUST be `company-lookup.<ext>` matching the language
-6. **Run script**: MUST include `run-test.sh` for validation tools
-7. **Logs directory**: MUST include `logs/` subdirectory for output
+1. **Build script**: MUST include `build-sovdevlogger.sh` at language root
+2. **Directory name**: MUST be `test/` (singular), NOT `tests/` (plural)
+3. **E2E directory**: MUST be `test/e2e/`
+4. **Standard test app**: MUST be `test/e2e/company-lookup/` directory
+5. **Environment file**: MUST include `.env` with OTLP configuration
+6. **Test script name**: MUST be `company-lookup.<ext>` matching the language
+7. **Run script**: MUST include `run-test.sh` for validation tools
+8. **Logs directory**: MUST include `logs/` subdirectory for output
 
 ### Why This Matters
 
@@ -161,6 +163,35 @@ The script MUST perform these steps in order:
 ### Reference Implementation
 
 **Reference Implementation**: `typescript/test/e2e/company-lookup/run-test.sh` (135 lines, fully documented)
+
+---
+
+## Required File: build-sovdevlogger.sh
+
+### Purpose
+
+The `build-sovdevlogger.sh` script is the **standardized build wrapper** for the library implementation. Each language provides its own build script that handles compilation, dependency management, and packaging in a consistent way.
+
+### Location
+
+MUST be placed at the root of the language directory: `<language>/build-sovdevlogger.sh`
+
+### Required Behavior
+
+1. **Default (no arguments)**: Build the library and install dependencies
+2. **Optional arguments**: Language-specific build modes (clean, watch, test, etc.)
+3. **Exit codes**: Return 0 for success, non-zero for failure
+4. **Executable**: Script must be executable (`chmod +x build-sovdevlogger.sh`)
+
+### Reference Implementations
+
+Each script is self-documented with comments explaining its purpose and usage:
+
+- **TypeScript**: `typescript/build-sovdevlogger.sh` - TypeScript compilation (tsc)
+- **Python**: `python/build-sovdevlogger.sh` - Editable install and wheel building
+- **Go**: `go/build-sovdevlogger.sh` - Dependency management and build verification
+
+**Usage in development workflow**: See `specification/10-development-loop.md` for how these scripts integrate with the development loop.
 
 ---
 
@@ -1222,6 +1253,6 @@ async function processOrder(order_data: OrderData): Promise<OrderResult> {
 
 ---
 
-**Document Status**: Updated for snake_case naming convention (v2.0.0)
-**Last Updated**: 2025-10-08
-**Specification Version**: 2.0.0
+**Document Status**: Active
+**Last Updated**: 2025-10-19
+**Specification Version**: 1.0.0

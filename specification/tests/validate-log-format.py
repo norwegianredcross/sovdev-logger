@@ -110,7 +110,8 @@ class LogValidator:
             "severities": self._count_severities(logs),
             "log_types": self._count_log_types(logs),
             "unique_session_ids": len(self._extract_session_ids(logs)),
-            "unique_trace_ids": len(self._extract_trace_ids(logs))
+            "unique_trace_ids": len(self._extract_trace_ids(logs)),
+            "unique_span_ids": len(self._extract_span_ids(logs))
         }
 
         return schema_valid and custom_valid and error_log_valid
@@ -142,6 +143,13 @@ class LogValidator:
             self.print_success(f"Found {len(trace_ids)} unique trace IDs")
         else:
             self.print_warning("No trace IDs found in logs")
+
+        # Rule 1b: Span ID presence (logs with active spans should have span_id)
+        span_ids = self._extract_span_ids(logs)
+        if span_ids:
+            self.print_success(f"Found {len(span_ids)} unique span IDs")
+        else:
+            self.print_warning("No span IDs found in logs")
 
         # Rule 2: Exception fields for error logs (snake_case)
         for i, log in enumerate(logs, start=1):
@@ -199,6 +207,10 @@ class LogValidator:
     def _extract_trace_ids(self, logs: List[Dict[str, Any]]) -> Set[str]:
         """Extract unique trace_ids from logs"""
         return {log.get("trace_id") for log in logs if "trace_id" in log}
+
+    def _extract_span_ids(self, logs: List[Dict[str, Any]]) -> Set[str]:
+        """Extract unique span_ids from logs"""
+        return {log.get("span_id") for log in logs if "span_id" in log}
 
     def _count_severities(self, logs: List[Dict[str, Any]]) -> Dict[str, int]:
         """Count logs by severity"""

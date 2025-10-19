@@ -953,6 +953,6 @@ An implementation **passes all tests** when:
 
 ---
 
-**Document Status**: Updated for snake_case naming convention (v2.0.0)
-**Last Updated**: 2025-10-08
-**Specification Version**: 2.0.0
+**Document Status**: Active
+**Last Updated**: 2025-10-19
+**Specification Version**: 1.0.0

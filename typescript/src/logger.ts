@@ -21,6 +21,7 @@
 
 import winston from 'winston';
 import TransportStream from 'winston-transport';
+import { AsyncLocalStorage } from 'async_hooks';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
@@ -33,7 +34,7 @@ import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs
 import { PeriodicExportingMetricReader, MeterProvider } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 import { metrics, Counter, Histogram, UpDownCounter } from '@opentelemetry/api';
-import { trace } from '@opentelemetry/api';
+import { trace, Span, SpanStatusCode, context } from '@opentelemetry/api';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
@@ -41,6 +42,16 @@ import { join } from 'path';
 
 // Import log levels from separate module
 import { SOVDEV_LOGLEVELS, sovdev_log_level } from './logLevels';
+
+// =============================================================================
+// SPAN CONTEXT STORAGE
+// =============================================================================
+
+/**
+ * AsyncLocalStorage for maintaining active span across async operations
+ * This allows our lifecycle-based API (start/end) to work with async code
+ */
+const spanStorage = new AsyncLocalStorage<Span>();
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -389,14 +400,14 @@ class internal_sovdev_logger {
     exception_object?: any,
     input_json?: any,
     response_json?: any,
-    trace_id?: string,
     log_type?: string
   ): structured_log_entry {
     // Generate unique event ID for this log entry
     const event_id = uuidv4();
 
-    // Use provided trace_id or generate new one in OpenTelemetry format (32 hex chars, no dashes)
-    const final_trace_id = trace_id || uuidv4().replace(/-/g, '');
+    // Generate temporary trace_id - will be overridden by write_log if active span exists
+    // If no active span, this provides a fallback trace_id for the log entry
+    const temp_trace_id = uuidv4().replace(/-/g, '');
 
     // Resolve friendly name to CMDB ID (defaults to service_name for INTERNAL)
     const resolved_peer_service = this.resolve_peer_service(peer_service);
@@ -414,7 +425,7 @@ class internal_sovdev_logger {
       peer_service: resolved_peer_service,
       function_name,
       message,
-      trace_id: final_trace_id,
+      trace_id: temp_trace_id,
       // span_id will be populated by write_log if active span exists (optional field)
       event_id: event_id,
       log_type: log_type || 'transaction',  // Default to transaction if not specified
@@ -492,9 +503,9 @@ class internal_sovdev_logger {
     const start_time = Date.now();
 
     try {
-      // Extract trace ID and span ID from active OpenTelemetry span context (if any)
+      // Extract trace ID and span ID from active span (stored in AsyncLocalStorage)
       // This links logs to traces automatically without creating new spans
-      const active_span = trace.getActiveSpan();
+      const active_span = spanStorage.getStore();
       if (active_span) {
         const span_context = active_span.spanContext();
         if (span_context.traceId) {
@@ -598,10 +609,9 @@ class internal_sovdev_logger {
     peer_service: string,
     input_json?: any,
     response_json?: any,
-    exception_object?: any,
-    trace_id?: string
+    exception_object?: any
   ): void {
-    const log_entry = this.create_log_entry(level, function_name, message, peer_service, exception_object, input_json, response_json, trace_id, 'transaction');
+    const log_entry = this.create_log_entry(level, function_name, message, peer_service, exception_object, input_json, response_json, 'transaction');
     this.write_log(level, log_entry);
   }
 
@@ -614,8 +624,7 @@ class internal_sovdev_logger {
     job_name: string,
     status: string,
     peer_service: string,
-    input_json?: any,
-    trace_id?: string
+    input_json?: any
   ): void {
     const message = `Job ${status}: ${job_name}`;
     const context_input = {
@@ -624,7 +633,7 @@ class internal_sovdev_logger {
       ...input_json
     };
 
-    const log_entry = this.create_log_entry(level, function_name, message, peer_service, null, context_input, null, trace_id, 'job.status');
+    const log_entry = this.create_log_entry(level, function_name, message, peer_service, null, context_input, null, 'job.status');
     this.write_log(level, log_entry);
   }
 
@@ -639,8 +648,7 @@ class internal_sovdev_logger {
     current: number,
     total: number,
     peer_service: string,
-    input_json?: any,
-    trace_id?: string
+    input_json?: any
   ): void {
     const message = `Processing ${item_id} (${current}/${total})`;
     const context_input = {
@@ -652,7 +660,7 @@ class internal_sovdev_logger {
       ...input_json
     };
 
-    const log_entry = this.create_log_entry(level, function_name, message, peer_service, null, context_input, null, trace_id, 'job.progress');
+    const log_entry = this.create_log_entry(level, function_name, message, peer_service, null, context_input, null, 'job.progress');
     this.write_log(level, log_entry);
   }
 }
@@ -975,7 +983,6 @@ function ensure_logger(): internal_sovdev_logger {
  * @param input_json Valid JSON object containing function input parameters (optional)
  * @param response_json Valid JSON object containing function output/response data (optional)
  * @param exception_object Exception/error object (optional, null if no exception)
- * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
 export function sovdev_log(
   level: sovdev_log_level,
@@ -984,10 +991,9 @@ export function sovdev_log(
   peer_service: string,
   input_json?: any,
   response_json?: any,
-  exception_object?: any,
-  trace_id?: string
+  exception_object?: any
 ): void {
-  ensure_logger().log(level, function_name, message, peer_service, input_json, response_json, exception_object, trace_id);
+  ensure_logger().log(level, function_name, message, peer_service, input_json, response_json, exception_object);
 }
 
 /**
@@ -998,7 +1004,6 @@ export function sovdev_log(
  * @param job_name Name of the job being tracked
  * @param status Job status (e.g., "Started", "Completed", "Failed")
  * @param input_json Additional job context variables (optional)
- * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
 export function sovdev_log_job_status(
   level: sovdev_log_level,
@@ -1006,10 +1011,9 @@ export function sovdev_log_job_status(
   job_name: string,
   status: string,
   peer_service: string,
-  input_json?: any,
-  trace_id?: string
+  input_json?: any
 ): void {
-  ensure_logger().log_job_status(level, function_name, job_name, status, peer_service, input_json, trace_id);
+  ensure_logger().log_job_status(level, function_name, job_name, status, peer_service, input_json);
 }
 
 /**
@@ -1021,7 +1025,6 @@ export function sovdev_log_job_status(
  * @param current Current item number (1-based)
  * @param total Total number of items to process
  * @param input_json Additional context variables for this item (optional)
- * @param trace_id OpenTelemetry trace ID for correlating related logs (optional, auto-generated if not provided)
  */
 export function sovdev_log_job_progress(
   level: sovdev_log_level,
@@ -1030,42 +1033,174 @@ export function sovdev_log_job_progress(
   current: number,
   total: number,
   peer_service: string,
-  input_json?: any,
-  trace_id?: string
+  input_json?: any
 ): void {
-  ensure_logger().log_job_progress(level, function_name, "BatchProcessing", item_id, current, total, peer_service, input_json, trace_id);
+  ensure_logger().log_job_progress(level, function_name, "BatchProcessing", item_id, current, total, peer_service, input_json);
 }
 
 /**
- * Generate a new trace ID for transaction correlation
+ * Start a new span to track an operation's timing and hierarchy.
  *
- * Use this to create a unique identifier that can be passed to multiple related log calls
- * to correlate them as part of the same business transaction.
+ * Creates an OpenTelemetry span that automatically:
+ * - Generates or inherits trace_id (from parent span or creates new)
+ * - Generates unique span_id for this operation
+ * - Records start time
+ * - Sets span as "active" so logs automatically get trace_id and span_id
+ * - Exports to Tempo via OTLP when ended
  *
- * @returns A 32-character hex string (OpenTelemetry trace ID format) for use as trace_id parameter
+ * @param operation_name - Name of the operation (e.g., "lookupCompany", "processPayment")
+ * @param attributes - Optional metadata to make traces searchable in Grafana
+ *                     Recommended: Pass input data like { userId: "123", orderId: "456" }
+ *                     Optional: Omit for simple operations where timing alone is sufficient
+ * @returns Span - Opaque handle that must be passed to sovdev_end_span()
  *
- * @example
+ * @example With attributes (recommended for production):
  * ```typescript
- * import { sovdev_generate_trace_id, sovdev_log, SOVDEV_LOGLEVELS, PEER_SERVICES } from '@sovdev/logger';
- *
- * // Generate trace_id once for the entire transaction
- * const trace_id = sovdev_generate_trace_id();
- * // Returns: "5458dd138cff4005bb15176b5bfd0262" (32 hex chars, no hyphens)
- *
- * // Use same trace_id in all related logs
- * sovdev_log(SOVDEV_LOGLEVELS.INFO, 'processOrder', 'Starting order processing',
- *            PEER_SERVICES.INTERNAL, { order_id: '123' }, null, null, trace_id);
- *
- * const result = await callExternalAPI();
- *
- * sovdev_log(SOVDEV_LOGLEVELS.INFO, 'processOrder', 'Order completed',
- *            PEER_SERVICES.INTERNAL, { order_id: '123' }, result, null, trace_id);
- * // Both logs have same trace_id = correlated transaction!
+ * const FUNCTIONNAME = 'lookupCompany';
+ * const input = { organisasjonsnummer: '971277882' };
+ * const span = sovdev_start_span(FUNCTIONNAME, input);
+ * try {
+ *   sovdev_log(SOVDEV_LOGLEVELS.INFO, FUNCTIONNAME, 'Looking up company', PEER_SERVICES.BRREG, input);
+ *   const data = await fetchCompanyData(orgNumber);
+ *   sovdev_end_span(span);
+ *   return data;
+ * } catch (error) {
+ *   sovdev_end_span(span, error);
+ *   throw error;
+ * }
  * ```
+ *
+ * @example Without attributes (simpler):
+ * ```typescript
+ * const FUNCTIONNAME = 'calculateTotal';
+ * const span = sovdev_start_span(FUNCTIONNAME);
+ * try {
+ *   const total = calculateTotal();
+ *   sovdev_end_span(span);
+ *   return total;
+ * } catch (error) {
+ *   sovdev_end_span(span, error);
+ *   throw error;
+ * }
+ * ```
+ *
+ * How trace_id is determined:
+ * - If nested inside active parent span → Inherits parent's trace_id
+ * - Otherwise → Generates new trace_id (creates new trace)
+ *
+ * Child spans automatically inherit parent's trace_id - no manual work needed!
  */
-export function sovdev_generate_trace_id(): string {
-  // Generate UUID v4 and remove hyphens to match OpenTelemetry trace ID format (32 hex chars)
-  return uuidv4().replace(/-/g, '');
+export function sovdev_start_span(
+  operation_name: string,
+  attributes?: Record<string, any>
+): Span {
+  // Get tracer from global tracer provider
+  if (!globalTracerProvider) {
+    throw new Error(
+      'Sovdev Logger: TracerProvider not initialized. Call sovdev_initialize() first.'
+    );
+  }
+
+  const tracer = globalTracerProvider.getTracer('sovdev-logger', '1.0.0');
+
+  // Create span with OpenTelemetry API
+  // Span automatically:
+  // - Generates trace_id if this is root span
+  // - Inherits trace_id from parent if nested
+  // - Generates unique span_id
+  // - Records start time
+  const span = tracer.startSpan(operation_name);
+
+  // Set attributes on span if provided (makes traces searchable in Grafana)
+  if (attributes) {
+    for (const [key, value] of Object.entries(attributes)) {
+      // Convert values to strings for OpenTelemetry compatibility
+      if (value !== null && value !== undefined) {
+        span.setAttribute(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      }
+    }
+  }
+
+  // Store span in AsyncLocalStorage so logs can access it
+  // enterWith() sets the value for the current execution context and all subsequent async operations
+  // This makes the span "active" for all sovdev_log() calls that follow
+  spanStorage.enterWith(span);
+
+  return span;
+}
+
+/**
+ * End a span, recording completion and calculating duration.
+ *
+ * This function:
+ * - Records end timestamp
+ * - Calculates duration (end - start)
+ * - Sets span status (OK or ERROR)
+ * - Records exception details if error provided
+ * - Exports span to Tempo via OTLP
+ * - Removes span from "active" context
+ *
+ * @param span - The span handle returned from sovdev_start_span()
+ * @param error - Optional error if operation failed (marks span as failed)
+ *
+ * @example Success:
+ * ```typescript
+ * sovdev_end_span(span);
+ * ```
+ *
+ * @example Error:
+ * ```typescript
+ * catch (error) {
+ *   sovdev_end_span(span, error);
+ *   throw error;
+ * }
+ * ```
+ *
+ * IMPORTANT: Always end spans, even on error! Memory leak if you forget.
+ */
+export function sovdev_end_span(span: Span, error?: Error): void {
+  if (!span) {
+    console.warn('⚠️  sovdev_end_span called with null/undefined span');
+    return;
+  }
+
+  try {
+    if (error) {
+      // Set span status to ERROR and record exception
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error.message || 'Operation failed'
+      });
+
+      // Record exception details on the span
+      span.recordException(error);
+    } else {
+      // Set span status to OK
+      span.setStatus({ code: SpanStatusCode.OK });
+    }
+
+    // End the span (records end time, calculates duration)
+    // Span automatically exported to Tempo via OTLP BatchSpanProcessor
+    span.end();
+
+    // Clear the span from AsyncLocalStorage since the operation is complete
+    // This ensures subsequent logs don't incorrectly use this span's trace_id
+    const currentSpan = spanStorage.getStore();
+    if (currentSpan === span) {
+      // Only clear if this is the currently active span
+      // @ts-ignore - TypeScript doesn't like undefined but it works fine
+      spanStorage.enterWith(undefined);
+    }
+
+  } catch (err) {
+    console.error('❌ sovdev_end_span failed:', err);
+    // Still try to end the span to avoid memory leak
+    try {
+      span.end();
+    } catch {
+      // Ignore - we tried
+    }
+  }
 }
 
 // Export types for TypeScript consumers

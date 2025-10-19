@@ -43,15 +43,16 @@
 // ============================================================================
 // IMPORTS - sovdev-logger API Functions
 // ============================================================================
-// These are the 8 core functions we're demonstrating in this E2E test:
+// These are the 9 core functions we're demonstrating in this E2E test:
 // 1. sovdev_initialize()         - Initialize the logger
 // 2. sovdev_log()                - General purpose logging
 // 3. sovdev_log_job_status()     - Job lifecycle tracking (started/completed)
 // 4. sovdev_log_job_progress()   - Progress tracking for batch operations
 // 5. sovdev_flush()              - Flush OTLP batches before exit
-// 6. sovdev_generate_trace_id()  - Generate trace ID for transaction correlation
-// 7. SOVDEV_LOGLEVELS            - Log level constants
-// 8. create_peer_services()      - Define external system mappings
+// 6. sovdev_start_span()         - Start an OpenTelemetry span for transaction correlation
+// 7. sovdev_end_span()           - End an OpenTelemetry span
+// 8. SOVDEV_LOGLEVELS            - Log level constants
+// 9. create_peer_services()      - Define external system mappings
 
 import {
   sovdev_initialize,         // Function 1: Initialize logger with service info
@@ -59,9 +60,10 @@ import {
   sovdev_log_job_status,     // Function 3: Job lifecycle (started/completed)
   sovdev_log_job_progress,   // Function 4: Progress tracking (items in batch)
   sovdev_flush,              // Function 5: Flush OTLP batches before exit
-  sovdev_generate_trace_id,  // Function 6: Generate trace ID for correlation
-  SOVDEV_LOGLEVELS,          // Function 7: Log level constants (INFO, ERROR, etc.)
-  create_peer_services       // Function 8: Create peer service mappings
+  sovdev_start_span,         // Function 6: Start OpenTelemetry span for correlation
+  sovdev_end_span,           // Function 7: End OpenTelemetry span
+  SOVDEV_LOGLEVELS,          // Function 8: Log level constants (INFO, ERROR, etc.)
+  create_peer_services       // Function 9: Create peer service mappings
 } from '../../../dist/index.js';
 
 // ============================================================================
@@ -155,18 +157,18 @@ async function fetchCompanyData(orgNumber: string): Promise<CompanyData> {
 // ============================================================================
 // FUNCTION: lookupCompany - Single Company Lookup with Transaction Correlation
 // ============================================================================
-// DEMONSTRATES: sovdev_log() with explicit trace_id correlation
+// DEMONSTRATES: sovdev_log() with automatic span-based trace correlation
 //
 // WHY THIS FUNCTION EXISTS:
 // - Shows how to use sovdev_log() for request/response logging
-// - Demonstrates transaction correlation (all logs share same trace_id)
+// - Demonstrates transaction correlation via OpenTelemetry spans
 // - Shows error handling with sovdev_log()
 // - Demonstrates peer service tracking (BRREG)
 //
 // TRANSACTION CORRELATION:
-// We generate a trace_id ONCE using sovdev_generate_trace_id(), then pass
-// the same trace_id to ALL related log calls. This correlates all logs in
-// this transaction without requiring any OpenTelemetry imports!
+// We start a span ONCE using sovdev_start_span(), which automatically creates
+// a trace_id and span_id. All sovdev_log() calls within this span automatically
+// inherit the trace context - no manual trace_id passing needed!
 //
 // LOG ENTRIES GENERATED:
 // - 1x INFO log: "Looking up company..." (transaction start, input only)
@@ -184,17 +186,18 @@ async function lookupCompany(orgNumber: string): Promise<void> {
   const input = { organisasjonsnummer: orgNumber };
 
   // ============================================================================
-  // TRANSACTION CORRELATION - Generate Trace ID
+  // TRANSACTION CORRELATION - Start Span
   // ============================================================================
-  // WHY: Generate a trace_id ONCE for correlating all logs in this operation
+  // WHY: Start a span ONCE for correlating all logs in this operation
   //
-  // CRITICAL PATTERN: Generate trace_id using sovdev_generate_trace_id(),
-  // then pass the SAME trace_id to all related log calls. No OTEL imports!
+  // CRITICAL PATTERN: Start span using sovdev_start_span() at the beginning,
+  // then all sovdev_log() calls automatically inherit the trace context.
+  // Remember to call sovdev_end_span() when done!
   //
-  // CROSS-LANGUAGE: All languages can generate UUIDs - no OTEL SDK required!
-  //                This makes implementation much simpler and portable.
+  // CROSS-LANGUAGE: OpenTelemetry spans provide automatic context propagation
+  //                This makes distributed tracing work seamlessly!
 
-  const trace_id = sovdev_generate_trace_id();
+  const span = sovdev_start_span(FUNCTIONNAME, input);
 
   try {
     // ========================================================================
@@ -212,7 +215,7 @@ async function lookupCompany(orgNumber: string): Promise<void> {
     //   - input_json: { organisasjonsnummer: orgNumber }
     //   - response_json: undefined (not available yet)
     //   - exception: undefined (no error)
-    //   - trace_id: Generated UUID (correlates all logs in this transaction)
+    // NOTE: trace_id and span_id are automatically extracted from active span!
 
     sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
@@ -221,8 +224,7 @@ async function lookupCompany(orgNumber: string): Promise<void> {
       PEER_SERVICES.BRREG,
       input,
       null,      // No response yet
-      null,      // No exception
-      trace_id   // CRITICAL: Same trace_id for correlation
+      null       // No exception
     );
 
     // Call external API (not logged - helper function)
@@ -249,7 +251,7 @@ async function lookupCompany(orgNumber: string): Promise<void> {
     //   - input_json: Same input as start log (for correlation)
     //   - response_json: { navn, organisasjonsform } (API response data)
     //   - exception: undefined (no error)
-    //   - trace_id: SAME UUID as start log (this is the key to correlation!)
+    // NOTE: trace_id and span_id automatically match the start log via active span!
 
     sovdev_log(
       SOVDEV_LOGLEVELS.INFO,
@@ -258,9 +260,15 @@ async function lookupCompany(orgNumber: string): Promise<void> {
       PEER_SERVICES.BRREG,
       input,
       response,
-      null,      // No exception
-      trace_id   // CRITICAL: SAME trace_id links this log to start log
+      null       // No exception
     );
+
+    // ========================================================================
+    // END SPAN - Mark Transaction as Successful
+    // ========================================================================
+    // WHY: Signal that the span completed successfully
+    // This allows distributed tracing to track the full transaction lifecycle
+    sovdev_end_span(span);
 
   } catch (error) {
     // ========================================================================
@@ -283,7 +291,7 @@ async function lookupCompany(orgNumber: string): Promise<void> {
     //   - input_json: Same input as start log (what we tried to lookup)
     //   - response_json: null (no response on error)
     //   - exception: error object (captured exception details)
-    //   - trace_id: SAME UUID as start log (shows which transaction failed!)
+    // NOTE: trace_id and span_id automatically match via active span!
     //
     // NOTE: Exception is processed by sovdev-logger:
     //   - exception_type: Always "Error" (cross-language standard)
@@ -297,9 +305,15 @@ async function lookupCompany(orgNumber: string): Promise<void> {
       PEER_SERVICES.BRREG,
       input,
       null,
-      error,
-      trace_id   // CRITICAL: SAME trace_id shows this error belongs to this transaction
+      error
     );
+
+    // ========================================================================
+    // END SPAN - Mark Transaction as Failed
+    // ========================================================================
+    // WHY: Signal that the span failed with an error
+    // This marks the span status as ERROR and records the exception details
+    sovdev_end_span(span, error);
 
     // Re-throw to propagate error to caller
     throw error;

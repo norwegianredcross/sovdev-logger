@@ -238,8 +238,38 @@ function sovdev_log(...) {
 6. ❌ NOT implement file writing/rotation (use library)
 7. ❌ NOT implement console formatting (use library)
 
-### 11. Developer Experience
-- **Simple API**: 7 core functions cover all logging needs
+### 11. Distributed Tracing with OpenTelemetry Spans
+
+**Architectural Decision (October 2025)**: Use OpenTelemetry span-based distributed tracing for correlated operations.
+
+**Usage Pattern**:
+```typescript
+// ✅ OpenTelemetry spans for distributed tracing
+sovdev_start_span('operationName');
+try {
+  sovdev_log(...);  // trace_id and span_id added automatically
+} finally {
+  sovdev_end_span();  // Always end span, even on error
+}
+```
+
+**Benefits**:
+1. **Proper Distributed Tracing**: OpenTelemetry spans provide real distributed tracing, not just correlation
+2. **Automatic Propagation**: trace_id and span_id automatically inherited from active span
+3. **Simpler API**: No need to manually pass trace_id to every log call
+4. **Tempo Integration**: Spans appear as hierarchical traces in Grafana Tempo
+5. **Standards Compliance**: Follows OpenTelemetry best practices
+
+**Span Behavior**:
+- **Logs WITH active span**: Get trace_id + span_id → Sent to Tempo as traces
+- **Logs WITHOUT active span**: Get fallback UUID trace_id (correlation only) → Only sent to Loki
+
+**When to Use Spans**:
+- ✅ HTTP/API requests, database queries, external service calls, batch operations
+- ❌ Every log (creates overhead), simple calculations, validation functions
+
+### 12. Developer Experience
+- **Simple API**: 8 core functions cover all logging needs
 - **Type Safety**: Language-specific type systems ensure correct usage
 - **Peer Service Mapping**: Type-safe peer service ID mapping with INTERNAL auto-generation
 - **Self-Documenting**: Function names and parameters are self-explanatory
