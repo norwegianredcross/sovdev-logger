@@ -315,9 +315,9 @@ Output: "Request with Cookie: [REDACTED]"
 
 ```typescript
 function processException(error: Error): {
-  exceptionType: string;
-  exceptionMessage: string;
-  exceptionStack: string;
+  exception_type: string;
+  exception_message: string;
+  exception_stacktrace: string;
 } {
   // 1. Extract raw stack trace
   let rawStack = error.stack || '';
@@ -329,15 +329,15 @@ function processException(error: Error): {
   let limitedStack = limitStackTrace(cleanStack, 350);
 
   // 4. Standardize exception type
-  const exceptionType = 'Error';  // Always "Error" regardless of actual type
+  const exception_type = 'Error';  // Always "Error" regardless of actual type
 
   // 5. Extract message
-  const exceptionMessage = error.message || 'Unknown error';
+  const exception_message = error.message || 'Unknown error';
 
   return {
-    exceptionType,
-    exceptionMessage,
-    exceptionStack: limitedStack
+    exception_type,
+    exception_message,
+    exception_stacktrace: limitedStack
   };
 }
 ```

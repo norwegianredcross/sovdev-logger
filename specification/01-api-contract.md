@@ -571,17 +571,27 @@ process.on('beforeExit', async () => {
 
 **TypeScript Signature**:
 ```typescript
-sovdev_start_span(operation_name: string): void
+sovdev_start_span(
+  operation_name: string,
+  attributes?: Record<string, any>
+): Span
 ```
 
 **Python Signature**:
 ```python
-def sovdev_start_span(operation_name: str) -> None:
+def sovdev_start_span(
+    operation_name: str,
+    attributes: Optional[Dict[str, Any]] = None
+) -> Span:
     """
     Start an OpenTelemetry span for distributed tracing.
 
     Args:
         operation_name: Name of the operation being traced (e.g., 'lookupCompany', 'processOrder')
+        attributes: Optional metadata for searchable traces (e.g., input parameters, identifiers)
+
+    Returns:
+        Span: Opaque handle that must be passed to sovdev_end_span()
 
     Behavior:
         Creates a new OpenTelemetry span and makes it active.
@@ -590,7 +600,7 @@ def sovdev_start_span(operation_name: str) -> None:
         - span_id: Unique identifier for this specific operation
 
     Note:
-        Must call sovdev_end_span() when the operation completes.
+        Must call sovdev_end_span(span) when the operation completes.
         Spans are sent to Tempo for distributed tracing visualization.
     """
 ```
@@ -598,7 +608,10 @@ def sovdev_start_span(operation_name: str) -> None:
 **Behavior**:
 - MUST create a new OpenTelemetry span with the given operation name
 - MUST make the span active so subsequent logs inherit trace_id and span_id
-- MUST be paired with `sovdev_end_span()` when operation completes
+- MUST return a Span handle (opaque object)
+- MUST be paired with `sovdev_end_span(span)` when operation completes
+- The returned span handle MUST be passed to `sovdev_end_span()`
+- Optional attributes parameter allows adding searchable metadata to the span
 - Logs within the span will have both `trace_id` and `span_id` fields
 - Logs outside a span will only have `trace_id` (fallback UUID for correlation)
 
@@ -608,8 +621,8 @@ async function lookupCompany(orgNumber: string): Promise<void> {
   const FUNCTIONNAME = 'lookupCompany';
   const input = { organisasjonsnummer: orgNumber };
 
-  // Start span for this operation
-  sovdev_start_span(FUNCTIONNAME);
+  // Start span and CAPTURE the handle
+  const span = sovdev_start_span(FUNCTIONNAME, input);
 
   try {
     // All logs within this span automatically get trace_id + span_id
@@ -632,6 +645,9 @@ async function lookupCompany(orgNumber: string): Promise<void> {
       input,
       response
     );
+
+    // End span on success - PASS the span handle
+    sovdev_end_span(span);
   } catch (error) {
     sovdev_log(
       SOVDEV_LOGLEVELS.ERROR,
@@ -642,15 +658,15 @@ async function lookupCompany(orgNumber: string): Promise<void> {
       null,
       error
     );
+    // End span with error - marks span as failed
+    sovdev_end_span(span, error);
     throw error;
-  } finally {
-    // Always end the span (even on error)
-    sovdev_end_span();
   }
 }
 
 // Result: All 3 logs share same trace_id and span_id
 // In Tempo: This appears as a single trace with 3 log events
+// Note: Span is ended in both success and error cases (not in finally block)
 ```
 
 **When to Use Spans**:
@@ -665,40 +681,50 @@ async function lookupCompany(orgNumber: string): Promise<void> {
 
 **TypeScript Signature**:
 ```typescript
-sovdev_end_span(): void
+sovdev_end_span(span: Span, error?: Error): void
 ```
 
 **Python Signature**:
 ```python
-def sovdev_end_span() -> None:
+def sovdev_end_span(span: Span, error: Optional[BaseException] = None) -> None:
     """
     End the currently active OpenTelemetry span.
+
+    Args:
+        span: The span handle returned from sovdev_start_span()
+        error: Optional error if operation failed (marks span as failed)
 
     Behavior:
         Closes the active span and clears it from context.
         Subsequent logs will not include span_id (only trace_id).
         The span is sent to Tempo for distributed tracing.
+        If error is provided, span status is set to ERROR and exception is recorded.
 
     Important:
-        Always call this in a finally block to ensure spans are closed
-        even when errors occur.
+        Must pass the span handle returned from sovdev_start_span().
+        Call with error parameter in catch/except blocks to mark span as failed.
     """
 ```
 
 **Behavior**:
-- MUST end the currently active span
+- MUST end the span identified by the span parameter
 - MUST clear the span from active context
 - MUST flush the span to OpenTelemetry (sent to Tempo)
+- If error parameter provided, MUST set span status to ERROR
+- If error parameter provided, MUST record exception details on the span
 - Subsequent logs will NOT have `span_id` until next `sovdev_start_span()`
-- Should be called in `finally` block to ensure cleanup even on errors
+- Should be called in both success and error paths (not necessarily in finally block)
+- The span parameter is REQUIRED (returned from sovdev_start_span)
 
 **Example - Nested Spans**:
 ```typescript
 async function batchLookup(orgNumbers: string[]): Promise<void> {
   const FUNCTIONNAME = 'batchLookup';
 
-  // Start span for the entire batch operation
-  sovdev_start_span('batchProcessing');
+  // Start span for the entire batch operation - CAPTURE the handle
+  const batchSpan = sovdev_start_span('batchProcessing', {
+    totalCompanies: orgNumbers.length
+  });
 
   try {
     sovdev_log(
@@ -721,9 +747,13 @@ async function batchLookup(orgNumbers: string[]): Promise<void> {
       PEER_SERVICES.INTERNAL,
       { totalCompanies: orgNumbers.length }
     );
-  } finally {
-    // Always end the batch span
-    sovdev_end_span();
+
+    // End batch span on success - PASS the span handle
+    sovdev_end_span(batchSpan);
+  } catch (error) {
+    // End batch span with error - marks span as failed
+    sovdev_end_span(batchSpan, error);
+    throw error;
   }
 }
 

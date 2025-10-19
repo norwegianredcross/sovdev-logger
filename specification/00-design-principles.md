@@ -28,11 +28,11 @@ The library outputs to multiple destinations simultaneously (NOT either/or):
 
 ### 3. Structured Logging
 Every log entry is a structured JSON object with standardized fields:
-- **Service Context**: service.name, service.version, peer.service
-- **Correlation**: traceId (business transaction), eventId (unique log entry), sessionId (execution grouping)
-- **Business Context**: functionName, message, logType (transaction, job.status, job.progress)
-- **Data**: inputJSON, responseJSON (serialized as JSON strings)
-- **Exceptions**: type, message, stack (with security cleanup)
+- **Service Context**: service_name, service_version, peer_service
+- **Correlation**: trace_id (business transaction), event_id (unique log entry), session_id (execution grouping)
+- **Business Context**: function_name, message, log_type (transaction, job.status, job.progress)
+- **Data**: input_json, response_json (serialized as JSON strings)
+- **Exceptions**: exception_type, exception_message, exception_stacktrace (with security cleanup)
 - **Metadata**: timestamp, level, severity_number, severity_text
 
 ### 4. Security-Aware by Default
@@ -55,18 +55,18 @@ Full OpenTelemetry SDK integration providing:
 Norwegian logging law compliance built-in with required fields:
 - **timestamp**: ISO 8601 format - when the log entry was created
 - **level**: Log severity (info, error, etc.)
-- **service.name**: Service identifier - which application logged this
-- **service.version**: Service version - which version of the application
-- **peer.service**: Target system/service - which external system was involved
-- **functionName**: Function where logging occurs - which function/operation
+- **service_name**: Service identifier - which application logged this
+- **service_version**: Service version - which version of the application
+- **peer_service**: Target system/service - which external system was involved
+- **function_name**: Function where logging occurs - which function/operation
 - **message**: Human-readable description - what happened
-- **traceId**: Business transaction identifier - correlate all logs for one business operation
-- **eventId**: Unique identifier for this log entry - unique ID for this specific log
-- **logType**: Type of log (transaction, job.status, job.progress) - categorize the log
-- **inputJSON**: Request/input data - what was sent/requested (audit trail)
-- **responseJSON**: Response/output data - what was received/returned (audit trail)
+- **trace_id**: Business transaction identifier - correlate all logs for one business operation
+- **event_id**: Unique identifier for this log entry - unique ID for this specific log
+- **log_type**: Type of log (transaction, job.status, job.progress) - categorize the log
+- **input_json**: Request/input data - what was sent/requested (audit trail)
+- **response_json**: Response/output data - what was received/returned (audit trail)
 
-**Audit Trail Purpose**: The inputJSON and responseJSON fields provide complete audit trail showing what data was processed, which is critical for compliance investigations and debugging. These fields MUST always be present (value "null" when no data exists) to ensure consistent query patterns in Grafana.
+**Audit Trail Purpose**: The input_json and response_json fields provide complete audit trail showing what data was processed, which is critical for compliance investigations and debugging. These fields MUST always be present (value "null" when no data exists) to ensure consistent query patterns in Grafana.
 
 ### 7. Peer Service Identification with CMDB System IDs
 

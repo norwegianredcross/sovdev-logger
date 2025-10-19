@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Read(//Users/terje.christensen/learn/redcross-public/urbalurba-infrastructure/**)"
+      "Read(//Users/terje.christensen/learn/redcross-public/urbalurba-infrastructure/**)",
+      "Bash(python3:*)",
+      "Bash(jq:*)",
+      "Bash(cat:*)",
+      "Bash(while read -r line)",
+      "Bash(do echo \"$line\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

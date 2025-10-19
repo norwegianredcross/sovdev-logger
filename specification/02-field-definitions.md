@@ -20,7 +20,7 @@ This document defines **every field** that must appear in log entries across all
 |------------|------|-------------|----------|
 | service_name | string | Service identifier | Yes |
 | service_version | string | Service version | Yes |
-| session_id | string | Session grouping ID (UUID for entire execution) | Yes |
+| session_id | string | Session grouping ID (UUID for entire execution) | OTLP Only |
 | peer_service | string | Target system identifier | Yes |
 | function_name | string | Function/method name | Yes |
 | log_type | string | Log classification (transaction, session, error, etc.) | Yes |
@@ -57,7 +57,7 @@ This document defines **every field** that must appear in log entries across all
 | **trace_id** | string | 32-char hex from OTEL span | "a511b23170d1efb01d110191712cb439" | ✅ | ✅ | ✅ | OpenTelemetry trace identifier (links related operations in distributed system) |
 | **span_id** | string | 16-char hex from OTEL span | "7bf8a401f109ebe9" | ✅ | ❌ | ✅ | OpenTelemetry span identifier (links to specific operation within trace) |
 | **event_id** | string | UUID v4 (lowercase, 36 chars) | "dca7f112-1c94-478f-88f2-ec9805574190" | ✅ | ❌ | ✅ | Unique log entry identifier |
-| **session_id** | string | UUID v4 generated at init | "18df09dd-c321-43d8-aa24-19dd7c149a56" | ✅ | ✅ | ✅ | Execution correlation (groups all logs/metrics/traces from same run) |
+| **session_id** | string | UUID v4 generated at init | "18df09dd-c321-43d8-aa24-19dd7c149a56" | ✅ | ❌ | ❌ | Execution correlation - OpenTelemetry Resource attribute (groups all logs/metrics/traces from same run) |
 
 **Note**:
 - **trace_id** and **span_id**: Extracted from OpenTelemetry span context (hex format, no dashes)
@@ -286,7 +286,7 @@ Summary of which fields appear in which outputs:
 | trace_id | ✅ | ✅ | ✅ | ✅ |
 | span_id | ✅ | ❌ | ✅ | ❌ (when span active) |
 | event_id | ✅ | ❌ | ✅ | ✅ |
-| session_id | ✅ | ✅ | ✅ | ✅ |
+| session_id | ✅ | ❌ | ❌ | ✅ (OTLP Resource only) |
 | timestamp | ✅ | ✅ | ✅ | ✅ |
 | observed_timestamp | ✅ | ❌ | ❌ | ✅ (OTLP only) |
 | level | ❌ | ✅ | ✅ | ✅ |
