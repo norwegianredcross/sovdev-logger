@@ -12,7 +12,54 @@ This specification enables **implementation of sovdev-logger in any programming 
 
 ---
 
+## Using Claude Code Skills (Recommended for LLM-Assisted Development)
+
+If you're using Claude Code, you can leverage automatic skills that guide you through the implementation process systematically.
+
+### Available Skills
+
+**1. implement-language** - Systematic 7-phase implementation
+- **Invoke**: "implement sovdev-logger in {language}"
+- Automatically guides through Phase 0-6 with checklist tracking
+- Prevents common mistakes (toolchain, SDK comparison, Grafana validation)
+- Enforces completion criteria before claiming "complete"
+
+**2. validate-implementation** - Complete validation suite
+- **Invoke**: "validate the implementation"
+- Runs file logs → OTLP → Grafana → labels sequence
+- Ensures ALL 3 Grafana panels show data (often skipped!)
+- Compares metric labels with TypeScript
+
+**3. development-loop** - Iterative 4-step workflow
+- **Invoke**: "test changes" or "run the development loop"
+- Guides: Build → Run → Validate logs FIRST → Validate OTLP SECOND
+- Optimized for fast feedback (file validation is instant)
+
+**See**: `.claude/skills/README.md` for complete skills documentation
+
+### When to Use Skills
+
+- ✅ **Implementing new language**: Use `implement-language` skill
+- ✅ **Testing changes**: Use `development-loop` skill
+- ✅ **Validating implementation**: Use `validate-implementation` skill
+- ✅ **First time implementing**: Skills prevent skipping critical steps
+
+**Benefits**: Skills codify the systematic approach from this specification, making it harder to skip steps or claim completion prematurely.
+
+---
+
 ## Quick Start: Implementing a New Language
+
+### For Claude Code Users (Easiest)
+
+Simply ask Claude Code:
+```
+"Implement sovdev-logger in {language}"
+```
+
+Claude Code will automatically use the `implement-language` skill to guide you through the 7-phase process systematically, referencing all critical documents and enforcing validation criteria.
+
+### Manual Approach (Without Claude Code Skills)
 
 ### The 5-Step Process
 
@@ -149,17 +196,23 @@ An implementation is **complete and correct** when:
 
 ## Key Resources
 
-### 1. Reference Implementation
+### 1. Claude Code Skills (For LLM-Assisted Development)
+- **Location:** `.claude/skills/`
+- **Documentation:** `.claude/skills/README.md`
+- **Main skills:** `implement-language`, `validate-implementation`, `development-loop`
+- **Purpose:** Automatic guidance through implementation process
+
+### 2. Reference Implementation
 - **Location:** `typescript/` directory
 - **Key files:** `typescript/src/logger.ts`, `typescript/test/e2e/company-lookup/company-lookup.ts`
 - **Purpose:** Shows HOW to meet specification requirements
 
-### 2. Validation Tools
+### 3. Validation Tools
 - **Location:** `specification/tools/`
 - **Documentation:** `specification/tools/README.md`
 - **Main tool:** `run-full-validation.sh {language}`
 
-### 3. JSON Schemas
+### 4. JSON Schemas
 - **Location:** `specification/schemas/`
 - **Documentation:** `specification/schemas/README.md`
 - **Purpose:** Defines exact log format structure
