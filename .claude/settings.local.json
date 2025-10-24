@@ -7,7 +7,14 @@
       "Bash(cat:*)",
       "Bash(while read -r line)",
       "Bash(do echo \"$line\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Skill(implement-language)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(./specification/tools/in-devcontainer.sh:*)",
+      "WebSearch",
+      "WebFetch(domain:opentelemetry.io)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
