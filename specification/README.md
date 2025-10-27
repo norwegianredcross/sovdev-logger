@@ -107,7 +107,7 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 | Document | Purpose |
 |----------|---------|
 | **[02-field-definitions.md](./02-field-definitions.md)** | Required fields in all log outputs |
-| **[04-implementation-patterns.md](./04-implementation-patterns.md)** | Required patterns (snake_case, directory structure) |
+| **[03-implementation-patterns.md](./03-implementation-patterns.md)** | Required patterns (snake_case, directory structure) |
 | **[04-error-handling.md](./04-error-handling.md)** | Exception handling, credential removal, stack trace limits |
 | **[05-environment-configuration.md](./05-environment-configuration.md)** | Environment variables, DevContainer setup, language toolchain |
 | **[06-test-scenarios.md](./06-test-scenarios.md)** | Test scenarios and verification procedures |

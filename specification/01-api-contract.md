@@ -982,8 +982,8 @@ The specification files are the **CONTRACT** and **SOURCE OF TRUTH**. They defin
 - `01-api-contract.md` ← Defines function signatures and behavior
 - `02-field-definitions.md` ← Defines log field structure
 - `03-log-types.md` ← Defines valid log types
+- `03-implementation-patterns.md` ← Defines implementation requirements
 - `04-error-handling.md` ← Defines error handling patterns
-- `05-implementation-patterns.md` ← Defines implementation requirements
 - `06-test-scenarios.md` ← Defines test requirements
 - All other specification documents
 
@@ -1280,7 +1280,7 @@ With this workflow and the specification, an LLM or developer should only need t
 
 1. **Language-specific library recommendation** (if not in specification)
    - Example: "Which logging library should I use for Python?"
-   - Answer: See specification/04-implementation-patterns.md
+   - Answer: See specification/03-implementation-patterns.md
 
 2. **Language-specific type mapping** (if ambiguous)
    - Example: "Should Python use Dict or TypedDict for input_json?"
