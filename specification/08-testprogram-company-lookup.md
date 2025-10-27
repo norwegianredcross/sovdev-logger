@@ -653,11 +653,14 @@ Every language implementation MUST follow the standardized directory structure d
 
 ### Validation Tools
 
-All validation tools are documented in detail in the following specifications:
+**How to validate this test:**
 
-**Primary documentation**:
-- **Complete tool reference**: `specification/tools/README.md`
-- **Testing workflow**: `specification/06-test-scenarios.md` - "Verification Tools" section
+**📚 Primary documentation** (AUTHORITATIVE):
+- **Complete tool reference & 🔢 8-step validation sequence**: [`tools/README.md`](./tools/README.md)
+- **Quick start guide**: [`06-test-scenarios.md`](./06-test-scenarios.md) - "Quick Start: Testing Your Implementation"
+
+**👨‍💻 For LLM implementers**:
+- **Systematic checklist**: [`11-llm-checklist-template.md`](./11-llm-checklist-template.md) - Phase 4 (E2E Test Implementation) & Phase 5 (Validation)
 
 **Quick validation workflow for company-lookup**:
 
@@ -783,7 +786,7 @@ An implementation is **complete and correct** when:
 
 ---
 
-**Document Status**: Production-Ready Reference Specification
-**Last Updated**: 2025-10-14
-**Specification Version**: 1.0.0
-**Reference Implementation**: `typescript/test/e2e/company-lookup/company-lookup.ts`
+**Document Status:** ✅ v1.0.0 COMPLETE
+**Last Updated:** 2025-10-27
+**Part of:** sovdev-logger specification v1.1.0
+**Reference Implementation:** `typescript/test/e2e/company-lookup/company-lookup.ts`

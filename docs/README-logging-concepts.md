@@ -1,7 +1,5 @@
 # Logging Concepts: Distributed Tracing with Spans
 
-**Date:** 2025-10-17
-**Status:** DRAFT
 **Purpose:** Explain distributed tracing concepts (trace_id, spans) and how to use the sovdev-logger library to implement distributed tracing in your applications.
 
 ---
@@ -856,7 +854,5 @@ function lookupCompany(string $orgNumber): CompanyData
 
 ---
 
-**Last Updated:** 2025-10-17
-**Status:** DRAFT - Target state documented (spans-only approach)
-**Next Step:** Implement `sovdev_start_span()` and `sovdev_end_span()` in TypeScript (reference implementation), then Python and Go
-**See Also:** terchris/plans-current/changing-traceid2span-plan.md for detailed implementation plan
+**Document Status:** ✅ v1.0.0 COMPLETE - Supplementary Guide
+**Last Updated:** 2025-10-27

@@ -27,11 +27,11 @@ This README contains:
 ## When to Use Tools
 
 ### During Active Development
-**Read:** `specification/10-development-loop.md` (explains the workflow)
+**Read:** `specification/09-development-loop.md` (explains the workflow)
 **Primary tools:** `validate-log-format.sh`, `run-company-lookup.sh`
 
 ### For Complete Validation
-**Read:** `specification/12-llm-checklist-template.md` Phase 5
+**Read:** `specification/11-llm-checklist-template.md` Phase 5
 **Primary tool:** `run-full-validation.sh`
 
 ### For Debugging Issues

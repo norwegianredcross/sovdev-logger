@@ -33,15 +33,15 @@ When the user asks to implement sovdev-logger in a new programming language, gui
    - Shows validation workflow and tool comparison
    - **Action:** Read this before running ANY validation commands
 
-2. **`specification/11-otel-sdk.md`** ⚠️ CRITICAL
+2. **`specification/10-otel-sdk.md`** ⚠️ CRITICAL
    - OpenTelemetry SDK differences between languages
    - Common pitfalls and how to avoid them
 
-3. **`specification/12-llm-checklist-template.md`** ⚠️ CRITICAL
+3. **`specification/11-llm-checklist-template.md`** ⚠️ CRITICAL
    - Complete systematic checklist (Phase 0-6)
    - This is your roadmap - copy it to `{language}/llm-work/`
 
-4. **`specification/10-development-loop.md`**
+4. **`specification/09-development-loop.md`**
    - 4-step iterative workflow
    - Validation-first approach
 
@@ -56,7 +56,7 @@ When the user asks to implement sovdev-logger in a new programming language, gui
 **Copy the checklist:**
 ```bash
 mkdir -p {language}/llm-work {language}/test/e2e/company-lookup
-cp specification/12-llm-checklist-template.md {language}/llm-work/llm-checklist-{language}.md
+cp specification/11-llm-checklist-template.md {language}/llm-work/llm-checklist-{language}.md
 ```
 
 **Then follow it systematically.** The checklist contains all the details - don't skip steps.
@@ -136,7 +136,7 @@ sleep 10
 
 Open http://grafana.localhost and verify ALL 3 panels show data for BOTH TypeScript AND the new language.
 
-**For detailed Grafana verification steps:** See `specification/11-otel-sdk.md` → "Cross-Language Validation in Grafana"
+**For detailed Grafana verification steps:** See `specification/10-otel-sdk.md` → "Cross-Language Validation in Grafana"
 
 #### Step 6: Compare Metric Labels
 
@@ -151,7 +151,7 @@ Verify labels match TypeScript exactly:
 
 **For query tool usage:** See `specification/tools/README.md` → "Query Scripts" section
 
-**For why underscores are critical:** See `specification/11-otel-sdk.md`
+**For why underscores are critical:** See `specification/10-otel-sdk.md`
 
 ## ⚠️ Execute Commands, Don't Describe Them
 
@@ -185,7 +185,7 @@ If you find yourself typing "I should..." or "Next, I'll...", STOP and execute t
 
 ## Common Pitfalls to Avoid
 
-**See `specification/11-otel-sdk.md` section "Common Pitfalls" for detailed list.**
+**See `specification/10-otel-sdk.md` section "Common Pitfalls" for detailed list.**
 
 Top 3:
 1. ❌ Using semantic convention defaults (dots) instead of underscores
@@ -196,8 +196,8 @@ Top 3:
 
 - **Implementation details:** See `specification/` documents (00-12)
 - **Tool usage:** See `specification/tools/README.md` ← **COMPLETE TOOL REFERENCE**
-- **Validation workflow:** See `specification/10-development-loop.md`
-- **OTEL SDK issues:** See `specification/11-otel-sdk.md`
+- **Validation workflow:** See `specification/09-development-loop.md`
+- **OTEL SDK issues:** See `specification/10-otel-sdk.md`
 
 ## Success
 

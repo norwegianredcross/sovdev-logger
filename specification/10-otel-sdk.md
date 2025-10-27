@@ -1,8 +1,5 @@
 # OpenTelemetry SDK Implementation Guide
 
-**Version:** 1.0.0
-**Last Updated:** 2025-10-15
-
 ---
 
 ## Overview
@@ -191,6 +188,8 @@ diff ts.txt lang.txt
 5. **Document ALL differences** - Update SDK comparison as you discover issues
 6. **NEVER claim complete without Grafana validation** - ALL 3 panels must show data
 
+**📝 For universal implementation patterns** (batch processing, field naming, directory structure, etc.), see [`03-implementation-patterns.md`](./03-implementation-patterns.md)
+
 ---
 
 ## Success Criteria
@@ -205,4 +204,7 @@ diff ts.txt lang.txt
 
 ---
 
-**Version:** 1.0.0 | **Last Updated:** 2025-10-15 | **Based on:** Go experience
+**Document Status:** ✅ v1.0.0 COMPLETE
+**Last Updated:** 2025-10-27
+**Part of:** sovdev-logger specification v1.1.0
+**Based on:** Go implementation experience

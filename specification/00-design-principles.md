@@ -72,7 +72,7 @@ Norwegian logging law compliance built-in with required fields:
 
 **Architectural Principle**: Every external system and service has a unique identifier in the organization's Configuration Management Database (CMDB). Logs MUST use these standardized system IDs instead of URLs, hostnames, or service names.
 
-**Why System IDs**:
+**Why System IDs Matter**:
 - **Stable Identifier**: URLs and hostnames change, system IDs don't
 - **Environment-Agnostic**: Same system ID works across dev/test/prod
 - **Cross-Service Correlation**: All services use the same ID for the same external system
@@ -80,48 +80,10 @@ Norwegian logging law compliance built-in with required fields:
 - **Dependency Mapping**: Visualize which services depend on which systems
 
 **Peer Service Types**:
-1. **External Systems**: Third-party APIs, external databases, partner systems
-   - Example: `BRREG: 'SYS1234567'` (Norwegian company registry)
-   - Example: `ALTINN: 'SYS7654321'` (Norwegian government portal)
+1. **External Systems**: Third-party APIs, databases, partner systems (use CMDB system IDs like `SYS1234567`)
 2. **INTERNAL**: The service itself (auto-generated, equals service name)
-   - Used for: Job status logs, internal operations, initialization logs
-   - Example: `INTERNAL: 'my-service'`
 
-**Type-Safe Mapping with create_peer_services()**:
-```typescript
-const PEER_SERVICES = create_peer_services({
-  BRREG: 'SYS1234567',    // External: Norwegian company registry
-  ALTINN: 'SYS7654321'    // External: Government portal
-});
-// INTERNAL is auto-generated = service name
-
-// Usage: Type-safe constants prevent typos
-sovdev_log(
-  SOVDEV_LOGLEVELS.INFO,
-  'fetchData',
-  'Calling Brønnøysund Registry',
-  PEER_SERVICES.BRREG,  // Compile-time validation
-  { orgNumber: '123456789' }
-);
-```
-
-**Benefits**:
-- **Prevents Typos**: Type-safe constants ensure correct system IDs
-- **Self-Documenting**: Code shows which external systems are used
-- **Centralized Mapping**: Single source of truth for system IDs
-- **Grafana Queries**: Filter by system ID to see all interactions with a specific system
-- **Dependency Tracking**: Operations can see which services call which systems
-
-**CMDB Example**:
-```
-System ID: SYS1234567
-Name: Brønnøysund Registry (Enhetsregisteret)
-Owner: Brønnøysundregistrene
-Type: External API
-Criticality: High
-Documentation: https://data.brreg.no/enhetsregisteret/api/docs
-Support: support@brreg.no
-```
+**Implementation**: Use `create_peer_services()` for type-safe peer service mapping. See `03-implementation-patterns.md` → **Peer Service Identification** for detailed implementation patterns, examples, and resolution mechanism.
 
 ### 8. Batch Job Support
 Purpose-built functions for tracking batch operations:
@@ -145,92 +107,10 @@ Configuration through environment variables:
 - **Features**: File rotation, buffering, formatting are complex - use existing solutions
 - **Focus**: Our library is a **wrapper** that standardizes output, not a logging engine
 
-**Required Logging Library by Language**:
-
-| Language | Recommended Library | Purpose |
-|----------|-------------------|---------|
-| **TypeScript/JavaScript** | **Winston** | Structured logging, file rotation, multiple transports |
-| **Python** | **logging** (stdlib) + **RotatingFileHandler** | Standard library logging with rotation |
-| **Go** | **zap** or **logrus** + **lumberjack** | High-performance logging + rotation |
-| **Java** | **SLF4J** + **Logback** or **Log4j2** | Industry-standard Java logging |
-| **C#** | **Serilog** or **NLog** | .NET structured logging with sinks |
-| **PHP** | **Monolog** | PSR-3 compliant logging with handlers |
-| **Rust** | **tracing** or **log** + **env_logger** | Rust ecosystem standard |
-
-**Implementation Pattern**:
-
-```typescript
-// ✅ CORRECT: Use Winston for structured logging
-import winston from 'winston';
-
-const logger = winston.createLogger({
-  transports: [
-    new winston.transports.Console({ /* config */ }),
-    new winston.transports.File({
-      filename: 'dev.log',
-      maxsize: 50 * 1024 * 1024,  // Winston handles rotation
-      maxFiles: 5
-    })
-  ]
-});
-
-// Our library is a WRAPPER around Winston
-function sovdev_log(...) {
-  // Use Winston to write structured log
-  logger.info({ /* structured data */ });
-
-  // Also send to OpenTelemetry
-  otlpLogger.emit({ /* OTLP format */ });
-}
-```
-
-```python
-# ✅ CORRECT: Use stdlib logging with RotatingFileHandler
-import logging
-from logging.handlers import RotatingFileHandler
-
-logger = logging.getLogger(service_name)
-handler = RotatingFileHandler(
-    'dev.log',
-    maxBytes=50 * 1024 * 1024,  # Handler manages rotation
-    backupCount=5
-)
-logger.addHandler(handler)
-
-# Our library is a WRAPPER around stdlib logging
-def sovdev_log(...):
-    # Use stdlib logging for structured output
-    logger.info(json.dumps({...}))
-
-    # Also send to OpenTelemetry
-    otlp_logger.emit({...})
-```
-
-**❌ DO NOT DO THIS**:
-
-```typescript
-// ❌ WRONG: Custom file writing implementation
-function sovdev_log(...) {
-  // DON'T manually write to files
-  fs.appendFileSync('dev.log', JSON.stringify({...}) + '\n');
-
-  // DON'T implement custom rotation
-  if (fs.statSync('dev.log').size > MAX_SIZE) {
-    fs.renameSync('dev.log', 'dev.log.1');
-  }
-}
-```
-
-**Why Not Custom Implementation?**
-- File locking issues on Windows
-- Race conditions in multi-threaded environments
-- Buffer management complexity
-- Rotation during active writes
-- Missing features (compression, async I/O)
-- Performance problems at scale
+**Recommended Libraries by Language**: See `03-implementation-patterns.md` → **Logging Library Selection** for detailed recommendations, rationale, and implementation examples for TypeScript, Python, Go, Java, C#, PHP, and Rust.
 
 **Our Library's Responsibility**:
-1. ✅ Provide 7 standard functions (sovdev_log, sovdev_initialize, sovdev_flush, etc.)
+1. ✅ Provide 8 API functions (sovdev_log, sovdev_initialize, sovdev_flush, sovdev_start_span, sovdev_end_span, etc.)
 2. ✅ Standardize field names and structure
 3. ✅ Handle OpenTelemetry integration
 4. ✅ Remove credentials from stack traces
@@ -274,7 +154,7 @@ try {
 - **Peer Service Mapping**: Type-safe peer service ID mapping with INTERNAL auto-generation
 - **Self-Documenting**: Function names and parameters are self-explanatory
 
-### 12. Production-Ready Performance
+### 13. Production-Ready Performance
 - **Batch Processing**: OTLP exports use batch processors for efficiency
 - **Async Logging**: Non-blocking logging operations
 - **Minimal Overhead**: Target < 1ms per log call
@@ -318,7 +198,7 @@ A sovdev-logger implementation is correct when:
 1. ✅ **JSON Output**: Identical structure to reference implementation (TypeScript)
 2. ✅ **All Transports**: Console, file, error file, and OTLP all work simultaneously
 3. ✅ **Field Parity**: All required fields present in all log types
-4. ✅ **API Consistency**: All 7 functions with identical signatures (adapted to language idioms)
+4. ✅ **API Consistency**: All 8 API functions with identical signatures (adapted to language idioms)
 5. ✅ **E2E Tests Pass**: Logs/metrics/traces reach backends with correct structure
 6. ✅ **Security**: Credential removal and stack trace limiting work
 7. ✅ **Performance**: Logging overhead < 1ms per call
@@ -376,8 +256,6 @@ The `scope_version` field in logs reflects the **library version** (hardcoded "1
 
 ### Decision: Use "Error" for All Exception Types
 
-**Date:** 2025-10-07
-
 **Context:** Different languages use different exception type names:
 - Python: "Exception"
 - TypeScript: "Error"
@@ -399,8 +277,6 @@ The `scope_version` field in logs reflects the **library version** (hardcoded "1
 
 ### Decision: Always Include responseJSON Field
 
-**Date:** 2025-10-07
-
 **Context:** Should `responseJSON` field only be present when a response exists, or always present with value "null" when no response?
 
 **Decision:** Always include `responseJSON` field (value "null" as string when no response exists).
@@ -417,8 +293,6 @@ The `scope_version` field in logs reflects the **library version** (hardcoded "1
 **Impact:** All implementations must serialize `null`/`None`/`nil` as the string "null" (not JSON null) when no response exists.
 
 ### Decision: Separate Main and Error Log Files
-
-**Date:** 2025-10-07
 
 **Context:** Should errors be logged to the same file as other logs, or to a separate file?
 
@@ -437,6 +311,6 @@ The `scope_version` field in logs reflects the **library version** (hardcoded "1
 
 ---
 
-**Document Status**: v1.0.0
-**Last Updated**: 2025-10-07
-**Next Review**: After first non-TypeScript implementation
+**Document Status:** ✅ v1.0.0 COMPLETE
+**Last Updated:** 2025-10-27
+**Part of:** sovdev-logger specification v1.1.0

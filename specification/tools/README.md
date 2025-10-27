@@ -24,7 +24,7 @@ Before using these tools, ensure:
    # Should show: devcontainer-toolbox
    ```
 
-2. **Language implementation follows standard structure** (see `specification/06-test-scenarios.md`):
+2. **Language implementation follows standard structure**:
    ```
    {language}/
    └── test/e2e/company-lookup/
@@ -33,6 +33,8 @@ Before using these tools, ensure:
        ├── .env
        └── logs/
    ```
+
+   **For complete project structure requirements**, see [`specification/06-test-scenarios.md`](../06-test-scenarios.md) → "Required Project Structure"
 
 3. **Monitoring stack is running** (for Loki/Prometheus/Tempo queries):
    ```bash
@@ -125,7 +127,7 @@ sleep 10  # Wait for OTLP propagation
 **If FAIL:**
 - Metrics not exported
 - Check OTEL SDK metric configuration
-- See `specification/11-otel-sdk.md` for label issues
+- See `specification/10-otel-sdk.md` for label issues
 
 **⛔ DO NOT PROCEED to Step 4 until metrics are in Prometheus with correct labels**
 

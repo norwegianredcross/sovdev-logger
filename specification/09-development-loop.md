@@ -1,9 +1,5 @@
 # Development Loop
 
-**Version:** 1.8.0
-**Last Updated:** 2025-10-17
-**Status:** Complete
-
 ---
 
 ## Purpose
@@ -97,7 +93,7 @@ go test ./...
 
 The typical development cycle follows this 3-step pattern:
 
-**Note on file editing:** The DevContainer uses a bind mount, so files edited on the host are immediately visible in the container and vice versa. You don't need to think about "where" you edit - it's the same filesystem. The distinction below is only about **where commands execute**.
+**Note on file editing:** Files are synchronized between host and container (bind mount). The distinction below is only about **where commands execute**. For architecture details, see `05-environment-configuration.md`.
 
 ---
 
@@ -108,7 +104,7 @@ The typical development cycle follows this 3-step pattern:
 **Checklist Location:** `{language}/llm-work/llm-checklist-{language}.md`
 
 **How to use it:**
-1. **Before starting:** Copy `specification/12-llm-checklist-template.md` to `{language}/llm-work/llm-checklist-{language}.md`
+1. **Before starting:** Copy `specification/11-llm-checklist-template.md` to `{language}/llm-work/llm-checklist-{language}.md`
 2. **During development:** Update checkboxes as you complete each step
    - Mark items as `in_progress` when you start working on them
    - Mark items as `completed` when finished
@@ -120,17 +116,17 @@ The typical development cycle follows this 3-step pattern:
 - Ensures systematic implementation
 - Prevents premature "complete" claims
 
-**See:** `12-llm-checklist-template.md` for the complete 7-phase checklist you should be following.
+**See:** `11-llm-checklist-template.md` for the complete 7-phase checklist you should be following.
 
 ---
 
 ### 1. Edit Code
 
 Edit source files using your preferred tools:
-- Human developers: Use VSCode editor (works seamlessly with bind mount)
+- Human developers: Use VSCode editor
 - LLM developers: Use Read/Edit/Write tools on host filesystem
 
-**Important:** Because of the bind mount, there's no difference between "editing on host" vs "editing in container" - they're the same files.
+**Important:** Files are synchronized between host and container - edit anywhere.
 
 ---
 
@@ -341,7 +337,7 @@ query-tempo.sh sovdev-test-company-lookup-{language}
 
 ## Complete Workflow Examples
 
-**Key Difference:** Only **Step 2 (Run Test)** differs between Human and LLM developers. All other steps (Edit, Validate Logs, Validate OTLP) work the same thanks to the bind mount.
+**Key Difference:** Only **Step 2 (Run Test)** differs between Human and LLM developers. All other steps (Edit, Validate Logs, Validate OTLP) work the same due to file synchronization.
 
 ### Example 1: Human Developer (VSCode Terminal)
 
@@ -532,7 +528,7 @@ All validation tools support this workflow:
 
 - **[05-environment-configuration.md](./05-environment-configuration.md)** - DevContainer setup and configuration
 - **[06-test-scenarios.md](./06-test-scenarios.md)** - Test scenarios and verification procedures
-- **[09-testprogram-company-lookup.md](./09-testprogram-company-lookup.md)** - Company-lookup E2E test specification
+- **[08-testprogram-company-lookup.md](./08-testprogram-company-lookup.md)** - Company-lookup E2E test specification
 - **[tools/README.md](./tools/README.md)** - Complete validation tool documentation
 
 ---

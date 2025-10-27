@@ -32,7 +32,7 @@
 # Related:
 #   - package.json: Contains build scripts and dependencies
 #   - tsconfig.json: TypeScript compiler configuration
-#   - specification/10-development-loop.md: Development workflow documentation
+#   - specification/09-development-loop.md: Development workflow documentation
 
 set -e  # Exit on error
 set -o pipefail  # Catch errors in pipes

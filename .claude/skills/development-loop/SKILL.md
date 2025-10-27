@@ -18,7 +18,7 @@ When the user is actively developing sovdev-logger and wants to test changes, gu
 
 ## The Development Loop
 
-**Complete workflow documentation:** `specification/10-development-loop.md`
+**Complete workflow documentation:** `specification/09-development-loop.md`
 
 **Complete validation tool documentation:** `specification/tools/README.md`
 
@@ -126,4 +126,4 @@ When this document shows a command, you MUST execute it using your bash tool.
 
 ---
 
-**Remember:** Fast feedback = rapid development. See `specification/10-development-loop.md` for complete details and `specification/tools/README.md` for tool documentation.
+**Remember:** Fast feedback = rapid development. See `specification/09-development-loop.md` for complete details and `specification/tools/README.md` for tool documentation.

@@ -64,11 +64,11 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 ### The 5-Step Process
 
 1. **Read Critical Documents**
-   - ⚠️ **CRITICAL:** `11-otel-sdk.md` - OpenTelemetry SDK differences (prevents major issues)
-   - ⚠️ **CRITICAL:** `12-llm-checklist-template.md` - Copy to `{language}/llm-work/llm-checklist-{language}.md`
+   - ⚠️ **CRITICAL:** `10-otel-sdk.md` - OpenTelemetry SDK differences (prevents major issues)
+   - ⚠️ **CRITICAL:** `11-llm-checklist-template.md` - Copy to `{language}/llm-work/llm-checklist-{language}.md`
    - `00-design-principles.md` - Core philosophy
    - `01-api-contract.md` - API requirements
-   - `10-development-loop.md` - Iterative workflow
+   - `09-development-loop.md` - Iterative workflow
 
 2. **Study the Reference Implementation**
    - Read `typescript/src/logger.ts` - The source of truth
@@ -80,7 +80,7 @@ Claude Code will automatically use the `implement-language` skill to guide you t
    - Create SDK comparison document in `{language}/llm-work/`
 
 4. **Implement E2E Test**
-   - Follow `09-testprogram-company-lookup.md` specification
+   - Follow `08-testprogram-company-lookup.md` specification
    - Must produce 17 log entries matching TypeScript structure
 
 5. **Validate**
@@ -97,10 +97,10 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 | Document | Purpose |
 |----------|---------|
 | **[00-design-principles.md](./00-design-principles.md)** | Core philosophy and design goals |
-| **[11-otel-sdk.md](./11-otel-sdk.md)** ⚠️ **CRITICAL** | OpenTelemetry SDK differences between languages |
-| **[12-llm-checklist-template.md](./12-llm-checklist-template.md)** ⚠️ **CRITICAL** | Systematic implementation checklist |
+| **[10-otel-sdk.md](./10-otel-sdk.md)** ⚠️ **CRITICAL** | OpenTelemetry SDK differences between languages |
+| **[11-llm-checklist-template.md](./11-llm-checklist-template.md)** ⚠️ **CRITICAL** | Systematic implementation checklist |
 | **[01-api-contract.md](./01-api-contract.md)** | Public API that all languages MUST implement |
-| **[10-development-loop.md](./10-development-loop.md)** | Iterative development workflow |
+| **[09-development-loop.md](./09-development-loop.md)** | Iterative development workflow |
 
 ### Supporting Documents
 
@@ -111,8 +111,8 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 | **[04-error-handling.md](./04-error-handling.md)** | Exception handling, credential removal, stack trace limits |
 | **[05-environment-configuration.md](./05-environment-configuration.md)** | Environment variables, DevContainer setup, language toolchain |
 | **[06-test-scenarios.md](./06-test-scenarios.md)** | Test scenarios and verification procedures |
-| **[08-anti-patterns.md](./08-anti-patterns.md)** | Common mistakes to avoid |
-| **[09-testprogram-company-lookup.md](./09-testprogram-company-lookup.md)** | E2E test specification (MUST implement) |
+| **[07-anti-patterns.md](./07-anti-patterns.md)** | Common mistakes to avoid |
+| **[08-testprogram-company-lookup.md](./08-testprogram-company-lookup.md)** | E2E test specification (MUST implement) |
 
 ---
 
@@ -136,7 +136,7 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 
 ## Implementation Workflow
 
-**For detailed workflow**, see `10-development-loop.md` and `12-llm-checklist-template.md`.
+**For detailed workflow**, see `09-development-loop.md` and `11-llm-checklist-template.md`.
 
 ### Quick Reference
 
@@ -146,14 +146,14 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 mkdir -p {language}/llm-work {language}/test/e2e/company-lookup
 
 # Copy checklist
-cp specification/12-llm-checklist-template.md {language}/llm-work/llm-checklist-{language}.md
+cp specification/11-llm-checklist-template.md {language}/llm-work/llm-checklist-{language}.md
 
 # Copy .env template
 cp typescript/test/e2e/company-lookup/.env {language}/test/e2e/company-lookup/
 ```
 
 **Read before coding:**
-- `11-otel-sdk.md` - Understand OTEL SDK differences
+- `10-otel-sdk.md` - Understand OTEL SDK differences
 - `05-environment-configuration.md` - Verify language toolchain installed
 - TypeScript reference: `typescript/src/logger.ts`
 - Target language OTEL SDK documentation
@@ -164,7 +164,7 @@ cp typescript/test/e2e/company-lookup/.env {language}/test/e2e/company-lookup/
 - Update checklist as you progress
 
 **3. Testing**
-- Implement E2E test per `09-testprogram-company-lookup.md`
+- Implement E2E test per `08-testprogram-company-lookup.md`
 - Validate: `./specification/tools/run-full-validation.sh {language}`
 
 ---
@@ -188,9 +188,9 @@ An implementation is **complete and correct** when:
 6. ✅ Complete checklist (`{language}/llm-work/llm-checklist-{language}.md`) shows all items checked
 
 **For detailed validation procedures**, see:
-- `10-development-loop.md` - Validation workflow
-- `11-otel-sdk.md` - Cross-language Grafana validation
-- `12-llm-checklist-template.md` - Phase 5: Validation section
+- `09-development-loop.md` - Validation workflow
+- `10-otel-sdk.md` - Cross-language Grafana validation
+- `11-llm-checklist-template.md` - Phase 5: Validation section
 
 ---
 
@@ -232,14 +232,14 @@ An implementation is **complete and correct** when:
 
 ## Common Pitfalls
 
-**For complete list**, see `11-otel-sdk.md` Common Pitfalls section.
+**For complete list**, see `10-otel-sdk.md` Common Pitfalls section.
 
 **Top 3 issues from Go implementation:**
 1. ❌ Not verifying language toolchain installed first
 2. ❌ Using semantic convention defaults (dots) instead of underscores (peer_service, log_type, log_level)
 3. ❌ Claiming "complete" without Grafana dashboard validation (all 3 panels must show data)
 
-**Prevention:** Read `11-otel-sdk.md` and follow `12-llm-checklist-template.md` systematically.
+**Prevention:** Read `10-otel-sdk.md` and follow `11-llm-checklist-template.md` systematically.
 
 ---
 
@@ -248,7 +248,7 @@ An implementation is **complete and correct** when:
 - **Specification issues:** Check `specification/` documents (00-12)
 - **Tool usage:** See `specification/tools/README.md`
 - **DevContainer problems:** See `05-environment-configuration.md`
-- **OTEL SDK issues:** See `11-otel-sdk.md` Language-Specific Known Issues
+- **OTEL SDK issues:** See `10-otel-sdk.md` Language-Specific Known Issues
 
 ---
 
@@ -256,4 +256,4 @@ An implementation is **complete and correct** when:
 **Last Updated:** 2025-10-15
 **Reference Implementation:** TypeScript (`typescript/`)
 **Development Environment:** DevContainer Toolbox (required)
-**New in v1.1.0:** OTEL SDK implementation guide (`11-otel-sdk.md`) and systematic checklist (`12-llm-checklist-template.md`) based on Go implementation experience
+**New in v1.1.0:** OTEL SDK implementation guide (`10-otel-sdk.md`) and systematic checklist (`11-llm-checklist-template.md`) based on Go implementation experience

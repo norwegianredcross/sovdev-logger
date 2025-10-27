@@ -338,8 +338,8 @@ The dashboard should show your test logs with all required structured fields and
 **For Library Implementers:**
 - [Specification](../specification/README.md) - Complete implementation requirements
 - [Environment Configuration](../specification/05-environment-configuration.md) - DevContainer setup and architecture
-- [OTEL SDK Guide](../specification/11-otel-sdk.md) - Critical SDK differences across languages
-- [Implementation Checklist](../specification/12-llm-checklist-template.md) - Track your progress
+- [OTEL SDK Guide](../specification/10-otel-sdk.md) - Critical SDK differences across languages
+- [Implementation Checklist](../specification/11-llm-checklist-template.md) - Track your progress
 
 **For Compliance:**
 - [Loggeloven Requirements](./README-loggeloven.md) - Norwegian Red Cross logging requirements

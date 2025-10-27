@@ -51,7 +51,9 @@ All sovdev-logger implementations are tested the same way, regardless of languag
 - ✅ **Fast**: Quick smoke test in 5 seconds, full validation in 30 seconds
 - ✅ **Consistent**: Same verification process for all languages
 
-**See `specification/tools/README.md` for complete tool documentation.**
+**📚 For complete tool documentation**, see **[`tools/README.md`](./tools/README.md)** (authoritative source)
+
+**📝 For detailed company-lookup test specification**, see [`08-testprogram-company-lookup.md`](./08-testprogram-company-lookup.md)
 
 ---
 
@@ -203,7 +205,7 @@ Query individual backends for debugging or verification:
 ## Test Categories
 
 ### 1. API Function Tests
-Verify each of the 7 core API functions works correctly.
+Verify each of the 8 API functions works correctly.
 
 ### 2. Field Validation Tests
 Verify all required fields are present in correct format.
@@ -953,6 +955,6 @@ An implementation **passes all tests** when:
 
 ---
 
-**Document Status**: Active
-**Last Updated**: 2025-10-19
-**Specification Version**: 1.0.0
+**Document Status:** ✅ v1.0.0 COMPLETE
+**Last Updated:** 2025-10-27
+**Part of:** sovdev-logger specification v1.1.0

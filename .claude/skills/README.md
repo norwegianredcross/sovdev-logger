@@ -14,7 +14,7 @@ These skills codify the systematic implementation guidance from the `specificati
 **Purpose**: Systematic 7-phase implementation guidance following the specification checklist
 
 **Key Features**:
-- Automatically references critical documents (tools/README.md, 11-otel-sdk.md, 12-llm-checklist-template.md)
+- Automatically references critical documents (tools/README.md, 10-otel-sdk.md, 11-llm-checklist-template.md)
 - Enforces Phase 0 (pre-implementation setup) completion before coding
 - Updates checklist systematically as work progresses
 - Prevents "complete" claims until ALL validation criteria met
@@ -51,7 +51,7 @@ These skills codify the systematic implementation guidance from the `specificati
 **Purpose**: Iterative 4-step workflow for rapid development with fast feedback
 
 **Key Features**:
-- Follows specification/10-development-loop.md workflow
+- Follows specification/09-development-loop.md workflow
 - Enforces "validate log files FIRST" (instant feedback)
 - Uses `in-devcontainer.sh` for all command execution (LLM mode)
 - Handles build step when needed
@@ -123,9 +123,9 @@ These skills **do not replace** the specification - they **guide** you through i
 |------------------------|---------------|---------|
 | `specification/README.md` | implement-language | Overall guidance |
 | **`specification/tools/README.md`** | **ALL skills** | **Complete validation tool reference** |
-| `specification/12-llm-checklist-template.md` | implement-language | Systematic checklist |
-| `specification/11-otel-sdk.md` | implement-language | OTEL SDK differences |
-| `specification/10-development-loop.md` | development-loop | Iterative workflow |
+| `specification/11-llm-checklist-template.md` | implement-language | Systematic checklist |
+| `specification/10-otel-sdk.md` | implement-language | OTEL SDK differences |
+| `specification/09-development-loop.md` | development-loop | Iterative workflow |
 | `specification/01-api-contract.md` | implement-language | API requirements |
 
 **Key Principle:** Skills are signposts, not encyclopedias. They point to the right documentation rather than duplicating it.
@@ -134,8 +134,8 @@ These skills **do not replace** the specification - they **guide** you through i
 
 If not using Claude Code, you can still implement sovdev-logger manually by following:
 1. `specification/README.md` - Quick start guide
-2. `specification/12-llm-checklist-template.md` - Systematic checklist
-3. `specification/10-development-loop.md` - Development workflow
+2. `specification/11-llm-checklist-template.md` - Systematic checklist
+3. `specification/09-development-loop.md` - Development workflow
 4. `specification/tools/README.md` - Complete validation tool reference
 
 The skills simply make this process automatic and harder to skip steps.
@@ -163,7 +163,7 @@ The skills simply make this process automatic and harder to skip steps.
 **For skill issues**: Review `.claude/skills/{skill-name}/SKILL.md`
 **For implementation issues**: See `specification/` folder
 **For tool usage**: See `specification/tools/README.md` ← **COMPLETE TOOL REFERENCE**
-**For validation workflow**: See `specification/10-development-loop.md`
+**For validation workflow**: See `specification/09-development-loop.md`
 
 ---
 

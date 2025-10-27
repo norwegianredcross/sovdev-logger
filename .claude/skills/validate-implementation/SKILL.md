@@ -21,7 +21,7 @@ When the user asks to validate a sovdev-logger implementation, run the complete 
 
 **CRITICAL:** Follow the complete 8-step validation sequence.
 
-**AUTHORITATIVE VALIDATION GUIDE:** `specification/12-llm-checklist-template.md` → **Phase 5: Validation**
+**AUTHORITATIVE VALIDATION GUIDE:** `specification/11-llm-checklist-template.md` → **Phase 5: Validation**
 
 This section contains:
 - ✅ Complete 8-step validation sequence (Steps 1-8)
@@ -56,7 +56,7 @@ This section contains:
 - Navigate to Structured Logging Testing Dashboard
 - Verify ALL 3 panels show data for BOTH TypeScript AND {language}
 
-**For complete step-by-step instructions:** Follow `specification/12-llm-checklist-template.md` Phase 5 exactly.
+**For complete step-by-step instructions:** Follow `specification/11-llm-checklist-template.md` Phase 5 exactly.
 
 ## Success Criteria
 
@@ -70,7 +70,7 @@ Implementation is validated when:
 
 **For complete debugging workflows:** See `specification/tools/README.md` → "Common Debugging Scenarios"
 
-**For OTLP SDK issues:** See `specification/11-otel-sdk.md`
+**For OTLP SDK issues:** See `specification/10-otel-sdk.md`
 
 **Individual query tools (for debugging):**
 - `query-loki.sh sovdev-test-company-lookup-{language}`
@@ -97,4 +97,4 @@ When you see a validation command, you MUST execute it using your bash tool.
 
 ---
 
-**Remember:** Follow the 8-step sequence in `specification/12-llm-checklist-template.md` Phase 5. See `specification/tools/README.md` for complete tool reference.
+**Remember:** Follow the 8-step sequence in `specification/11-llm-checklist-template.md` Phase 5. See `specification/tools/README.md` for complete tool reference.

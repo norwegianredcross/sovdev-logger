@@ -4,6 +4,8 @@
 
 This document defines **required implementation patterns** that all sovdev-logger implementations MUST follow. These patterns ensure consistency across programming languages and guarantee that all implementations produce identical log output.
 
+**📚 For language-specific OTEL SDK differences**, see [`10-otel-sdk.md`](./10-otel-sdk.md) - Read this **BEFORE implementing** to understand SDK quirks (HTTP headers, attribute naming, duration units, etc.)
+
 ---
 
 ## Code Style Convention
@@ -123,14 +125,14 @@ The validation tools in `specification/tools/` expect this exact structure:
 The `company-lookup` application is a **standardized E2E test** that:
 
 1. Tests the entire logging pipeline (console + file + OTLP)
-2. Demonstrates all 7 core API functions
+2. Demonstrates all 8 API functions
 3. Produces consistent output across all languages
 4. Enables cross-language validation
 
 Every language implementation should produce functionally identical logs when running `company-lookup`.
 
 **For complete specification**, see:
-- **Test program specification**: `specification/09-testprogram-company-lookup.md` - Complete documentation of the company-lookup E2E test including expected behavior, log output, cross-language requirements, and validation procedures
+- **Test program specification**: `specification/08-testprogram-company-lookup.md` - Complete documentation of the company-lookup E2E test including expected behavior, log output, cross-language requirements, and validation procedures
 
 ---
 
@@ -191,7 +193,7 @@ Each script is self-documented with comments explaining its purpose and usage:
 - **Python**: `python/build-sovdevlogger.sh` - Editable install and wheel building
 - **Go**: `go/build-sovdevlogger.sh` - Dependency management and build verification
 
-**Usage in development workflow**: See `specification/10-development-loop.md` for how these scripts integrate with the development loop.
+**Usage in development workflow**: See `specification/09-development-loop.md` for how these scripts integrate with the development loop.
 
 ---
 
@@ -768,7 +770,10 @@ See [OpenTelemetry Environment Variables](https://opentelemetry.io/docs/specs/ot
 
 **If logs don't appear in Loki/Grafana**: Check if `sovdev_flush()` is called before application exit.
 
-**Further reading**: [OpenTelemetry Specification](https://opentelemetry.io/docs/specs/otel/)
+**See Also**:
+- **API Contract**: `01-api-contract.md` → Function 5: sovdev_flush
+- **Error Handling**: `04-error-handling.md` → Error Handling in sovdev_flush()
+- **Further Reading**: [OpenTelemetry Specification](https://opentelemetry.io/docs/specs/otel/)
 
 ---
 
@@ -1253,6 +1258,6 @@ async function processOrder(order_data: OrderData): Promise<OrderResult> {
 
 ---
 
-**Document Status**: Active
-**Last Updated**: 2025-10-19
-**Specification Version**: 1.0.0
+**Document Status:** ✅ v1.0.0 COMPLETE
+**Last Updated:** 2025-10-27
+**Part of:** sovdev-logger specification v1.1.0
