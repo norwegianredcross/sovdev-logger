@@ -127,14 +127,15 @@
 ## Phase 3: Full Implementation
 
 ### All 8 API Functions
-- [ ] `SovdevInitialize(serviceName, serviceVersion, peerServices)`
-- [ ] `SovdevLog(level, functionName, message, peerService, input, response, error, traceId)`
-- [ ] `SovdevLogJobStatus(level, functionName, jobName, status, peerService, metadata, traceId)`
-- [ ] `SovdevLogJobProgress(level, functionName, itemName, current, total, peerService, metadata, traceId)`
-- [ ] `SovdevGenerateTraceID()`
-- [ ] `SovdevFlush()`
-- [ ] `CreatePeerServices(mappings)`
-- [ ] `SOVDEV_LOGLEVELS` (DEBUG, INFO, WARN, ERROR, FATAL)
+- [ ] `sovdev_initialize(service_name, service_version, peer_services)`
+- [ ] `sovdev_log(level, function_name, message, peer_service, input_json, response_json, exception, trace_id)`
+- [ ] `sovdev_log_job_status(level, function_name, job_name, status, peer_service, input_json, trace_id)`
+- [ ] `sovdev_log_job_progress(level, function_name, item_id, current, total, peer_service, input_json, trace_id)`
+- [ ] `sovdev_start_span(operation_name, attributes)`
+- [ ] `sovdev_end_span(span, error)`
+- [ ] `sovdev_flush()`
+- [ ] `create_peer_services(definitions)`
+- [ ] `SOVDEV_LOGLEVELS` (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
 
 ### File Logging
 - [ ] Implemented file output (using appropriate library)
@@ -190,50 +191,82 @@
 
 ## Phase 5: Validation
 
-### File Log Validation
-- [ ] Ran test: `<language>/test/e2e/company-lookup/run-test.sh`
-- [ ] Ran validation: `validate-log-format.sh <language>/test/e2e/company-lookup/logs/dev.log`
-- [ ] **Result:** ✅ PASS / ❌ FAIL
-- [ ] If failed: Fixed issues and re-validated
+**CRITICAL:** Follow the 8-step validation sequence exactly as documented in `specification/tools/README.md`.
+
+**See:** **🔢 Validation Sequence (Step-by-Step)** section in `specification/tools/README.md`
+
+This ensures:
+- ⛔ Blocking points between steps (don't skip ahead)
+- ✅ Progressive confidence building
+- 🎯 Clear failure modes and remediation at each step
+
+### Complete Validation Sequence
+
+- [ ] **Read validation guide:** `specification/tools/README.md` → "🔢 Validation Sequence (Step-by-Step)"
+- [ ] **Step 1:** Validate Log Files (INSTANT - 0 seconds) ⚡
+  - Tool: `validate-log-format.sh`
+  - Checks: JSON schema, field naming, log count (17), trace IDs (13)
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 2:** Verify Logs in Loki (OTLP → Loki) 🔄
+  - Tool: `query-loki.sh`
+  - Checks: Logs reached Loki, log count matches
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 3:** Verify Metrics in Prometheus (OTLP → Prometheus) 🔄
+  - Tool: `query-prometheus.sh`
+  - Checks: Metrics reached Prometheus, labels correct (peer_service, log_type, log_level)
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 4:** Verify Traces in Tempo (OTLP → Tempo) 🔄
+  - Tool: `query-tempo.sh`
+  - Checks: Traces reached Tempo
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 5:** Verify Grafana-Loki Connection (Grafana → Loki) 🔄
+  - Tool: `query-grafana-loki.sh`
+  - Checks: Grafana can query Loki
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 6:** Verify Grafana-Prometheus Connection (Grafana → Prometheus) 🔄
+  - Tool: `query-grafana-prometheus.sh`
+  - Checks: Grafana can query Prometheus
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 7:** Verify Grafana-Tempo Connection (Grafana → Tempo) 🔄
+  - Tool: `query-grafana-tempo.sh`
+  - Checks: Grafana can query Tempo
+  - Result: ✅ PASS / ❌ FAIL
+- [ ] **Step 8:** Verify Grafana Dashboard (Visual Verification) 👁️
+  - Manual: Open http://grafana.localhost
+  - Navigate to: Structured Logging Testing Dashboard
+  - Verify: ALL 3 panels show data for this language
+  - Result: ✅ PASS / ❌ FAIL
+
+**⛔ DO NOT skip steps or claim complete until ALL 8 steps pass**
+
+### Quick Validation (Automated Steps 1-7)
+
+- [ ] Ran automated validation: `run-full-validation.sh <language>`
+- [ ] All automated steps (1-7) passed: ✅ YES / ❌ NO
 
 **Validation output:**
 ```
-[Paste validation output]
+[Paste validation output from run-full-validation.sh]
 ```
 
-### OTLP Validation
-- [ ] Ran full validation: `run-full-validation.sh <language>`
-- [ ] Verified logs in Loki
-- [ ] Verified metrics in Prometheus
-- [ ] Verified traces in Tempo (if applicable)
+### Step 8: Manual Grafana Dashboard Verification (MOST CRITICAL)
 
-**Query results:**
-```
-[Paste query outputs]
-```
+**This step CANNOT be automated - you MUST verify visually**
 
-### Grafana Dashboard Validation (MOST CRITICAL)
-
-**Step 1: Run both tests**
-- [ ] Ran TypeScript test: `run-full-validation.sh typescript`
-- [ ] Ran language test: `run-full-validation.sh <language>`
-
-**Step 2: Open Grafana**
+**Grafana dashboard checklist:**
 - [ ] Opened http://grafana.localhost
 - [ ] Navigated to Structured Logging Testing Dashboard
-
-**Step 3: Verify ALL panels show data for BOTH languages**
-- [ ] Panel 1: Total Operations
+- [ ] **Panel 1: Total Operations**
   - [ ] TypeScript shows "Last" value
   - [ ] [LANGUAGE] shows "Last" value
   - [ ] TypeScript shows "Max" value
   - [ ] [LANGUAGE] shows "Max" value
-- [ ] Panel 2: Error Rate
+- [ ] **Panel 2: Error Rate**
   - [ ] TypeScript shows "Last %" value
   - [ ] [LANGUAGE] shows "Last %" value
   - [ ] TypeScript shows "Max %" value
   - [ ] [LANGUAGE] shows "Max %" value
-- [ ] Panel 3: Average Operation Duration
+- [ ] **Panel 3: Average Operation Duration**
   - [ ] TypeScript shows entries for all peer services
   - [ ] [LANGUAGE] shows entries for all peer services
   - [ ] Values are in milliseconds (e.g., 0.538 ms, NOT 0.000538)
@@ -246,7 +279,8 @@
 [Paste screenshot or describe what's shown]
 ```
 
-### Metric Label Comparison
+### Metric Label Verification (Part of Step 3)
+
 - [ ] Queried TypeScript metrics: `query-prometheus.sh 'sovdev_operations_total{service_name=~".*typescript.*"}' > ts.txt`
 - [ ] Queried language metrics: `query-prometheus.sh 'sovdev_operations_total{service_name=~".*<language>.*"}' > lang.txt`
 - [ ] Compared: `diff ts.txt lang.txt`
@@ -363,3 +397,12 @@ Expected labels:
 **Language:** [LANGUAGE]
 **Started:** [DATE]
 **Completed:** [DATE]
+
+---
+
+**Template Version:** v2.0.0
+**Last Updated:** 2025-10-24
+
+**Version History:**
+- v2.0.0 (2025-10-24): Restructured Phase 5 to explicitly reference 8-step validation sequence from tools/README.md with blocking points
+- v1.0.0 (2025-10-15): Initial checklist template

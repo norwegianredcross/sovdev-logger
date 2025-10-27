@@ -18,9 +18,11 @@ When the user is actively developing sovdev-logger and wants to test changes, gu
 
 ## The Development Loop
 
-**See `specification/10-development-loop.md` for detailed workflow and philosophy.**
+**Complete workflow documentation:** `specification/10-development-loop.md`
 
-**Key Principle:** Validate log files FIRST (0 seconds), then OTLP SECOND (10+ seconds)
+**Complete validation tool documentation:** `specification/tools/README.md`
+
+**Key Principle:** Validate log files FIRST (fast, local), then validate OTLP SECOND (slow, requires infrastructure)
 
 ## The 4 Steps
 
@@ -39,11 +41,15 @@ Modify source files in `{language}/src/` or test files in `{language}/test/e2e/c
 ```
 **Must run without errors.** If fails, fix issues, rebuild, retry.
 
+**For tool details:** See `specification/tools/README.md` → "run-company-lookup.sh"
+
 ### Step 4a: Validate Logs FIRST ⚡ (0 seconds)
 ```bash
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
 ```
 **Expected:** `✅ PASS` with 17 entries, 13 trace IDs
+
+**For what this validates:** See `specification/tools/README.md` → "validate-log-format.sh"
 
 **If PASS:** Continue coding or proceed to Step 4b
 **If FAIL:** Go to Step 1, fix issues, repeat loop
@@ -57,6 +63,10 @@ sleep 10
 
 **Run this:** Every 3-5 iterations or before committing
 
+**Note:** This runs the automated portion (Steps 1-7) of the 8-step validation sequence. For complete validation, also do Step 8 (Grafana dashboard).
+
+**For complete 8-step sequence:** See `specification/tools/README.md` → "🔢 Validation Sequence (Step-by-Step)"
+
 ## Fast vs Thorough Iteration
 
 **Fast iteration (30-60 seconds):**
@@ -67,13 +77,14 @@ Edit → Build → Run → Validate logs FIRST
 
 **Thorough validation (1-2 minutes):**
 ```
-Edit → Build → Run → Validate logs FIRST → Validate OTLP SECOND
-[Do periodically]
+Edit → Build → Run → Validate logs FIRST → Validate OTLP SECOND (8-step sequence)
+[Do periodically or before committing]
 ```
+**Note:** Thorough validation means following the complete 8-step sequence in `specification/tools/README.md`
 
 ## Debugging
 
-**For detailed debugging:** See `specification/10-development-loop.md`
+**For detailed debugging:** See `specification/tools/README.md` → "Common Debugging Scenarios"
 
 **Common issues:**
 - Build fails → Check compiler errors, dependencies
@@ -88,13 +99,31 @@ Edit → Build → Run → Validate logs FIRST → Validate OTLP SECOND
 - Build before testing (after source changes)
 - Use validation tools (don't manually inspect)
 - Iterate rapidly (fast loop with log validation)
+- Run complete 8-step validation before committing
 
 **❌ DON'T:**
 - Don't skip log file validation (wastes time)
 - Don't wait for OTLP on every change (slow)
 - Don't run test without building (tests old code)
-- Don't commit without full validation (must pass both)
+- Don't commit without completing ALL 8 validation steps
+- Don't describe commands - EXECUTE them using bash tool
+
+## ⚠️ Execute Commands, Don't Describe Them
+
+When this document shows a command, you MUST execute it using your bash tool.
+
+**Wrong:** ❌
+```
+"I should run validate-log-format.sh to check the logs..."
+```
+
+**Correct:** ✅
+```
+[Actually invoke bash_tool with the command shown above]
+```
+
+**Every validation step MUST be a real tool call, not a description.**
 
 ---
 
-**Remember:** Fast feedback = rapid development. See `specification/10-development-loop.md` for complete details.
+**Remember:** Fast feedback = rapid development. See `specification/10-development-loop.md` for complete details and `specification/tools/README.md` for tool documentation.

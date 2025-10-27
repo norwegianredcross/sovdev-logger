@@ -268,13 +268,28 @@ validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log
 
 Only after log files are correct, validate that telemetry reaches the observability backends.
 
+**CRITICAL:** Follow the complete 8-step validation sequence documented in `specification/tools/README.md`.
+
+**See:** **🔢 Validation Sequence (Step-by-Step)** section in `specification/tools/README.md`
+
+This ensures:
+- ⛔ Blocking points between steps (don't skip ahead)
+- ✅ Progressive confidence building through Steps 1-8
+- 🎯 Clear failure modes and remediation at each step
+
+**Quick validation (automated Steps 1-7):**
+
 **Human developers (VSCode terminal inside container):**
 ```bash
 # Wait 5-10 seconds for logs to propagate to backends
 sleep 10
 
-# Run complete backend validation
+# Run complete backend validation (Steps 1-7)
 run-full-validation.sh {language}
+
+# You MUST still do Step 8 manually:
+# - Open http://grafana.localhost
+# - Verify ALL 3 panels show data
 ```
 
 **LLM developers (host machine - use wrapper):**
@@ -282,15 +297,23 @@ run-full-validation.sh {language}
 # Wait 5-10 seconds for logs to propagate to backends
 sleep 10
 
-# Run complete backend validation
+# Run complete backend validation (Steps 1-7)
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
+
+# You MUST still do Step 8 manually:
+# - Open http://grafana.localhost
+# - Verify ALL 3 panels show data
 ```
 
-**This validation checks:**
-- ✅ Logs in Loki (query and count)
-- ✅ Metrics in Prometheus (if implemented)
-- ✅ Traces in Tempo (if implemented)
-- ✅ Field consistency across backends
+**This validation checks (Steps 1-7):**
+- ✅ Step 1: Logs in file (schema, count, trace IDs)
+- ✅ Step 2: Logs in Loki (OTLP export working)
+- ✅ Step 3: Metrics in Prometheus (OTLP export working, labels correct)
+- ✅ Step 4: Traces in Tempo (OTLP export working)
+- ✅ Step 5: Grafana-Loki connection (datasource working)
+- ✅ Step 6: Grafana-Prometheus connection (datasource working)
+- ✅ Step 7: Grafana-Tempo connection (datasource working)
+- ⚠️ Step 8: Manual Grafana dashboard verification (YOU must do this)
 
 **Or query backends directly:**
 
@@ -514,11 +537,12 @@ All validation tools support this workflow:
 
 ---
 
-**Document Status:** ✅ v1.8.0 COMPLETE
-**Last Updated:** 2025-10-17
+**Document Status:** ✅ v1.9.0 COMPLETE
+**Last Updated:** 2025-10-24
 **Part of:** sovdev-logger specification v1.1.0
 
 **Version History:**
+- v1.9.0 (2025-10-24): Added explicit reference to 8-step validation sequence from tools/README.md in Step 4 (OTLP validation)
 - v1.8.0 (2025-10-17): Added language-specific build scripts (build-sovdevlogger.sh) and "Build Library" step in development loop
 - v1.7.0 (2025-10-15): Added "For LLMs: Track Your Progress with the Checklist" section and updated "⚠️ For LLMs Specifically" to reference systematic checklist tracking
 - v1.6.0 (2025-10-15): Added "⚠️ For LLMs Specifically" section with explicit anti-patterns (no --limit, no manual inspection, follow examples exactly)

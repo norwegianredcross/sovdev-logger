@@ -41,6 +41,262 @@ Before using these tools, ensure:
 
 ---
 
+## 🔢 Validation Sequence (Step-by-Step)
+
+**CRITICAL:** Always validate in this order. Do NOT skip steps or jump ahead to Grafana.
+
+### Step 1: Validate Log Files (INSTANT - 0 seconds) ⚡
+
+**Tool:** `validate-log-format.sh`
+
+**Purpose:** Check that log files on disk have correct format
+
+**Command:**
+```bash
+./in-devcontainer.sh validate-log-format {language}/test/e2e/company-lookup/logs/dev.log
+```
+
+**What it checks:**
+- ✅ JSON schema compliance
+- ✅ Field naming (snake_case)
+- ✅ Required fields present
+- ✅ Correct log entry count (17 expected)
+- ✅ Correct trace ID count (13 unique expected)
+
+**Expected result:** `✅ PASS`
+
+**If FAIL:** Fix code issues, rebuild, run test again, then re-validate
+
+**⛔ DO NOT PROCEED to Step 2 until this passes**
+
+---
+
+### Step 2: Verify Logs in Loki (OTLP → Loki) 🔄
+
+**Tool:** `query-loki.sh`
+
+**Purpose:** Check that logs reached Loki backend
+
+**Command:**
+```bash
+sleep 10  # Wait for OTLP propagation
+./in-devcontainer.sh query-loki sovdev-test-company-lookup-{language} --json
+```
+
+**What it checks:**
+- ✅ Logs exported via OTLP
+- ✅ Loki received the logs
+- ✅ Log count matches file logs
+
+**Expected result:** Returns log entries (should see 17 entries)
+
+**If FAIL:** 
+- OTLP export not configured correctly
+- Check `Host: otel.localhost` header
+- Check OTLP endpoint URL
+
+**⛔ DO NOT PROCEED to Step 3 until logs are in Loki**
+
+---
+
+### Step 3: Verify Metrics in Prometheus (OTLP → Prometheus) 🔄
+
+**Tool:** `query-prometheus.sh`
+
+**Purpose:** Check that metrics reached Prometheus backend
+
+**Command:**
+```bash
+./in-devcontainer.sh query-prometheus 'sovdev_operations_total{service_name=~".*{language}.*"}' --json
+```
+
+**What it checks:**
+- ✅ Metrics exported via OTLP
+- ✅ Prometheus received the metrics
+- ✅ Metric labels are correct (CRITICAL)
+
+**Expected result:** Returns metrics with correct labels
+
+**CRITICAL - Check labels:**
+- ✅ `peer_service` (underscore, NOT peer.service)
+- ✅ `log_type` (underscore, NOT log.type)
+- ✅ `log_level` (underscore, NOT log.level)
+
+**If FAIL:**
+- Metrics not exported
+- Check OTEL SDK metric configuration
+- See `specification/11-otel-sdk.md` for label issues
+
+**⛔ DO NOT PROCEED to Step 4 until metrics are in Prometheus with correct labels**
+
+---
+
+### Step 4: Verify Traces in Tempo (OTLP → Tempo) 🔄
+
+**Tool:** `query-tempo.sh`
+
+**Purpose:** Check that traces reached Tempo backend
+
+**Command:**
+```bash
+./in-devcontainer.sh query-tempo sovdev-test-company-lookup-{language} --json
+```
+
+**What it checks:**
+- ✅ Traces exported via OTLP
+- ✅ Tempo received the traces
+
+**Expected result:** Returns trace data
+
+**If FAIL:**
+- Traces not exported
+- Check OTEL SDK trace configuration
+
+**⛔ DO NOT PROCEED to Step 5 until traces are in Tempo**
+
+---
+
+### Step 5: Verify Grafana-Loki Connection (Grafana → Loki) 🔄
+
+**Tool:** `query-grafana-loki.sh`
+
+**Purpose:** Check that Grafana can query Loki (not just that Loki has data)
+
+**Command:**
+```bash
+./in-devcontainer.sh query-grafana-loki sovdev-test-company-lookup-{language} --json
+```
+
+**What it checks:**
+- ✅ Grafana datasource configured for Loki
+- ✅ Grafana can query Loki through proxy
+- ✅ Same data returned as Step 2
+
+**Expected result:** Returns log entries (same as Step 2, but through Grafana)
+
+**If FAIL but Step 2 passed:**
+- Grafana datasource misconfigured
+- Check Grafana datasource settings
+
+**⛔ DO NOT PROCEED to Step 6 until Grafana can query Loki**
+
+---
+
+### Step 6: Verify Grafana-Prometheus Connection (Grafana → Prometheus) 🔄
+
+**Tool:** `query-grafana-prometheus.sh`
+
+**Purpose:** Check that Grafana can query Prometheus (not just that Prometheus has data)
+
+**Command:**
+```bash
+./in-devcontainer.sh query-grafana-prometheus 'sovdev_operations_total{service_name=~".*{language}.*"}' --json
+```
+
+**What it checks:**
+- ✅ Grafana datasource configured for Prometheus
+- ✅ Grafana can query Prometheus through proxy
+- ✅ Same data returned as Step 3
+
+**Expected result:** Returns metrics (same as Step 3, but through Grafana)
+
+**If FAIL but Step 3 passed:**
+- Grafana datasource misconfigured
+- Check Grafana datasource settings
+
+**⛔ DO NOT PROCEED to Step 7 until Grafana can query Prometheus**
+
+---
+
+### Step 7: Verify Grafana-Tempo Connection (Grafana → Tempo) 🔄
+
+**Tool:** `query-grafana-tempo.sh`
+
+**Purpose:** Check that Grafana can query Tempo (not just that Tempo has data)
+
+**Command:**
+```bash
+./in-devcontainer.sh query-grafana-tempo sovdev-test-company-lookup-{language} --json
+```
+
+**What it checks:**
+- ✅ Grafana datasource configured for Tempo
+- ✅ Grafana can query Tempo through proxy
+- ✅ Same data returned as Step 4
+
+**Expected result:** Returns traces (same as Step 4, but through Grafana)
+
+**If FAIL but Step 4 passed:**
+- Grafana datasource misconfigured
+- Check Grafana datasource settings
+
+**⛔ DO NOT PROCEED to Step 8 until Grafana can query Tempo**
+
+---
+
+### Step 8: Verify Grafana Dashboard (Visual Verification) 👁️
+
+**Tool:** Manual browser check
+
+**Purpose:** Verify dashboard actually displays data correctly
+
+**Steps:**
+1. Open http://grafana.localhost
+2. Navigate to: Structured Logging Testing Dashboard
+3. Verify ALL 3 panels show data
+
+**What to check:**
+- [ ] **Panel 1: Total Operations**
+  - TypeScript shows "Last" and "Max" values
+  - {language} shows "Last" and "Max" values
+  
+- [ ] **Panel 2: Error Rate**
+  - TypeScript shows "Last %" and "Max %" values
+  - {language} shows "Last %" and "Max %" values
+  
+- [ ] **Panel 3: Average Operation Duration**
+  - TypeScript shows entries for all peer services
+  - {language} shows entries for all peer services
+  - Values in milliseconds (e.g., 0.538 ms, NOT 0.000538)
+
+**If ANY panel is empty:**
+- Something from Steps 1-7 failed
+- Go back and check each step
+- DO NOT claim "implementation complete"
+
+**✅ VALIDATION COMPLETE when ALL 8 steps pass**
+
+---
+
+## ⚡ Quick Validation (Automated)
+
+**Don't want to run all 8 steps manually?**
+
+Use `run-full-validation.sh` - it runs Steps 1-7 automatically:
+
+```bash
+sleep 10  # Wait for OTLP propagation
+./in-devcontainer.sh run-full-validation {language}
+```
+
+**What it does:**
+- ✅ Step 1: Validates file logs
+- ✅ Step 2: Queries Loki (validates schema + consistency)
+- ✅ Step 3: Queries Prometheus (validates schema + consistency)
+- ✅ Step 4: Queries Tempo (validates schema + consistency)
+- ✅ Step 5: Queries Grafana-Loki proxy
+- ✅ Step 6: Queries Grafana-Prometheus proxy
+- ✅ Step 7: Queries Grafana-Tempo proxy
+
+**You still MUST do Step 8 manually:**
+- Open Grafana dashboard
+- Verify ALL 3 panels show data
+- Check metric labels in Prometheus query
+
+**This is the recommended approach for complete validation.**
+
+---
+
 ## Quick Reference
 
 **Core Principle:** All scripts run INSIDE the devcontainer (which has kubectl, language runtimes, and all tools).
@@ -296,5 +552,9 @@ python3 ../tests/validate-loki-response.py /tmp/loki-response.json
 ---
 
 
-**Last Updated:** 2025-10-16
+**Last Updated:** 2025-10-24
 **Maintainer:** Claude Code / Terje Christensen
+
+**Version History:**
+- v2.0.0 (2025-10-24): Added numbered validation sequence (Steps 1-8) with blocking points to enforce stepwise validation
+- v1.0.0 (2025-10-16): Initial version with tool reference tables

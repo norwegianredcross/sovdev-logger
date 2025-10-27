@@ -14,7 +14,8 @@
       "Bash(./specification/tools/in-devcontainer.sh:*)",
       "WebSearch",
       "WebFetch(domain:opentelemetry.io)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

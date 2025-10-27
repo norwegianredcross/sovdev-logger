@@ -19,83 +19,82 @@ When the user asks to validate a sovdev-logger implementation, run the complete 
 
 ## Validation Workflow
 
-**See `specification/10-development-loop.md` for detailed validation workflow.**
+**CRITICAL:** Follow the complete 8-step validation sequence.
 
-**Key Principle:** Validate log files FIRST (instant), then OTLP SECOND (slow).
+**AUTHORITATIVE VALIDATION GUIDE:** `specification/12-llm-checklist-template.md` → **Phase 5: Validation**
 
-## Required Validation Sequence
+This section contains:
+- ✅ Complete 8-step validation sequence (Steps 1-8)
+- ✅ Blocking points between steps (don't skip ahead)
+- ✅ What each step checks and which tool to use
+- ✅ Pass/Fail checkboxes for tracking progress
+- ✅ Automated validation (Steps 1-7) vs Manual validation (Step 8)
 
-### Step 1: Validate Log Files FIRST (0 seconds)
+**The 8 steps are:**
+1. Validate Log Files (INSTANT) ⚡
+2. Verify Logs in Loki (OTLP → Loki) 🔄
+3. Verify Metrics in Prometheus (OTLP → Prometheus) 🔄
+4. Verify Traces in Tempo (OTLP → Tempo) 🔄
+5. Verify Grafana-Loki Connection (Grafana → Loki) 🔄
+6. Verify Grafana-Prometheus Connection (Grafana → Prometheus) 🔄
+7. Verify Grafana-Tempo Connection (Grafana → Tempo) 🔄
+8. Verify Grafana Dashboard (Visual Verification) 👁️
+
+**⛔ DO NOT skip steps or proceed until each step passes**
+
+**For tool details:** See `specification/tools/README.md` → "🔢 Validation Sequence (Step-by-Step)"
+
+## Quick Validation Commands
+
+**Automated validation (Steps 1-7):**
 ```bash
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
-```
-
-**Expected:** `✅ PASS` with 17 log entries, 13 unique trace IDs
-
-**What it checks:** JSON schema, field naming (snake_case), log count, trace correlation
-
-**If fails:** Fix issues, rebuild, run test, validate again. **DO NOT proceed until this passes.**
-
-### Step 2: Validate OTLP (after 10s wait)
-```bash
-sleep 10
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
 ```
 
-**Expected:** Logs in Loki, metrics in Prometheus, traces in Tempo
+**Manual Step 8: Grafana Dashboard**
+- Open http://grafana.localhost
+- Navigate to Structured Logging Testing Dashboard
+- Verify ALL 3 panels show data for BOTH TypeScript AND {language}
 
-**If fails:** See `specification/11-otel-sdk.md` for OTLP debugging
-
-### Step 3: Verify Grafana Dashboard
-
-Open http://grafana.localhost → Structured Logging Testing Dashboard
-
-**Verify ALL 3 panels show data for BOTH TypeScript AND {language}**
-
-**See `specification/11-otel-sdk.md` section "Cross-Language Validation in Grafana" for detailed panel verification.**
-
-**If ANY panel missing data:** Implementation is NOT complete. Debug using query tools.
-
-### Step 4: Compare Metric Labels
-
-```bash
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./query-prometheus.sh 'sovdev_operations_total{service_name=~\".*{language}.*\"}'"
-```
-
-**Verify labels match TypeScript:**
-- ✅ `peer_service` (underscore, NOT peer.service)
-- ✅ `log_type` (underscore, NOT log.type)
-- ✅ `log_level` (underscore, NOT log.level)
-
-**If different:** See `specification/11-otel-sdk.md` for why underscores are critical.
-
-### Step 5: Check Checklist
-
-Verify `{language}/llm-work/llm-checklist-{language}.md` Phase 5 items are ALL checked.
+**For complete step-by-step instructions:** Follow `specification/12-llm-checklist-template.md` Phase 5 exactly.
 
 ## Success Criteria
 
 Implementation is validated when:
-- ✅ `validate-log-format.sh` PASSED
-- ✅ `run-full-validation.sh` PASSED
-- ✅ Grafana shows data in ALL 3 panels
-- ✅ Metric labels identical to TypeScript
-- ✅ Checklist Phase 5 complete
+- ✅ ALL 8 steps from Phase 5 checklist are complete
+- ✅ Each step shows ✅ PASS
+- ✅ Grafana dashboard shows data in ALL 3 panels
+- ✅ `{language}/llm-work/llm-checklist-{language}.md` Phase 5 fully checked
 
 ## Debugging
 
-**For detailed debugging:** See `specification/10-development-loop.md` and `specification/11-otel-sdk.md`
+**For complete debugging workflows:** See `specification/tools/README.md` → "Common Debugging Scenarios"
 
-**Common issues:**
-- File logs pass but Grafana empty → Metric labels using dots instead of underscores
-- Duration wrong unit → See `specification/11-otel-sdk.md` for conversion
-- OTLP not reaching backends → Check `Host: otel.localhost` header
+**For OTLP SDK issues:** See `specification/11-otel-sdk.md`
 
-**Individual query tools:**
+**Individual query tools (for debugging):**
 - `query-loki.sh sovdev-test-company-lookup-{language}`
 - `query-prometheus.sh 'sovdev_operations_total'`
 - `query-tempo.sh sovdev-test-company-lookup-{language}`
 
+**All query tool documentation:** See `specification/tools/README.md` → "Query Scripts" section
+
+## ⚠️ Execute Commands, Don't Describe Them
+
+When you see a validation command, you MUST execute it using your bash tool.
+
+**Wrong:** ❌
+```
+"I should run the validation tools to check the implementation..."
+```
+
+**Correct:** ✅
+```
+[Actually invoke bash_tool with the commands shown above]
+```
+
+**Every validation step MUST be a real tool call, not a description.**
+
 ---
 
-**Remember:** Grafana dashboard validation is CRITICAL. File logs passing ≠ implementation complete.
+**Remember:** Follow the 8-step sequence in `specification/12-llm-checklist-template.md` Phase 5. See `specification/tools/README.md` for complete tool reference.

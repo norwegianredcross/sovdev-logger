@@ -27,22 +27,28 @@ When the user asks to implement sovdev-logger in a new programming language, gui
 
 **Read these documents in order:**
 
-1. **`specification/11-otel-sdk.md`** ⚠️ CRITICAL
+1. **`specification/tools/README.md`** ⚠️ CRITICAL - READ FIRST
+   - Complete reference for ALL validation tools
+   - Explains which tools to use when
+   - Shows validation workflow and tool comparison
+   - **Action:** Read this before running ANY validation commands
+
+2. **`specification/11-otel-sdk.md`** ⚠️ CRITICAL
    - OpenTelemetry SDK differences between languages
    - Common pitfalls and how to avoid them
 
-2. **`specification/12-llm-checklist-template.md`** ⚠️ CRITICAL
+3. **`specification/12-llm-checklist-template.md`** ⚠️ CRITICAL
    - Complete systematic checklist (Phase 0-6)
    - This is your roadmap - copy it to `{language}/llm-work/`
 
-3. **`specification/10-development-loop.md`**
+4. **`specification/10-development-loop.md`**
    - 4-step iterative workflow
    - Validation-first approach
 
-4. **`specification/01-api-contract.md`**
+5. **`specification/01-api-contract.md`**
    - 8 API functions you must implement
 
-5. **`specification/00-design-principles.md`**
+6. **`specification/00-design-principles.md`**
    - Core philosophy
 
 ### Follow the Checklist
@@ -68,6 +74,14 @@ cp specification/12-llm-checklist-template.md {language}/llm-work/llm-checklist-
 
 ## ⚠️ MANDATORY VALIDATION LOOP - DO NOT SKIP ⚠️
 
+**Complete validation tool documentation:** `specification/tools/README.md`
+
+This README explains:
+- Which tools to use for each validation step
+- Complete command syntax
+- What each tool validates
+- How to interpret results
+
 **After you implement the code and E2E test, you MUST immediately run validation.**
 
 **DO NOT:**
@@ -75,10 +89,13 @@ cp specification/12-llm-checklist-template.md {language}/llm-work/llm-checklist-
 - ❌ Claim "conversation length constraints"
 - ❌ Say "ready for validation" without running validation
 - ❌ Suggest "validating in a fresh conversation"
+- ❌ Describe what you "should" run - ACTUALLY EXECUTE THE COMMANDS
 
 **Validation is PART of implementation, not optional future work.**
 
 ### Required Validation Sequence:
+
+Follow the steps below. **For complete command syntax and troubleshooting,** see `specification/tools/README.md`.
 
 #### Step 1: Build Successfully
 ```bash
@@ -92,18 +109,15 @@ cp specification/12-llm-checklist-template.md {language}/llm-work/llm-checklist-
 ```
 **Must run without errors.** If fails, fix, rebuild, and retry.
 
+**For tool details:** See `specification/tools/README.md` → "run-company-lookup.sh"
+
 #### Step 3: Validate Log Files FIRST (0 seconds)
 ```bash
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
 ```
 **Expected:** `✅ PASS` with 17 log entries, 13 unique trace IDs
 
-**This tool automatically checks:**
-- JSON schema compliance
-- Field naming (snake_case)
-- Log entry count
-- Trace ID correlation
-- Required fields
+**For detailed explanation of what this validates:** See `specification/tools/README.md` → "validate-log-format.sh"
 
 **If fails:** Fix issues, rebuild, run test, validate again.
 
@@ -112,15 +126,17 @@ cp specification/12-llm-checklist-template.md {language}/llm-work/llm-checklist-
 sleep 10
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
 ```
-**Expected:** Logs in Loki, metrics in Prometheus, traces in Tempo
+**Expected:** All validations pass (Logs in Loki, metrics in Prometheus, traces in Tempo)
 
-**If fails:** Debug OTLP configuration (see `specification/11-otel-sdk.md` for common issues).
+**For detailed explanation of validation layers:** See `specification/tools/README.md` → "Validation Scripts Comparison"
+
+**If fails:** See `specification/tools/README.md` → "Common Debugging Scenarios"
 
 #### Step 5: Verify Grafana Dashboard
 
 Open http://grafana.localhost and verify ALL 3 panels show data for BOTH TypeScript AND the new language.
 
-**See `specification/11-otel-sdk.md` section "Cross-Language Validation in Grafana" for detailed dashboard verification.**
+**For detailed Grafana verification steps:** See `specification/11-otel-sdk.md` → "Cross-Language Validation in Grafana"
 
 #### Step 6: Compare Metric Labels
 
@@ -133,7 +149,27 @@ Verify labels match TypeScript exactly:
 - ✅ `log_type` (underscore, NOT log.type)
 - ✅ `log_level` (underscore, NOT log.level)
 
-**See `specification/11-otel-sdk.md` for why underscores are critical.**
+**For query tool usage:** See `specification/tools/README.md` → "Query Scripts" section
+
+**For why underscores are critical:** See `specification/11-otel-sdk.md`
+
+## ⚠️ Execute Commands, Don't Describe Them
+
+When you see a validation command, you MUST execute it using your bash tool.
+
+**Wrong:** ❌
+```
+"I should now run validate-log-format.sh to check the logs..."
+```
+
+**Correct:** ✅
+```
+[Actually invoke bash_tool with the command shown above]
+```
+
+**Every validation step MUST be a real tool call, not a description.**
+
+If you find yourself typing "I should..." or "Next, I'll...", STOP and execute the command instead.
 
 ## ⛔ Completion Criteria - DO NOT STOP BEFORE THESE ARE MET ⛔
 
@@ -159,7 +195,7 @@ Top 3:
 ## Getting Help
 
 - **Implementation details:** See `specification/` documents (00-12)
-- **Tool usage:** See `specification/tools/README.md`
+- **Tool usage:** See `specification/tools/README.md` ← **COMPLETE TOOL REFERENCE**
 - **Validation workflow:** See `specification/10-development-loop.md`
 - **OTEL SDK issues:** See `specification/11-otel-sdk.md`
 
