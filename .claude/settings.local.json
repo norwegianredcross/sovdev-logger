@@ -3,7 +3,12 @@
     "allow": [
       "Bash(tree:*)",
       "Bash([ -d python ])",
-      "Bash([ -d go ])"
+      "Bash([ -d go ])",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(chmod:*)",
+      "Bash(./specification/tools/in-devcontainer.sh -e \"cd /workspace/python/test/e2e/company-lookup && ./run-test.sh\")",
+      "Bash(./specification/tools/in-devcontainer.sh:*)"
     ],
     "deny": [],
     "ask": []
