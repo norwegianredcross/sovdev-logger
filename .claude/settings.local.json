@@ -1,25 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Read(//Users/terje.christensen/learn/redcross-public/urbalurba-infrastructure/**)",
-      "Bash(python3:*)",
-      "Bash(jq:*)",
-      "Bash(cat:*)",
-      "Bash(while read -r line)",
-      "Bash(do echo \"$line\")",
-      "Bash(done)",
-      "Skill(implement-language)",
-      "Bash(mkdir:*)",
-      "Bash(cp:*)",
-      "Bash(./specification/tools/in-devcontainer.sh:*)",
-      "WebSearch",
-      "WebFetch(domain:opentelemetry.io)",
-      "Bash(chmod:*)",
-      "Bash(find:*)",
-      "Bash(git mv:*)",
-      "Bash(for file in /Users/terje.christensen/learn/redcross-public/sovdev-logger/specification/*.md)",
-      "Bash(while read file)",
-      "Bash(do echo \"=== $file ===\")"
+      "Bash(tree:*)",
+      "Bash([ -d python ])",
+      "Bash([ -d go ])"
     ],
     "deny": [],
     "ask": []

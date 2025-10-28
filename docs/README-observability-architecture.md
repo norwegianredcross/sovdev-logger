@@ -58,17 +58,17 @@ sovdev_initialize("sovdev-test-infra-loki-ingestion")
 sovdev_initialize("sovdev-test-structuredlog-typescript")
 ```
 
+**Planned Implementations:**
 ```go
-// Go ✅
+// Go (planned)
 SovdevInitialize("sovdev-test-structuredlog-go")
 ```
 
 ```python
-# Python ✅
+# Python (planned)
 sovdev_initialize("sovdev-test-structuredlog-python")
 ```
 
-**Planned Implementations:**
 ```csharp
 // C# (planned)
 SovdevLogger.Initialize("sovdev-test-structuredlog-csharp")
@@ -99,22 +99,23 @@ sovdev_initialize("INT0001001")  // Red Cross style system IDs
 ```bash
 # TypeScript ✅
 cd typescript && npm run lib-test
-
-# Go ✅
-cd go && ./test/e2e/company-lookup/run-test.sh
-
-# Python ✅
-cd python && ./test/e2e/company-lookup/run-test.sh
 ```
 
 **Or use the validation wrapper (recommended):**
 ```bash
 ./specification/tools/run-company-lookup-validate.sh typescript
-./specification/tools/run-company-lookup-validate.sh go
-./specification/tools/run-company-lookup-validate.sh python
 ```
 
 **Planned Languages:**
+```bash
+# Go (planned)
+./specification/tools/run-company-lookup-validate.sh go
+
+# Python (planned)
+./specification/tools/run-company-lookup-validate.sh python
+```
+
+**Future Planned Languages:**
 ```bash
 # C# (planned)
 dotnet run lib-test

@@ -2,7 +2,7 @@
 
 **Multi-language structured logging with zero-effort observability**
 
-One log call. Complete observability. Available for TypeScript, Python, C#, Go, Rust, PHP, and more.
+One log call. Complete observability. Currently available for TypeScript, with Go, Python, C#, Rust, PHP, and more planned.
 
 ---
 
@@ -74,8 +74,8 @@ Help them get home to their family. Help yourself build a reputation as someone 
 | Language | Status | Documentation |
 |----------|--------|---------------|
 | **TypeScript** | ✅ Available | [typescript/README.md](typescript/README.md) |
-| **Go** | ✅ Available | [go/README.md](go/README.md) |
-| **Python** | ✅ Available | [python/README.md](python/README.md) |
+| **Go** | 📅 Planned | - |
+| **Python** | 📅 Planned | - |
 | **C#** | 📅 Planned | - |
 | **Rust** | 📅 Planned | - |
 | **PHP** | 📅 Planned | - |
@@ -88,7 +88,7 @@ Help them get home to their family. Help yourself build a reputation as someone 
 **You want to USE sovdev-logger in your application**
 
 **→ Quick Start:**
-1. Choose your language: [TypeScript](typescript/README.md) | [Go](go/README.md) | [Python](python/README.md)
+1. Currently available: [TypeScript](typescript/README.md) (Go, Python, and other languages planned)
 2. Read [Configuration Guide](docs/README-configuration.md)
 3. See [Examples](#example-typescript) below or in [Log Data Structure](docs/logging-data.md)
 4. [Verify logs in Grafana](docs/README-observability-architecture.md)
@@ -105,8 +105,8 @@ Help them get home to their family. Help yourself build a reputation as someone 
 
 **Current implementations:**
 - ✅ TypeScript (complete) - [typescript/](typescript/)
-- ✅ Go (complete) - [go/](go/)
-- ✅ Python (complete) - [python/](python/)
+- 📅 Go (planned)
+- 📅 Python (planned)
 
 **Validation (run in DevContainer):**
 ```bash
@@ -129,21 +129,13 @@ npm install @sovdev/logger
 
 See [typescript/README.md](typescript/README.md) for complete documentation.
 
-### Go
+### Go (Planned)
 
-```bash
-go get github.com/norwegianredcross/sovdev-logger
-```
+Coming soon.
 
-See [go/README.md](go/README.md) for complete documentation.
+### Python (Planned)
 
-### Python
-
-```bash
-pip install sovdev-logger
-```
-
-See [python/README.md](python/README.md) for complete documentation.
+Coming soon.
 
 ### C# (Planned)
 
@@ -344,8 +336,8 @@ process.on('beforeExit', async () => {
 ### Quick Start by Language
 
 - **TypeScript**: [typescript/README.md](typescript/README.md) - Complete API reference, examples, patterns
-- **Go**: [go/README.md](go/README.md) - Complete implementation with Go conventions
-- **Python**: [python/README.md](python/README.md) - Complete implementation with Python PEP 8 style
+- **Go**: Planned for 2025
+- **Python**: Planned for 2025
 
 ### Detailed Documentation
 
@@ -380,9 +372,7 @@ This repository implements a multi-language logging library with identical outpu
 
 - ✅ **Specification v1.1.0** - Complete implementation guide
 - ✅ **TypeScript** - Complete, reference implementation (snake_case API)
-- ✅ **Go** - Complete, validated (PascalCase API per Go conventions)
-- ✅ **Python** - Complete, validated (snake_case API)
-- 📅 **C#, Rust, PHP** - Planned for 2025
+- 📅 **Go, Python, C#, Rust, PHP** - Planned for 2025
 
 **All implementations follow:**
 - Identical API (8 functions)
