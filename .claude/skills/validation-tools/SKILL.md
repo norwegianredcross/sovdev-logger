@@ -1,5 +1,12 @@
 ---
 description: "Guide to validation and query tools for debugging sovdev-logger implementations. Directs you to the comprehensive tool documentation and helps select the right tool for your task."
+version: "1.2.0"
+last_updated: "2025-10-27"
+references:
+  - specification/tools/README.md
+  - specification/11-llm-checklist-template.md
+  - specification/09-development-loop.md
+  - .claude/skills/_SHARED.md
 ---
 
 # Validation Tools Skill
@@ -40,19 +47,65 @@ This README contains:
 
 ---
 
+## Quick Examples (Common Commands)
+
+<!-- Commands below duplicated from specification/tools/README.md for immediate LLM execution convenience -->
+
+**For immediate action on the most common tasks:**
+
+### 1. Validate Log Files (Most Common - Do This First)
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
+```
+**Expected:** ✅ PASS with 17 log entries, 13 unique trace IDs
+**When:** After every test run during development, before checking OTLP
+
+### 2. Run Full Validation (Complete 8-Step Sequence)
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
+```
+**Expected:** All 8 validation steps pass (Steps 1-7 automated)
+**When:** Before claiming implementation complete, periodically during development
+**Note:** Still requires manual Step 8 (Grafana dashboard verification)
+
+### 3. Query Loki for Logs
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./query-loki.sh 'sovdev-test-company-lookup-{language}'"
+```
+**Expected:** Shows recent log entries from OTLP export
+**When:** Debugging OTLP log export issues, verifying logs reached Loki
+
+### 4. Query Prometheus for Metrics
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./query-prometheus.sh 'sovdev_operations_total{service_name=~\".*{language}.*\"}'"
+```
+**Expected:** Shows metric series with labels (peer_service, log_type, log_level)
+**When:** Debugging metric export issues, verifying labels are correct
+
+### 5. Run Company Lookup Test
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh {language}"
+```
+**Expected:** Test runs without errors, generates logs
+**When:** After code changes, during development loop
+
+**For all other tools and complete documentation:** See `specification/tools/README.md`
+
+---
+
 ## Quick Tool Selection Guide
 
 **Question:** "Which tool should I use?"
-**Answer:** Read `specification/tools/README.md` → "Quick Reference" table
+**See:** `specification/tools/README.md` → "Quick Reference" table
 
 **Question:** "Why is my validation failing?"
-**Answer:** Read `specification/tools/README.md` → "Common Debugging Scenarios"
+**See:** `specification/tools/README.md` → "Common Debugging Scenarios"
 
 **Question:** "What's the difference between run-company-lookup.sh and run-full-validation.sh?"
-**Answer:** Read `specification/tools/README.md` → "Validation Scripts Comparison" table
+**See:** `specification/tools/README.md` → "Validation Scripts Comparison" table
 
 **Question:** "How do I query Loki/Prometheus/Tempo?"
-**Answer:** Read `specification/tools/README.md` → "Query Scripts" section
+**See:** `specification/tools/README.md` → "Query Scripts" section
 
 ---
 
@@ -71,19 +124,9 @@ If you find yourself asking "which command do I run?", the answer is:
 
 ## ⚠️ Execute Commands, Don't Describe Them
 
-When you find the right command in `specification/tools/README.md`, you MUST execute it using your bash tool.
+**See:** `.claude/skills/_SHARED.md` → "Execute Commands, Don't Describe Them"
 
-**Wrong:** ❌
-```
-"I should run validate-log-format.sh to check the logs..."
-```
-
-**Correct:** ✅
-```
-[Actually invoke bash_tool with the command]
-```
-
-**Every validation step MUST be a real tool call, not a description.**
+**Critical Rule:** When you see a command in this skill, EXECUTE it immediately using the Bash tool. Do NOT describe what you "should" or "will" do.
 
 ---
 

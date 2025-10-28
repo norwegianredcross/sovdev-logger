@@ -94,6 +94,85 @@ Claude: [Automatically uses implement-language skill]
         following the 7-phase systematic process..."
 ```
 
+## Shared Components
+
+**To avoid duplication, common content is maintained in `_SHARED.md`:**
+
+### What's Shared
+- **Directory Restrictions**: Access rules for terchris/, topsecret/, specification/, etc.
+- **Execute Commands Warning**: Critical reminder to execute commands, not describe them
+- **Common Cross-References**: Frequently referenced specification documents
+
+### Why Share
+- **Single Source of Truth**: Update once, applies to all skills
+- **Consistency**: All skills use identical wording for critical guidance
+- **Maintainability**: Changes to common patterns only need one edit
+
+### How Skills Reference Shared Content
+Each skill includes:
+```markdown
+## ⚠️ IMPORTANT: Directory Restrictions
+
+**See:** `.claude/skills/_SHARED.md` → "Directory Restrictions"
+
+**Summary:** [Brief inline summary for quick reference]
+```
+
+This pattern:
+- ✅ Eliminates ~95 lines of duplication
+- ✅ Provides quick summary inline
+- ✅ Points to complete details in _SHARED.md
+- ✅ Makes maintenance easier
+
+## Strategic Duplication Policy
+
+**Some duplication is intentional and documented for LLM execution convenience.**
+
+### What We Duplicate
+
+Validation commands (bash commands) appear in BOTH:
+- `specification/tools/README.md` (authoritative documentation)
+- Skills (for immediate LLM execution)
+
+### Why We Duplicate
+
+**Purpose:** Skills guide immediate action. When Claude Code sees a command in a skill, it should execute immediately without context-switching to another file.
+
+**Philosophy:**
+- **Specification documents** = Reference documentation (should have NO duplication)
+- **Skills** = Action workflows (can duplicate commands for usability)
+
+### How We Mark Duplication
+
+Every duplicated command section includes an HTML comment:
+```html
+<!-- Commands below duplicated from specification/tools/README.md for immediate LLM execution convenience -->
+```
+
+This makes the duplication:
+- ✅ **Visible**: Anyone reading the skill sees it's duplicated
+- ✅ **Intentional**: Clearly marked as design decision, not oversight
+- ✅ **Traceable**: References the authoritative source
+
+### Maintenance Process
+
+When updating commands in `specification/tools/README.md`:
+1. Check if the command is duplicated in skills (look for HTML comments)
+2. Update the duplicated commands in skills to match
+3. Skills with duplicated commands:
+   - `implement-language/SKILL.md`: Build, test, validation commands
+   - `development-loop/SKILL.md`: Development loop commands
+   - `validate-implementation/SKILL.md`: Quick validation commands
+   - `validation-tools/SKILL.md`: 5 common commands
+
+### Lines Duplicated
+
+- **Estimated:** ~100 lines across all skills
+- **Trade-off:** Accepted for LLM execution convenience
+- **Alternative considered:** Centralize commands (rejected - too slow for LLM workflow)
+
+**This duplication is intentional, documented, and maintained.**
+
 ## Benefits
 
 ### For LLM Implementations
@@ -143,20 +222,52 @@ The skills simply make this process automatic and harder to skip steps.
 ## Skill Development
 
 **Created**: 2025-10-21
-**Version**: 1.1.0
+**Version**: 1.4.0
 **Status**: Production
 
-**Recent Updates (v1.1.0)**:
+**Recent Updates**:
+
+**v1.4.0** (2025-10-28):
+- **Checklist Workflow Clarity**: Improved implement-language skill
+  - Added prominent "Your Working Checklist" section immediately after directory restrictions
+  - Clarified that checklist copy is the FIRST concrete action
+  - Emphasized checklist is working plan updated throughout implementation
+  - Removed duplicate "Follow the Checklist" section from Phase 0
+  - Updated implement-language skill to version 1.3.0
+
+**v1.3.0** (2025-10-27):
+- **Phase 3 (Strategic Duplication)**: Documented intentional command duplication
+  - Added HTML comments marking duplicated commands (source: specification/tools/README.md)
+  - Created Strategic Duplication Policy in README
+  - Accepted ~100 lines of command duplication for LLM execution convenience
+- **Phase 1 (Standardization)**: Added metadata and standardized references
+  - Added version, last_updated, references to all skill frontmatter
+  - Standardized 14 cross-reference patterns to consistent **See:** format
+  - All skills now at version 1.2.0 with clear dependencies listed
+
+**v1.2.0** (2025-10-27):
+- **Phase 5 (Checklist Alignment)**: Fixed validation sequence inconsistency
+  - implement-language now references 8-step sequence from checklist Phase 5
+  - validation-tools now provides quick examples for common commands
+  - All skills consistently reference checklist Phase 5 as authoritative
+- **Phase 2 (Content Deduplication)**: Created shared components pattern
+  - Added `_SHARED.md` with common content (Directory Restrictions, Execute Commands warning)
+  - Updated all 4 skills to reference shared components
+  - Eliminated ~95 lines of duplication across skills
+
+**v1.1.0** (2025-10-21):
 - Added `validation-tools` skill for tool documentation guidance
 - Updated all skills to reference `specification/tools/README.md` instead of duplicating content
 - Added "Execute Commands, Don't Describe Them" sections to all skills
 - Emphasized single source of truth principle
 
 **Maintenance**:
-- Skills should be updated when specification documents change
-- Test skills with each new language implementation
-- Gather feedback and improve skill guidance
-- Keep skills as references, not duplications
+- **Common content**: Update `_SHARED.md` (applies to all skills automatically)
+- **Duplicated commands**: When updating `specification/tools/README.md`, check HTML comments in skills and update matching commands
+- **Specification changes**: Skills should be updated when specification documents change
+- **Testing**: Test skills with each new language implementation
+- **Feedback**: Gather feedback and improve skill guidance
+- **Philosophy**: Keep skills as action guides (can duplicate for usability), not encyclopedias
 
 ## Getting Help
 

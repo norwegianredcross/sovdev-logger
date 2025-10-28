@@ -1,5 +1,12 @@
 ---
 description: "Guide through the 4-step iterative development workflow for sovdev-logger. Optimized for fast feedback during active development."
+version: "1.2.0"
+last_updated: "2025-10-27"
+references:
+  - specification/09-development-loop.md
+  - specification/11-llm-checklist-template.md
+  - specification/tools/README.md
+  - .claude/skills/_SHARED.md
 ---
 
 # Development Loop Skill
@@ -8,13 +15,9 @@ When the user is actively developing sovdev-logger and wants to test changes, gu
 
 ## ⚠️ IMPORTANT: Directory Restrictions
 
-**DO NOT access these directories:**
-- ❌ `terchris/` - Personal working directory
-- ❌ `topsecret/` - Contains credentials
+**See:** `.claude/skills/_SHARED.md` → "Directory Restrictions"
 
-**ONLY use these directories:**
-- ✅ `specification/` - Specification documents and tools
-- ✅ `{language}/` - Implementation being developed
+**Summary:** Only use `specification/` and `{language}/` directories. Do NOT access `terchris/` or `topsecret/`.
 
 ## The Development Loop
 
@@ -25,6 +28,8 @@ When the user is actively developing sovdev-logger and wants to test changes, gu
 **Key Principle:** Validate log files FIRST (fast, local), then validate OTLP SECOND (slow, requires infrastructure)
 
 ## The 4 Steps
+
+<!-- Commands below duplicated from specification/09-development-loop.md and specification/tools/README.md for immediate LLM execution convenience -->
 
 ### Step 1: Edit Code
 Modify source files in `{language}/src/` or test files in `{language}/test/e2e/company-lookup/`
@@ -41,7 +46,7 @@ Modify source files in `{language}/src/` or test files in `{language}/test/e2e/c
 ```
 **Must run without errors.** If fails, fix issues, rebuild, retry.
 
-**For tool details:** See `specification/tools/README.md` → "run-company-lookup.sh"
+**See:** `specification/tools/README.md` → "run-company-lookup.sh"
 
 ### Step 4a: Validate Logs FIRST ⚡ (0 seconds)
 ```bash
@@ -49,7 +54,7 @@ Modify source files in `{language}/src/` or test files in `{language}/test/e2e/c
 ```
 **Expected:** `✅ PASS` with 17 entries, 13 trace IDs
 
-**For what this validates:** See `specification/tools/README.md` → "validate-log-format.sh"
+**See:** `specification/tools/README.md` → "validate-log-format.sh"
 
 **If PASS:** Continue coding or proceed to Step 4b
 **If FAIL:** Go to Step 1, fix issues, repeat loop
@@ -65,7 +70,9 @@ sleep 10
 
 **Note:** This runs the automated portion (Steps 1-7) of the 8-step validation sequence. For complete validation, also do Step 8 (Grafana dashboard).
 
-**For complete 8-step sequence:** See `specification/tools/README.md` → "🔢 Validation Sequence (Step-by-Step)"
+**See:** `specification/11-llm-checklist-template.md` → "Phase 5: Validation"
+
+**See:** `specification/tools/README.md` (complete tool documentation)
 
 ## Fast vs Thorough Iteration
 
@@ -80,11 +87,11 @@ Edit → Build → Run → Validate logs FIRST
 Edit → Build → Run → Validate logs FIRST → Validate OTLP SECOND (8-step sequence)
 [Do periodically or before committing]
 ```
-**Note:** Thorough validation means following the complete 8-step sequence in `specification/tools/README.md`
+**Note:** Thorough validation means following the complete 8-step sequence in `specification/11-llm-checklist-template.md` Phase 5
 
 ## Debugging
 
-**For detailed debugging:** See `specification/tools/README.md` → "Common Debugging Scenarios"
+**See:** `specification/tools/README.md` → "Common Debugging Scenarios"
 
 **Common issues:**
 - Build fails → Check compiler errors, dependencies
@@ -110,19 +117,9 @@ Edit → Build → Run → Validate logs FIRST → Validate OTLP SECOND (8-step 
 
 ## ⚠️ Execute Commands, Don't Describe Them
 
-When this document shows a command, you MUST execute it using your bash tool.
+**See:** `.claude/skills/_SHARED.md` → "Execute Commands, Don't Describe Them"
 
-**Wrong:** ❌
-```
-"I should run validate-log-format.sh to check the logs..."
-```
-
-**Correct:** ✅
-```
-[Actually invoke bash_tool with the command shown above]
-```
-
-**Every validation step MUST be a real tool call, not a description.**
+**Critical Rule:** When you see a command in this skill, EXECUTE it immediately using the Bash tool. Do NOT describe what you "should" or "will" do.
 
 ---
 

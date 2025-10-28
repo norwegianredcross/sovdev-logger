@@ -1,5 +1,15 @@
 ---
 description: "Systematically implement sovdev-logger in a new programming language. INCLUDES MANDATORY VALIDATION - you must run validation tools before claiming complete. Use when implementing Python, Go, Rust, C#, PHP, or other languages."
+version: "1.3.0"
+last_updated: "2025-10-28"
+references:
+  - specification/11-llm-checklist-template.md
+  - specification/tools/README.md
+  - specification/10-otel-sdk.md
+  - specification/09-development-loop.md
+  - specification/01-api-contract.md
+  - specification/00-design-principles.md
+  - .claude/skills/_SHARED.md
 ---
 
 # Implement Language Skill
@@ -8,18 +18,28 @@ When the user asks to implement sovdev-logger in a new programming language, gui
 
 ## ⚠️ IMPORTANT: Directory Restrictions
 
-**DO NOT access these directories:**
-- ❌ `terchris/` - Personal working directory (not part of specification)
-- ❌ `topsecret/` - Contains credentials (never access)
+**See:** `.claude/skills/_SHARED.md` → "Directory Restrictions"
 
-**ONLY use these directories:**
-- ✅ `specification/` - Specification documents (source of truth)
-- ✅ `typescript/` - Reference implementation
-- ✅ `go/`, `python/` - Example implementations (if needed for reference)
-- ✅ `{language}/` - Where you'll create the new implementation
-- ✅ `.claude/skills/` - These skills
+**Summary:** Only use `specification/`, `typescript/`, `{language}/`, and `.claude/skills/` directories. Do NOT access `terchris/` or `topsecret/`.
 
-**If you find code in `terchris/` or any personal folders, IGNORE IT.** Only use the official specification and reference implementations.
+## Your Working Checklist
+
+**First step: Create your working checklist**
+```bash
+mkdir -p {language}/llm-work {language}/test/e2e/company-lookup
+cp specification/11-llm-checklist-template.md {language}/llm-work/llm-checklist-{language}.md
+```
+
+**This is YOUR plan throughout implementation.** Update checkboxes as you:
+- ✅ Complete each phase and task
+- 📝 Document issues and workarounds
+- 🎯 Track validation progress
+
+**All subsequent phases reference this working checklist** at `{language}/llm-work/llm-checklist-{language}.md`
+
+Now proceed with Phase 0...
+
+---
 
 ## The Systematic Process
 
@@ -39,7 +59,7 @@ When the user asks to implement sovdev-logger in a new programming language, gui
 
 3. **`specification/11-llm-checklist-template.md`** ⚠️ CRITICAL
    - Complete systematic checklist (Phase 0-6)
-   - This is your roadmap - copy it to `{language}/llm-work/`
+   - Your working copy is at `{language}/llm-work/llm-checklist-{language}.md`
 
 4. **`specification/09-development-loop.md`**
    - 4-step iterative workflow
@@ -50,16 +70,6 @@ When the user asks to implement sovdev-logger in a new programming language, gui
 
 6. **`specification/00-design-principles.md`**
    - Core philosophy
-
-### Follow the Checklist
-
-**Copy the checklist:**
-```bash
-mkdir -p {language}/llm-work {language}/test/e2e/company-lookup
-cp specification/11-llm-checklist-template.md {language}/llm-work/llm-checklist-{language}.md
-```
-
-**Then follow it systematically.** The checklist contains all the details - don't skip steps.
 
 ### Study Reference Implementations
 
@@ -74,112 +84,150 @@ cp specification/11-llm-checklist-template.md {language}/llm-work/llm-checklist-
 
 ## ⚠️ MANDATORY VALIDATION LOOP - DO NOT SKIP ⚠️
 
+**After you implement the code and E2E test, you MUST immediately run the 8-step validation sequence.**
+
+**AUTHORITATIVE VALIDATION SEQUENCE:** `specification/11-llm-checklist-template.md` → **Phase 5: Validation**
+
+This checklist defines the complete validation workflow with:
+- ✅ 8 sequential validation steps (do NOT skip or reorder)
+- ✅ Blocking points between steps (don't proceed until each passes)
+- ✅ Exact tool commands for each step
+- ✅ Expected outputs and pass/fail criteria
+
 **Complete validation tool documentation:** `specification/tools/README.md`
-
-This README explains:
-- Which tools to use for each validation step
-- Complete command syntax
-- What each tool validates
-- How to interpret results
-
-**After you implement the code and E2E test, you MUST immediately run validation.**
 
 **DO NOT:**
 - ❌ Stop without validation
 - ❌ Claim "conversation length constraints"
 - ❌ Say "ready for validation" without running validation
 - ❌ Suggest "validating in a fresh conversation"
+- ❌ Skip steps or condense the sequence
 - ❌ Describe what you "should" run - ACTUALLY EXECUTE THE COMMANDS
 
 **Validation is PART of implementation, not optional future work.**
 
-### Required Validation Sequence:
+---
 
-Follow the steps below. **For complete command syntax and troubleshooting,** see `specification/tools/README.md`.
+### Pre-Validation: Build and Test
 
-#### Step 1: Build Successfully
+**Before starting the 8-step validation sequence, ensure:**
+
+<!-- Commands below duplicated from specification/tools/README.md for immediate LLM execution convenience -->
+
+#### Build Successfully
 ```bash
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/{language} && ./build-sovdevlogger.sh"
 ```
 **Must succeed.** If fails, fix and rebuild.
 
-#### Step 2: Run E2E Test Successfully
+#### Run E2E Test Successfully
 ```bash
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh {language}"
 ```
 **Must run without errors.** If fails, fix, rebuild, and retry.
 
-**For tool details:** See `specification/tools/README.md` → "run-company-lookup.sh"
+**See:** `specification/tools/README.md` → "run-company-lookup.sh"
 
-#### Step 3: Validate Log Files FIRST (0 seconds)
-```bash
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
-```
-**Expected:** `✅ PASS` with 17 log entries, 13 unique trace IDs
+---
 
-**For detailed explanation of what this validates:** See `specification/tools/README.md` → "validate-log-format.sh"
+### The 8-Step Validation Sequence
 
-**If fails:** Fix issues, rebuild, run test, validate again.
+**Follow Phase 5 of your checklist (`{language}/llm-work/llm-checklist-{language}.md`) exactly.**
 
-#### Step 4: Validate OTLP (after 10s wait)
+<!-- 8-step sequence and commands below duplicated from specification/11-llm-checklist-template.md Phase 5 for immediate LLM execution convenience -->
+
+**Quick reference of the 8 steps:**
+
+1. **⚡ Step 1: Validate Log Files (INSTANT - 0 seconds)**
+   - Tool: `validate-log-format.sh`
+   - Checks: JSON schema, field naming, log count (17), trace IDs (13)
+   - Command:
+     ```bash
+     ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log"
+     ```
+   - Expected: ✅ PASS with 17 log entries, 13 unique trace IDs
+   - If fails: Fix issues, rebuild, run test, validate again
+
+2. **🔄 Step 2: Verify Logs in Loki (OTLP → Loki)**
+   - Tool: `query-loki.sh`
+   - Checks: Logs reached Loki, log count matches
+
+3. **🔄 Step 3: Verify Metrics in Prometheus (OTLP → Prometheus)**
+   - Tool: `query-prometheus.sh`
+   - Checks: Metrics reached Prometheus, labels correct (peer_service, log_type, log_level)
+   - Verify labels match TypeScript exactly:
+     - ✅ `peer_service` (underscore, NOT peer.service)
+     - ✅ `log_type` (underscore, NOT log.type)
+     - ✅ `log_level` (underscore, NOT log.level)
+
+4. **🔄 Step 4: Verify Traces in Tempo (OTLP → Tempo)**
+   - Tool: `query-tempo.sh`
+   - Checks: Traces reached Tempo
+
+5. **🔄 Step 5: Verify Grafana-Loki Connection (Grafana → Loki)**
+   - Tool: `query-grafana-loki.sh`
+   - Checks: Grafana can query Loki
+
+6. **🔄 Step 6: Verify Grafana-Prometheus Connection (Grafana → Prometheus)**
+   - Tool: `query-grafana-prometheus.sh`
+   - Checks: Grafana can query Prometheus
+
+7. **🔄 Step 7: Verify Grafana-Tempo Connection (Grafana → Tempo)**
+   - Tool: `query-grafana-tempo.sh`
+   - Checks: Grafana can query Tempo
+
+8. **👁️ Step 8: Verify Grafana Dashboard (Visual Verification - Manual)**
+   - Open http://grafana.localhost
+   - Navigate to: Structured Logging Testing Dashboard
+   - Verify: ALL 3 panels show data for BOTH TypeScript AND {language}
+   - **See:** `specification/10-otel-sdk.md` → "Cross-Language Validation in Grafana"
+
+**⛔ DO NOT skip steps or claim complete until ALL 8 steps pass**
+
+---
+
+### Quick Validation: Automated Steps 1-7
+
+<!-- Command below duplicated from specification/tools/README.md for immediate LLM execution convenience -->
+
+**After waiting 10 seconds for OTLP propagation**, you can run automated validation for steps 1-7:
+
 ```bash
 sleep 10
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh {language}"
 ```
-**Expected:** All validations pass (Logs in Loki, metrics in Prometheus, traces in Tempo)
 
-**For detailed explanation of validation layers:** See `specification/tools/README.md` → "Validation Scripts Comparison"
+**This automates steps 1-7** but you MUST still complete **Step 8 (Grafana Dashboard)** manually.
 
-**If fails:** See `specification/tools/README.md` → "Common Debugging Scenarios"
+**Note:** `run-full-validation.sh` is a helper that runs steps 1-7 sequentially. If any step fails, the tool output will show which specific validation layer failed.
 
-#### Step 5: Verify Grafana Dashboard
-
-Open http://grafana.localhost and verify ALL 3 panels show data for BOTH TypeScript AND the new language.
-
-**For detailed Grafana verification steps:** See `specification/10-otel-sdk.md` → "Cross-Language Validation in Grafana"
-
-#### Step 6: Compare Metric Labels
-
-```bash
-./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./query-prometheus.sh 'sovdev_operations_total{service_name=~\".*{language}.*\"}'"
-```
-
-Verify labels match TypeScript exactly:
-- ✅ `peer_service` (underscore, NOT peer.service)
-- ✅ `log_type` (underscore, NOT log.type)
-- ✅ `log_level` (underscore, NOT log.level)
-
-**For query tool usage:** See `specification/tools/README.md` → "Query Scripts" section
-
-**For why underscores are critical:** See `specification/10-otel-sdk.md`
+**See also:**
+- Validation layers: **See:** `specification/tools/README.md` → "Validation Scripts Comparison"
+- Debugging: **See:** `specification/tools/README.md` → "Common Debugging Scenarios"
+- Tool commands: **See:** `specification/11-llm-checklist-template.md` → "Phase 5"
 
 ## ⚠️ Execute Commands, Don't Describe Them
 
-When you see a validation command, you MUST execute it using your bash tool.
+**See:** `.claude/skills/_SHARED.md` → "Execute Commands, Don't Describe Them"
 
-**Wrong:** ❌
-```
-"I should now run validate-log-format.sh to check the logs..."
-```
-
-**Correct:** ✅
-```
-[Actually invoke bash_tool with the command shown above]
-```
-
-**Every validation step MUST be a real tool call, not a description.**
-
-If you find yourself typing "I should..." or "Next, I'll...", STOP and execute the command instead.
+**Critical Rule:** When you see a command in this skill, EXECUTE it immediately using the Bash tool. Do NOT describe what you "should" or "will" do.
 
 ## ⛔ Completion Criteria - DO NOT STOP BEFORE THESE ARE MET ⛔
 
 **You have NOT implemented the language until ALL of these are ✅:**
 
-1. ✅ `validate-log-format.sh` PASSED
-2. ✅ `run-full-validation.sh` PASSED
-3. ✅ Grafana dashboard shows data in ALL 3 panels
-4. ✅ Metric labels MATCH TypeScript exactly (underscores)
-5. ✅ Checklist `{language}/llm-work/llm-checklist-{language}.md` shows all items checked
+1. ✅ ALL 8 validation steps PASSED (from checklist Phase 5):
+   - Step 1: Log file validation ✅
+   - Step 2: Logs in Loki ✅
+   - Step 3: Metrics in Prometheus ✅
+   - Step 4: Traces in Tempo ✅
+   - Step 5: Grafana-Loki connection ✅
+   - Step 6: Grafana-Prometheus connection ✅
+   - Step 7: Grafana-Tempo connection ✅
+   - Step 8: Grafana dashboard visual verification ✅
+2. ✅ Grafana dashboard shows data in ALL 3 panels for {language}
+3. ✅ Metric labels MATCH TypeScript exactly (underscores: peer_service, log_type, log_level)
+4. ✅ Checklist `{language}/llm-work/llm-checklist-{language}.md` Phase 5 shows all items checked
 
 **Implementation = Code + Validation. Not just code.**
 

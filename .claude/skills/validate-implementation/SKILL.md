@@ -1,5 +1,12 @@
 ---
 description: "Run complete validation suite for sovdev-logger implementation. Validates file logs, OTLP backends, and Grafana dashboard. Use when validating any language implementation."
+version: "1.2.0"
+last_updated: "2025-10-27"
+references:
+  - specification/11-llm-checklist-template.md
+  - specification/tools/README.md
+  - specification/10-otel-sdk.md
+  - .claude/skills/_SHARED.md
 ---
 
 # Validate Implementation Skill
@@ -8,14 +15,9 @@ When the user asks to validate a sovdev-logger implementation, run the complete 
 
 ## ⚠️ IMPORTANT: Directory Restrictions
 
-**DO NOT access these directories:**
-- ❌ `terchris/` - Personal working directory
-- ❌ `topsecret/` - Contains credentials
+**See:** `.claude/skills/_SHARED.md` → "Directory Restrictions"
 
-**ONLY use these directories:**
-- ✅ `specification/` - Validation tools and documentation
-- ✅ `typescript/` - Reference for comparison
-- ✅ `{language}/` - Implementation being validated
+**Summary:** Only use `specification/`, `typescript/`, and `{language}/` directories. Do NOT access `terchris/` or `topsecret/`.
 
 ## Validation Workflow
 
@@ -42,9 +44,11 @@ This section contains:
 
 **⛔ DO NOT skip steps or proceed until each step passes**
 
-**For tool details:** See `specification/tools/README.md` → "🔢 Validation Sequence (Step-by-Step)"
+**See:** `specification/tools/README.md` → "🔢 Validation Sequence (Step-by-Step)"
 
 ## Quick Validation Commands
+
+<!-- Commands below duplicated from specification/tools/README.md for immediate LLM execution convenience -->
 
 **Automated validation (Steps 1-7):**
 ```bash
@@ -56,7 +60,7 @@ This section contains:
 - Navigate to Structured Logging Testing Dashboard
 - Verify ALL 3 panels show data for BOTH TypeScript AND {language}
 
-**For complete step-by-step instructions:** Follow `specification/11-llm-checklist-template.md` Phase 5 exactly.
+**See:** `specification/11-llm-checklist-template.md` → "Phase 5" (complete step-by-step instructions)
 
 ## Success Criteria
 
@@ -68,9 +72,11 @@ Implementation is validated when:
 
 ## Debugging
 
-**For complete debugging workflows:** See `specification/tools/README.md` → "Common Debugging Scenarios"
+**See:** `specification/tools/README.md` → "Common Debugging Scenarios" (complete debugging workflows)
 
-**For OTLP SDK issues:** See `specification/10-otel-sdk.md`
+**See:** `specification/10-otel-sdk.md` (OTLP SDK issues)
+
+<!-- Tool names below duplicated from specification/tools/README.md for quick reference -->
 
 **Individual query tools (for debugging):**
 - `query-loki.sh sovdev-test-company-lookup-{language}`
@@ -81,19 +87,9 @@ Implementation is validated when:
 
 ## ⚠️ Execute Commands, Don't Describe Them
 
-When you see a validation command, you MUST execute it using your bash tool.
+**See:** `.claude/skills/_SHARED.md` → "Execute Commands, Don't Describe Them"
 
-**Wrong:** ❌
-```
-"I should run the validation tools to check the implementation..."
-```
-
-**Correct:** ✅
-```
-[Actually invoke bash_tool with the commands shown above]
-```
-
-**Every validation step MUST be a real tool call, not a description.**
+**Critical Rule:** When you see a command in this skill, EXECUTE it immediately using the Bash tool. Do NOT describe what you "should" or "will" do.
 
 ---
 
