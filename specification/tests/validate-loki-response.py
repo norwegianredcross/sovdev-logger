@@ -154,9 +154,12 @@ class LokiResponseValidator:
         total_logs = 0
 
         # Required fields that should be in stream labels
-        # From log-entry-schema.json required fields
+        # From log-entry-schema.json required fields + Grafana dashboard requirements
         required_fields = [
-            'timestamp',      # ISO 8601 timestamp (NOT observed_timestamp)
+            'timestamp',         # ISO 8601 timestamp (NOT observed_timestamp)
+            'severity_text',     # Required by Grafana Panel 4 (Recent Errors)
+            'severity_number',   # Required by Grafana Panel 4 (Recent Errors)
+            'span_id',           # Required by Grafana Panel 4 (Recent Errors)
             'service_name',
             'function_name',
             'log_type',
