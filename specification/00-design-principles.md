@@ -44,10 +44,10 @@ Every log entry is a structured JSON object with standardized fields:
 Full OpenTelemetry SDK integration providing:
 - **Logs**: OTLP log export with semantic conventions
 - **Metrics**: Automatic counters and histograms from log calls
-  - `sovdev.operations.total`: Counter for all operations
-  - `sovdev.errors.total`: Counter for errors by type
-  - `sovdev.operation.duration`: Histogram for operation timings
-  - `sovdev.operations.active`: UpDownCounter for active operations
+  - `sovdev_operations_total`: Counter for all operations
+  - `sovdev_errors_total`: Counter for errors by type
+  - `sovdev_operation_duration`: Histogram for operation timings
+  - `sovdev_operations_active`: UpDownCounter for active operations
 - **Traces**: Automatic span creation for every log call with proper attributes
 - **Session Grouping**: UUID-based session ID correlates all telemetry from a single execution
 

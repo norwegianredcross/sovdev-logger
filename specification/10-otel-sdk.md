@@ -48,7 +48,7 @@ const duration = Date.now() - startTime;
 { 'peer_service': value, 'log_type': value, 'log_level': value }
 
 // Histogram: unit specification
-meter.createHistogram('sovdev.operation.duration', { unit: 'ms' })
+meter.createHistogram('sovdev_operation_duration', { unit: 'ms' })
 ```
 
 ### 3. Study Target Language SDK

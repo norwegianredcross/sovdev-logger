@@ -87,12 +87,12 @@
 
 ### Metric Instruments Creation
 - [ ] Created meter
-- [ ] Created `sovdev.operations.total` (Counter, Int64)
-- [ ] Created `sovdev.errors.total` (Counter, Int64)
-- [ ] Created `sovdev.operation.duration` (Histogram, Float64)
+- [ ] Created `sovdev_operations_total` (Counter, Int64)
+- [ ] Created `sovdev_errors_total` (Counter, Int64)
+- [ ] Created `sovdev_operation_duration` (Histogram, Float64)
   - [ ] Specified description: "Duration of operations in milliseconds"
   - [ ] **CRITICAL:** Specified unit: `"ms"` or equivalent
-- [ ] Created `sovdev.operations.active` (UpDownCounter, Int64)
+- [ ] Created `sovdev_operations_active` (UpDownCounter, Int64)
 - [ ] Set temporality: CUMULATIVE (for Prometheus compatibility)
 
 ### Metric Attributes Configuration

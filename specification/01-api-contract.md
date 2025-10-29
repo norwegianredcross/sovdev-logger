@@ -142,7 +142,7 @@ def sovdev_log(
 - MUST serialize input_json and response_json to JSON strings
 - MUST process exception for security (credential removal, stack limit 350 chars)
 - MUST create OpenTelemetry span with attributes
-- MUST increment metrics (operations.total, errors.total if ERROR/FATAL)
+- MUST increment metrics (sovdev_operations_total, sovdev_errors_total if ERROR/FATAL)
 - MUST set log_type to "transaction"
 - MUST always include response_json field (value "null" if not provided)
 
