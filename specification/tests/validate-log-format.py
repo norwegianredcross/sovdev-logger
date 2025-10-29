@@ -151,6 +151,19 @@ class LogValidator:
         else:
             self.print_warning("No span IDs found in logs")
 
+        # Rule 1c: Log level validation (must be valid lowercase level)
+        allowed_levels = ["trace", "debug", "info", "warn", "error", "fatal"]
+        for i, log in enumerate(logs, start=1):
+            level = log.get("level", "")
+            if level and level not in allowed_levels:
+                valid = False
+                self.print_error(
+                    f"Line {i}: Invalid log level '{level}' (must be one of {allowed_levels})"
+                )
+                self.print_error(
+                    f"         Common issue: enum conversion - use enum.value not str(enum)"
+                )
+
         # Rule 2: Exception fields for error logs (snake_case)
         for i, log in enumerate(logs, start=1):
             level = log.get("level", log.get("severity", "")).lower()
