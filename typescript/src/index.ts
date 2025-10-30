@@ -14,7 +14,7 @@ export {
   sovdev_log_job_status,
   sovdev_log_job_progress,
   sovdev_start_span,
-  sovdev_end_span
+  sovdev_end_span,
 } from './logger';
 
 // Export log levels

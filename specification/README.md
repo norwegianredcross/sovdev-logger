@@ -113,6 +113,7 @@ Claude Code will automatically use the `implement-language` skill to guide you t
 | **[06-test-scenarios.md](./06-test-scenarios.md)** | Test scenarios and verification procedures |
 | **[07-anti-patterns.md](./07-anti-patterns.md)** | Common mistakes to avoid |
 | **[08-testprogram-company-lookup.md](./08-testprogram-company-lookup.md)** | E2E test specification (MUST implement) |
+| **[12-code-quality.md](./12-code-quality.md)** | Code linting standards and quality rules (MANDATORY) |
 
 ---
 

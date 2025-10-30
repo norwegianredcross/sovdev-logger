@@ -54,7 +54,7 @@ export function create_peer_services<T extends Record<string, string>>(
 
   return {
     ...constants,
-    INTERNAL: 'INTERNAL' as const,  // Always include INTERNAL constant
-    mappings: definitions
+    INTERNAL: 'INTERNAL' as const, // Always include INTERNAL constant
+    mappings: definitions,
   };
 }

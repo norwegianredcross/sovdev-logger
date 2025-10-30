@@ -75,6 +75,8 @@ go test ./...
 
 | Task | Human Developer (VSCode Terminal) | LLM Developer (Host + Bash Tool) |
 |------|-----------------------------------|----------------------------------|
+| **Lint TypeScript code** | `cd typescript && make lint` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && make lint"` |
+| **Lint TypeScript (auto-fix)** | `cd typescript && make lint-fix` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && make lint-fix"` |
 | **Build TypeScript library** | `cd typescript && ./build-sovdevlogger.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && ./build-sovdevlogger.sh"` |
 | **Build Python library** | `cd python && ./build-sovdevlogger.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/python && ./build-sovdevlogger.sh"` |
 | **Build Go library** | `cd go && ./build-sovdevlogger.sh` | `./specification/tools/in-devcontainer.sh -e "cd /workspace/go && ./build-sovdevlogger.sh"` |
@@ -91,7 +93,13 @@ go test ./...
 
 ## The Development Loop
 
-The typical development cycle follows this 3-step pattern:
+The typical development cycle follows this **5-step pattern**:
+
+1. **Edit** - Make code changes
+2. **Lint** - Check code quality (MANDATORY - must pass before build)
+3. **Build** - Compile/build the library
+4. **Test** - Run E2E tests
+5. **Validate** - Verify logs/metrics/traces
 
 **Note on file editing:** Files are synchronized between host and container (bind mount). The distinction below is only about **where commands execute**. For architecture details, see `05-environment-configuration.md`.
 
@@ -120,7 +128,7 @@ The typical development cycle follows this 3-step pattern:
 
 ---
 
-### 1. Edit Code
+### Step 1: Edit Code
 
 Edit source files using your preferred tools:
 - Human developers: Use VSCode editor
@@ -130,7 +138,120 @@ Edit source files using your preferred tools:
 
 ---
 
-### 1.5. Build Library (When Needed)
+### Step 2: Lint Code (MANDATORY - NEW)
+
+**Purpose:** Ensure code quality and catch issues early (dead code, type safety, formatting)
+
+**⛔ BLOCKING STEP:** Linting MUST pass (exit code 0) before proceeding to build/test.
+
+**Why this is mandatory:**
+- ✅ Catches dead code immediately (unused imports, variables)
+- ✅ Enforces type safety (return types, function signatures)
+- ✅ Prevents technical debt from accumulating
+- ✅ Stops bad patterns from propagating across language implementations
+- ✅ **Critical for LLM-generated code** - prevents "going off the rails"
+
+**For complete linting philosophy and rules**, see: [`specification/12-code-quality.md`](./12-code-quality.md)
+
+---
+
+#### TypeScript (Reference Implementation)
+
+**Human developers (VSCode terminal inside container):**
+```bash
+cd typescript
+make lint              # Check linting
+make lint-fix          # Auto-fix issues
+
+# Or use npm directly:
+npm run lint
+npm run lint:fix
+```
+
+**LLM developers (host machine):**
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && make lint"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && make lint-fix"
+
+# Or use npm directly:
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript && npm run lint"
+```
+
+**Exit codes:**
+- **Exit 0** - Linting passed (warnings OK, proceed to build)
+- **Exit non-zero** - Linting failed with errors (⛔ STOP, fix issues)
+
+**Example output when passing:**
+```
+✖ 23 problems (0 errors, 23 warnings)
+
+Checking formatting...
+All matched files use Prettier code style!
+
+Exit code: 0  ✅ Proceed to build
+```
+
+**Example output when failing:**
+```
+✖ 4 problems (4 errors, 0 warnings)
+  - 'unused_import' is defined but never used
+  - 'deadVariable' is assigned but never used
+  - Missing return type on function
+
+Exit code: 1  ⛔ STOP - Fix errors before proceeding
+```
+
+---
+
+#### Python (Pattern to Follow)
+
+When implementing Python linting, follow the TypeScript pattern:
+
+**Create:**
+- `python/.flake8` - Flake8 configuration
+- `python/pyproject.toml` - Black/mypy configuration
+- `python/Makefile` - With `lint` and `lint-fix` targets
+
+**Commands:**
+```bash
+cd python && make lint       # Runs flake8, black --check, mypy
+cd python && make lint-fix   # Runs black (auto-format)
+```
+
+**See:** `specification/12-code-quality.md` for Python-specific rules
+
+---
+
+#### Go, C#, PHP (Future Implementations)
+
+Follow the same pattern:
+1. Study `typescript/.eslintrc.json` (reference implementation)
+2. Read `specification/12-code-quality.md` (universal rules)
+3. Create language-specific configuration files
+4. Create `Makefile` with `lint` and `lint-fix` targets
+5. Ensure exit code 0 on success, non-zero on errors
+
+---
+
+#### For LLMs: How to Discover Linting
+
+When implementing a new language:
+
+1. **Read this step** - You'll see "Step 2: Lint Code (MANDATORY)"
+2. **Read the specification** - `specification/12-code-quality.md` explains WHY and WHAT
+3. **Study TypeScript** - Look at `typescript/.eslintrc.json` and `typescript/Makefile`
+4. **Adapt to your language** - Use language-appropriate tools (flake8 for Python, golangci-lint for Go, etc.)
+5. **Create Makefile** - Consistent interface: `make lint` works for all languages
+6. **Verify exit codes** - Test that errors block (non-zero exit), warnings don't (exit 0)
+
+**Key files to examine:**
+- `typescript/.eslintrc.json` - Configuration example
+- `typescript/Makefile` - Interface pattern
+- `typescript/package.json` - devDependencies and scripts
+
+---
+
+### Step 3: Build Library (When Needed)
 
 After editing library source code, you need to build the library before running tests.
 
@@ -184,7 +305,7 @@ cd go
 
 ---
 
-### 2. Run Test
+### Step 4: Run Test
 
 **This is where Human vs LLM differs!**
 
@@ -211,7 +332,7 @@ go test ./...
 
 ---
 
-### 3. Validate Log Files FIRST ⚡ (Fast & Local)
+### Step 5: Validate Log Files FIRST ⚡ (Fast & Local)
 
 **CRITICAL:** Always validate log files before checking OTLP backends.
 
@@ -260,7 +381,7 @@ validate-log-format.sh {language}/test/e2e/company-lookup/logs/dev.log
 
 ---
 
-### 4. Validate OTLP Backends SECOND 🔄 (After Log Files Pass)
+### Step 6: Validate OTLP Backends SECOND 🔄 (After Log Files Pass)
 
 Only after log files are correct, validate that telemetry reaches the observability backends.
 
@@ -337,7 +458,7 @@ query-tempo.sh sovdev-test-company-lookup-{language}
 
 ## Complete Workflow Examples
 
-**Key Difference:** Only **Step 2 (Run Test)** differs between Human and LLM developers. All other steps (Edit, Validate Logs, Validate OTLP) work the same due to file synchronization.
+**Key Difference:** Only **Step 4 (Run Test)** differs between Human and LLM developers. All other steps (Edit, Lint, Build, Validate Logs, Validate OTLP) work the same due to file synchronization.
 
 ### Example 1: Human Developer (VSCode Terminal)
 
@@ -350,21 +471,35 @@ Working inside VSCode with DevContainer extension - terminal is already inside c
 # (use VSCode editor to modify source files)
 
 # ============================================
-# Step 2: Run test (terminal is inside container)
+# Step 2: Lint code (MANDATORY - must pass before build)
 # ============================================
-cd python/test/e2e/company-lookup
+cd python
+make lint
+
+# Exit code 0? ✅ Proceed
+# Exit code non-zero? ⛔ Fix errors first
+
+# ============================================
+# Step 3: Build library (if needed)
+# ============================================
+./build-sovdevlogger.sh
+
+# ============================================
+# Step 4: Run test (terminal is inside container)
+# ============================================
+cd test/e2e/company-lookup
 ./run-test.sh
 
 # ============================================
-# Step 3: Validate log files (FAST - do this first!)
+# Step 5: Validate log files (FAST - do this first!)
 # ============================================
 ../../../specification/tools/validate-log-format.sh logs/dev.log
 
 # That's it! Validation tool checks everything automatically.
-# If it passes, move to Step 4.
+# If it passes, move to Step 6.
 
 # ============================================
-# Step 4: If validation passes, check OTLP backends
+# Step 6: If validation passes, check OTLP backends
 # ============================================
 sleep 10
 ../../../specification/tools/run-full-validation.sh python
@@ -383,7 +518,20 @@ Working on host machine - must use `in-devcontainer.sh -e "command"` for ALL cod
 # (LLM uses Read/Edit/Write tools to modify source files)
 
 # ============================================
-# Step 2: Run test in DevContainer (using wrapper)
+# Step 2: Lint code (MANDATORY - must pass before build)
+# ============================================
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python && make lint"
+
+# Exit code 0? ✅ Proceed
+# Exit code non-zero? ⛔ Fix errors first
+
+# ============================================
+# Step 3: Build library (if needed)
+# ============================================
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python && ./build-sovdevlogger.sh"
+
+# ============================================
+# Step 4: Run test in DevContainer (using wrapper)
 # ============================================
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh python"
 
@@ -391,15 +539,15 @@ Working on host machine - must use `in-devcontainer.sh -e "command"` for ALL cod
 # ./specification/tools/in-devcontainer.sh -e "cd /workspace/python/test/e2e/company-lookup && ./run-test.sh"
 
 # ============================================
-# Step 3: Validate log files (FAST - do this first!)
+# Step 5: Validate log files (FAST - do this first!)
 # ============================================
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./validate-log-format.sh python/test/e2e/company-lookup/logs/dev.log"
 
 # That's it! Validation tool checks everything automatically.
-# If it passes, move to Step 4.
+# If it passes, move to Step 6.
 
 # ============================================
-# Step 4: If validation passes, check OTLP backends
+# Step 6: If validation passes, check OTLP backends
 # ============================================
 sleep 10
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh python"
@@ -413,6 +561,15 @@ sleep 10
 
 **LLM developers (from host - use wrapper with -e flag for ALL commands):**
 ```bash
+# Lint code (MANDATORY before build)
+./specification/tools/in-devcontainer.sh -e "cd /workspace/{language} && make lint"
+
+# Auto-fix linting issues
+./specification/tools/in-devcontainer.sh -e "cd /workspace/{language} && make lint-fix"
+
+# Build library
+./specification/tools/in-devcontainer.sh -e "cd /workspace/{language} && ./build-sovdevlogger.sh"
+
 # Run test
 ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-company-lookup.sh {language}"
 
@@ -425,6 +582,15 @@ sleep 10
 
 **Human developers (VSCode terminal inside container - run directly):**
 ```bash
+# Lint code (MANDATORY before build)
+cd {language} && make lint
+
+# Auto-fix linting issues
+cd {language} && make lint-fix
+
+# Build library
+cd {language} && ./build-sovdevlogger.sh
+
 # Run test
 cd {language}/test/e2e/company-lookup && ./run-test.sh
 
@@ -449,13 +615,15 @@ run-full-validation.sh {language}
    - Catch issues immediately, not at the end
 
 3. **Run complete validation before committing**
+   - Linting passes (0 errors)
    - All log file checks pass
    - All backend validations pass
 
-4. **Follow the 4-step loop consistently**
-   - Edit → Run → Validate Logs → Validate OTLP
+4. **Follow the 6-step loop consistently**
+   - Edit → Lint → Build → Run → Validate Logs → Validate OTLP
    - Don't skip steps
-   - Only Step 2 (Run) differs between Human/LLM developers
+   - Linting is MANDATORY before build
+   - Only Step 4 (Run) differs between Human/LLM developers
 
 ### ❌ DON'T
 
@@ -533,12 +701,13 @@ All validation tools support this workflow:
 
 ---
 
-**Document Status:** ✅ v1.9.0 COMPLETE
-**Last Updated:** 2025-10-24
+**Document Status:** ✅ v1.10.0 COMPLETE
+**Last Updated:** 2025-10-30
 **Part of:** sovdev-logger specification v1.1.0
 
 **Version History:**
-- v1.9.0 (2025-10-24): Added explicit reference to 8-step validation sequence from tools/README.md in Step 4 (OTLP validation)
+- v1.10.0 (2025-10-30): Added mandatory Step 2 (Lint Code) - development loop now 6 steps: Edit → Lint → Build → Run → Validate Logs → Validate OTLP. Added linting commands to Command Comparison table and updated all workflow examples. References specification/12-code-quality.md for linting rules.
+- v1.9.0 (2025-10-24): Added explicit reference to 8-step validation sequence from tools/README.md in Step 6 (OTLP validation)
 - v1.8.0 (2025-10-17): Added language-specific build scripts (build-sovdevlogger.sh) and "Build Library" step in development loop
 - v1.7.0 (2025-10-15): Added "For LLMs: Track Your Progress with the Checklist" section and updated "⚠️ For LLMs Specifically" to reference systematic checklist tracking
 - v1.6.0 (2025-10-15): Added "⚠️ For LLMs Specifically" section with explicit anti-patterns (no --limit, no manual inspection, follow examples exactly)
