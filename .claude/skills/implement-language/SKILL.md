@@ -1,9 +1,10 @@
 ---
 description: "Systematically implement sovdev-logger in a new programming language. INCLUDES MANDATORY VALIDATION - you must run validation tools before claiming complete. Use when implementing Python, Go, Rust, C#, PHP, or other languages."
-version: "1.3.0"
-last_updated: "2025-10-28"
+version: "1.4.0"
+last_updated: "2025-10-30"
 references:
   - specification/11-llm-checklist-template.md
+  - specification/12-code-quality.md
   - specification/tools/README.md
   - specification/10-otel-sdk.md
   - specification/09-development-loop.md
@@ -85,22 +86,30 @@ Now proceed with Phase 0...
    - **Key Takeaway:** This is YOUR plan - update as you progress
 
 6. **`specification/09-development-loop.md`**
-   - 4-step iterative workflow
-   - Validation-first approach
+   - 6-step iterative workflow
+   - Validation-first approach with mandatory linting
    - **Time:** 5 minutes
-   - **Key Takeaway:** Write → Test → Validate → Iterate
+   - **Key Takeaway:** Edit → Lint → Build → Test → Validate → Iterate
 
-7. **`specification/01-api-contract.md`**
+7. **`specification/12-code-quality.md`**
+   - Code linting standards and quality rules
+   - Strict dead code prevention (prevents LLMs from "going off the rails")
+   - Language-specific configuration patterns
+   - **Action:** Understand linting is MANDATORY before build
+   - **Time:** 5 minutes
+   - **Key Takeaway:** Create Makefile with `lint` target, strict rules prevent bad patterns
+
+8. **`specification/01-api-contract.md`**
    - 8 API functions you must implement
    - **Time:** 5 minutes
    - **Key Takeaway:** All 8 functions required, not optional
 
-8. **`specification/00-design-principles.md`**
+9. **`specification/00-design-principles.md`**
    - Core philosophy
    - **Time:** 5 minutes
    - **Key Takeaway:** Developer-centric, zero-config, validation-first
 
-**Total Reading Time:** ~55 minutes (DO NOT SKIP THIS)
+**Total Reading Time:** ~60 minutes (DO NOT SKIP THIS)
 
 **After reading, confirm you understand:**
 - [ ] How to run commands using `in-devcontainer.sh`

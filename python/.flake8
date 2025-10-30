@@ -1,0 +1,28 @@
+[flake8]
+# STRICT RULES - Prevent LLMs from accumulating dead code and type safety issues
+# Philosophy: Block dead code accumulation, warn on complexity, allow flexibility
+
+# Line length (match Black)
+max-line-length = 100
+
+# Complexity limits (STRICT)
+max-complexity = 20
+
+# Directories to exclude
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    .venv,
+    venv
+
+# Ignore certain rules (conflicts with Black)
+ignore =
+    E203,
+    W503
+
+# Per-file ignores (unused imports in __init__.py are often intentional)
+per-file-ignores =
+    __init__.py:F401

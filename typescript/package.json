@@ -10,7 +10,9 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "test": "cd test/e2e/company-lookup && ./run-test.sh"
+    "test": "cd test/e2e/company-lookup && ./run-test.sh",
+    "lint": "eslint src/**/*.ts && prettier --check src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix && prettier --write src/**/*.ts"
   },
   "files": [
     "dist",
@@ -56,6 +58,11 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.5",
     "tsx": "^4.20.6",
     "typescript": "^5.7.2"
   },
