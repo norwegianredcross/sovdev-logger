@@ -8,6 +8,45 @@
 
 ## Phase 0: Pre-Implementation Setup
 
+### Environment Understanding (MANDATORY - READ FIRST)
+- [ ] Read `specification/05-environment-configuration.md` completely
+  - [ ] Understand DevContainer environment (you are running inside a container)
+  - [ ] Understand `in-devcontainer.sh` wrapper - ALL commands must run through this
+  - [ ] Understand that you cannot run commands directly on your host machine
+  - [ ] Understand available endpoints:
+    - [ ] `host.docker.internal` - For OTLP exports from inside container
+    - [ ] `otel.localhost` - Host header required for Traefik routing
+    - [ ] `grafana.localhost` - Grafana UI access
+- [ ] Verified understanding by confirming:
+  - [ ] All test commands must use `./specification/tools/in-devcontainer.sh -e "command"`
+  - [ ] Direct execution like `./python/test/run-test.sh` will NOT work
+  - [ ] Container has network access to monitoring stack via host.docker.internal
+
+**⛔ CRITICAL:** If you skip this section, you will encounter "command not found" or "connection refused" errors.
+
+---
+
+### Validation Tools Understanding (MANDATORY - READ SECOND)
+- [ ] Read `specification/tools/README.md` completely
+  - [ ] Understand the 8-step validation sequence and blocking points
+  - [ ] Understand when to use `query-loki.sh` vs `query-grafana-loki.sh`
+  - [ ] Understand that Grafana dashboard is authoritative when CLI tools fail
+  - [ ] Understand the tool comparison table (direct access vs via Grafana)
+  - [ ] **CRITICAL:** Understand that kubectl is NOT required (Grafana is primary)
+- [ ] Run kubectl verification: `./specification/tools/in-devcontainer.sh -e "/workspace/specification/tools/verify-kubectl-setup.sh"`
+  - **Expected result:** ✅ "kubectl is fully configured and working!"
+  - **If kubectl fails:** Use Grafana-based validation instead (query-grafana-*.sh scripts)
+  - **Note:** Both kubectl and Grafana work - use whichever is convenient
+- [ ] Confirmed understanding:
+  - [ ] Step 1: Validate file logs (always works)
+  - [ ] Steps 2-4: Verify OTLP backends (kubectl and Grafana both work)
+  - [ ] Steps 5-7: Verify Grafana connections (always works)
+  - [ ] Step 8: Visual verification in Grafana (always required)
+
+**⛔ CRITICAL:** If you skip this section, you will waste time trying to fix kubectl access instead of using Grafana.
+
+---
+
 ### Language Toolchain
 - [ ] Checked if language is installed: `<language-command> --version`
 - [ ] If not installed: Ran `.devcontainer/additions/install-dev-<language>.sh`

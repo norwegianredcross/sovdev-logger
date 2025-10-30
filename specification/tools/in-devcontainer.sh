@@ -283,7 +283,9 @@ run_command() {
     fi
 
     # Execute arbitrary command in container
-    docker exec "$CONTAINER_NAME" bash -c "$cmd"
+    # Read and set KUBECONFIG from bashrc (avoids interactive shell requirement)
+    local full_cmd="export KUBECONFIG=\$(grep '^export KUBECONFIG=' ~/.bashrc 2>/dev/null | sed 's/^export KUBECONFIG=//'); $cmd"
+    docker exec "$CONTAINER_NAME" bash -c "$full_cmd"
 }
 
 run_script() {
@@ -309,7 +311,9 @@ run_script() {
     fi
 
     # Execute in container
-    docker exec "$CONTAINER_NAME" bash -c "$cmd"
+    # Read and set KUBECONFIG from bashrc (avoids interactive shell requirement)
+    local full_cmd="export KUBECONFIG=\$(grep '^export KUBECONFIG=' ~/.bashrc 2>/dev/null | sed 's/^export KUBECONFIG=//'); $cmd"
+    docker exec "$CONTAINER_NAME" bash -c "$full_cmd"
 }
 
 #------------------------------------------------------------------------------

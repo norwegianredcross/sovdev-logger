@@ -159,7 +159,6 @@ class LokiResponseValidator:
             'timestamp',         # ISO 8601 timestamp (NOT observed_timestamp)
             'severity_text',     # Required by Grafana Panel 4 (Recent Errors)
             'severity_number',   # Required by Grafana Panel 4 (Recent Errors)
-            'span_id',           # Required by Grafana Panel 4 (Recent Errors)
             'service_name',
             'function_name',
             'log_type',
@@ -168,6 +167,9 @@ class LokiResponseValidator:
             'event_id',
             'session_id'
         ]
+
+        # Note: span_id is conditional (only present when in span context)
+        # Grafana Panel 4 can handle missing span_id gracefully
 
         for stream_idx, stream_data in enumerate(results):
             stream_labels = stream_data.get('stream', {})
