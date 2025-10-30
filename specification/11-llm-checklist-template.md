@@ -58,6 +58,27 @@
 - [ ] Verified SDK supports: Logs ✅ Metrics ✅ Traces ✅
 - [ ] If Beta/Alpha: Documented limitations
 
+### Anti-Patterns Review
+- [ ] Read `specification/07-anti-patterns.md` completely
+- [ ] Understood code anti-patterns:
+  - [ ] Use service name for scope_name (not module name)
+  - [ ] Standardize exceptionType to "Error" (not language-specific)
+  - [ ] Use flat structure for ALL fields (OTLP requirement)
+  - [ ] Remove credentials before truncating stack traces
+  - [ ] Reuse same traceId for related logs
+  - [ ] Always call sovdev_flush() before exit
+  - [ ] Use single sessionId per execution
+  - [ ] Define FUNCTIONNAME constant (prevent typos)
+  - [ ] Define input/response variables (maintainability)
+  - [ ] Configure file rotation (prevent disk exhaustion)
+  - [ ] Use established logging libraries (not custom)
+- [ ] Understood implementation process pitfalls:
+  - [ ] **ALWAYS use in-devcontainer.sh wrapper** (never run commands directly)
+  - [ ] **ALWAYS use underscores in metric names** (never dots)
+  - [ ] **ALWAYS use .value for enum conversion** (never str(enum))
+  - [ ] **ALWAYS include Grafana-required fields** (timestamp, severity_text, severity_number)
+  - [ ] **ALWAYS use Grafana when kubectl fails** (never waste time on kubectl)
+
 ### TypeScript Reference Study
 - [ ] Read `typescript/src/logger.ts` completely
 - [ ] Read TypeScript OTEL SDK docs: https://opentelemetry.io/docs/languages/js/

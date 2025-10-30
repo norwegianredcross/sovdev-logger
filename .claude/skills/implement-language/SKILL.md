@@ -70,30 +70,37 @@ Now proceed with Phase 0...
    - **Time:** 10 minutes
    - **Key Takeaway:** Cannot translate TypeScript code - must understand BOTH SDKs
 
-4. **`specification/11-llm-checklist-template.md`** ⚠️ CRITICAL
+4. **`specification/07-anti-patterns.md`** ⚠️ CRITICAL - READ FOURTH
+   - Code anti-patterns to avoid in implementation
+   - Implementation process pitfalls from Python experience
+   - **Action:** Note all implementation process pitfalls
+   - **Time:** 10 minutes
+   - **Key Takeaway:** Use in-devcontainer.sh, underscores in metrics, enum.value
+
+5. **`specification/11-llm-checklist-template.md`** ⚠️ CRITICAL
    - Complete systematic checklist (Phase 0-7)
    - Create your working copy: `{language}/llm-work/llm-checklist-{language}.md`
    - **Action:** Copy this and update it throughout implementation
    - **Time:** 5 minutes to review structure
    - **Key Takeaway:** This is YOUR plan - update as you progress
 
-5. **`specification/09-development-loop.md`**
+6. **`specification/09-development-loop.md`**
    - 4-step iterative workflow
    - Validation-first approach
    - **Time:** 5 minutes
    - **Key Takeaway:** Write → Test → Validate → Iterate
 
-6. **`specification/01-api-contract.md`**
+7. **`specification/01-api-contract.md`**
    - 8 API functions you must implement
    - **Time:** 5 minutes
    - **Key Takeaway:** All 8 functions required, not optional
 
-7. **`specification/00-design-principles.md`**
+8. **`specification/00-design-principles.md`**
    - Core philosophy
    - **Time:** 5 minutes
    - **Key Takeaway:** Developer-centric, zero-config, validation-first
 
-**Total Reading Time:** ~45 minutes (DO NOT SKIP THIS)
+**Total Reading Time:** ~55 minutes (DO NOT SKIP THIS)
 
 **After reading, confirm you understand:**
 - [ ] How to run commands using `in-devcontainer.sh`
@@ -264,12 +271,15 @@ sleep 10
 
 ## Common Pitfalls to Avoid
 
-**See `specification/10-otel-sdk.md` section "Common Pitfalls" for detailed list.**
+**Complete list:** See `specification/07-anti-patterns.md`
+**OTEL SDK specific:** See `specification/10-otel-sdk.md` section "Common Pitfalls"
 
-Top 3:
-1. ❌ Using semantic convention defaults (dots) instead of underscores
-2. ❌ Not verifying language toolchain installed first
-3. ❌ Claiming complete without Grafana validation
+Top 5 implementation process pitfalls (from Python experience):
+1. ❌ Running commands directly on host instead of using `in-devcontainer.sh`
+2. ❌ Using dots in metric names instead of underscores (Prometheus requirement)
+3. ❌ Using `str(enum)` instead of `enum.value` for enum conversion
+4. ❌ Missing Grafana-required fields (timestamp, severity_text, severity_number)
+5. ❌ Wasting time trying to fix kubectl instead of using Grafana
 
 ## Getting Help
 

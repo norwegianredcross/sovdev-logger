@@ -617,7 +617,167 @@ See `specification/00-design-principles.md` section 10 for complete implementati
 
 ---
 
+## Implementation Process Pitfalls
+
+These pitfalls occur during the implementation process, not in the code itself. Discovered during Python implementation.
+
+### ❌ DON'T: Run Commands Directly on Host Machine
+
+**Problem:** Commands run directly on the host machine fail because they don't have access to the DevContainer environment, network, or KUBECONFIG.
+
+**Bad Example:**
+```bash
+# ❌ WRONG - Runs on host, will fail
+./specification/tools/query-loki.sh python
+python test/e2e/company-lookup/main.py
+```
+
+**Correct Example:**
+```bash
+# ✅ CORRECT - Runs inside DevContainer
+./specification/tools/in-devcontainer.sh -e "/workspace/specification/tools/query-loki.sh python"
+./specification/tools/in-devcontainer.sh -e "cd /workspace/python/test/e2e/company-lookup && ./run-test.sh"
+```
+
+**Why This Matters:**
+- Host machine doesn't have access to container network (`host.docker.internal`)
+- Host machine doesn't have KUBECONFIG set for kubectl
+- Host machine may not have required language toolchains installed
+
+**Impact:** Human intervention required to explain container environment.
+
+---
+
+### ❌ DON'T: Use Dots in Metric Names
+
+**Problem:** Prometheus requires underscores in metric names. Using dots causes metrics to not appear in Prometheus or Grafana.
+
+**Bad Example:**
+```
+sovdev.operations.total  # Won't appear in Prometheus
+sovdev.errors.total
+sovdev.operation.duration
+```
+
+**Correct Example:**
+```
+sovdev_operations_total  # Prometheus compatible
+sovdev_errors_total
+sovdev_operation_duration
+```
+
+**Validation Check:** If Grafana metric panels (1-3) are empty, verify metric names use underscores.
+
+**Impact:** 30 minutes debugging in Python implementation. Metrics exported but invisible in Grafana.
+
+---
+
+### ❌ DON'T: Use str(enum) for Enum Conversion
+
+**Problem:** In Python, Java, C#, and other languages, converting enum to string using `str()` or `.toString()` returns the enum NAME, not the VALUE.
+
+**Bad Example (Python):**
+```python
+# ❌ WRONG - Returns "SOVDEV_LOGLEVELS.ERROR"
+level = str(SOVDEV_LOGLEVELS.ERROR)
+# Results in log: { "level": "SOVDEV_LOGLEVELS.ERROR" }
+```
+
+**Correct Example (Python):**
+```python
+# ✅ CORRECT - Returns "error"
+level = SOVDEV_LOGLEVELS.ERROR.value
+# Results in log: { "level": "error" }
+```
+
+**Validation Check:**
+- File validation catches this: `validate-log-format.sh` reports "Invalid log level 'SOVDEV_LOGLEVELS.ERROR'"
+- Grafana check: If "Recent Errors" panel is empty despite errors, check enum conversion
+
+**Impact:** Critical bug - errors invisible in Grafana until fixed. Caught by enhanced validation (Task 1.1.2).
+
+---
+
+### ❌ DON'T: Omit Required Fields for Grafana Panels
+
+**Problem:** Grafana Panel 4 (Recent Errors) requires specific fields. Missing any of these causes empty panels or missing columns.
+
+**Required Fields:**
+- `timestamp` (ISO 8601 string, NOT just observed_timestamp)
+- `severity_text` (must be "error" not "SOVDEV_LOGLEVELS.ERROR")
+- `severity_number` (must be 17 for ERROR level)
+- `span_id` (when in span/transaction context)
+- `function_name`
+- `message`
+
+**Common Issue:**
+```python
+# ❌ WRONG - Only exports observed_timestamp
+log_record = {
+    "observed_timestamp": datetime.now().timestamp(),  # Unix timestamp
+    "severity_text": str(level),  # Wrong conversion
+    # Missing severity_number and timestamp
+}
+```
+
+**Correct Example:**
+```python
+# ✅ CORRECT - All required fields
+log_record = {
+    "timestamp": datetime.now(timezone.utc).isoformat(),  # ISO 8601 string
+    "severity_text": level.value,  # Enum value
+    "severity_number": level.severity_number,  # OTEL severity number
+    "span_id": current_span.span_id if current_span else None,
+    "function_name": function_name,
+    "message": message
+}
+```
+
+**Validation Check:**
+- Step 2 validation (query-loki.sh) now catches missing severity fields early
+- Grafana Panel 4 will show empty table if fields missing
+
+**Impact:** 20 minutes debugging in Python implementation. Caught by enhanced validation (Task 1.1.3).
+
+---
+
+### ❌ DON'T: Waste Time Trying to Fix kubectl Access
+
+**Problem:** When kubectl commands fail with "cannot connect to cluster", developers waste time trying to fix kubectl instead of using Grafana.
+
+**Symptom:**
+```
+❌ kubectl cannot connect to Kubernetes cluster
+```
+
+**Wrong Response:**
+```bash
+# ❌ WRONG - Trying to fix kubectl
+export KUBECONFIG=/some/path
+kubectl get nodes
+# ... 20 minutes of debugging kubectl ...
+```
+
+**Correct Response:**
+```bash
+# ✅ CORRECT - Use Grafana instead (it's authoritative)
+# Open http://grafana.localhost
+# Use query-grafana-*.sh scripts for programmatic queries
+./specification/tools/in-devcontainer.sh -e "/workspace/specification/tools/query-grafana-loki.sh python"
+```
+
+**Why This Matters:**
+- kubectl is **OPTIONAL** - Grafana is the authoritative validation source
+- In some environments, kubectl isn't configured (and doesn't need to be)
+- `in-devcontainer.sh` now passes KUBECONFIG automatically, but if it still fails, use Grafana
+
+**Impact:** Human intervention to explain Grafana is primary validation method.
+
+---
+
 ## ✅ Summary: Key Principles
+
+### Code Anti-Patterns (Avoid in Your Implementation)
 
 1. **Always use service name for `scope_name`** - Never module/package names
 2. **Always standardize `exceptionType` to "Error"** - Never language-specific types
@@ -630,6 +790,14 @@ See `specification/00-design-principles.md` section 10 for complete implementati
 9. **Always define `input`/`response` variables** - Improve maintainability
 10. **Always configure file rotation** - Prevent disk exhaustion
 11. **Always use established logging libraries** - Never implement custom file writing/rotation
+
+### Implementation Process Pitfalls (Avoid During Implementation)
+
+1. **Always use `in-devcontainer.sh` wrapper** - Never run commands directly on host
+2. **Always use underscores in metric names** - Never dots (Prometheus requirement)
+3. **Always use `.value` for enum conversion** - Never `str(enum)` or `.toString()`
+4. **Always include Grafana-required fields** - timestamp, severity_text, severity_number
+5. **Always use Grafana when kubectl fails** - Never waste time debugging kubectl
 
 Following these patterns ensures consistent, secure, and maintainable logging across all language implementations.
 
