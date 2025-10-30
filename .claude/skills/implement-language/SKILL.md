@@ -45,31 +45,62 @@ Now proceed with Phase 0...
 
 ### Phase 0: Read the Specification Documents
 
-**Read these documents in order:**
+**Read these documents in THIS EXACT ORDER (do not skip):**
 
-1. **`specification/tools/README.md`** ⚠️ CRITICAL - READ FIRST
+1. **`specification/05-environment-configuration.md`** ⚠️ CRITICAL - READ FIRST
+   - Explains DevContainer environment
+   - Shows how to use `in-devcontainer.sh` wrapper
+   - **Action:** Understand that ALL commands must use this wrapper
+   - **Time:** 5 minutes
+   - **Key Takeaway:** You cannot run commands directly - must use `./specification/tools/in-devcontainer.sh -e "command"`
+
+2. **`specification/tools/README.md`** ⚠️ CRITICAL - READ SECOND
    - Complete reference for ALL validation tools
-   - Explains which tools to use when
-   - Shows validation workflow and tool comparison
-   - **Action:** Read this before running ANY validation commands
+   - 8-step validation sequence with blocking points
+   - When to use Grafana vs CLI tools
+   - **Action:** Study tool comparison table and validation workflow
+   - **Time:** 10 minutes
+   - **Key Takeaway:** Grafana is authoritative, kubectl is optional
 
-2. **`specification/10-otel-sdk.md`** ⚠️ CRITICAL
+3. **`specification/10-otel-sdk.md`** ⚠️ CRITICAL - READ THIRD
    - OpenTelemetry SDK differences between languages
-   - Common pitfalls and how to avoid them
+   - Metric naming conventions (underscores not dots)
+   - Enum handling patterns
+   - **Action:** Note all "⚠️ CRITICAL" sections for your language
+   - **Time:** 10 minutes
+   - **Key Takeaway:** Cannot translate TypeScript code - must understand BOTH SDKs
 
-3. **`specification/11-llm-checklist-template.md`** ⚠️ CRITICAL
-   - Complete systematic checklist (Phase 0-6)
-   - Your working copy is at `{language}/llm-work/llm-checklist-{language}.md`
+4. **`specification/11-llm-checklist-template.md`** ⚠️ CRITICAL
+   - Complete systematic checklist (Phase 0-7)
+   - Create your working copy: `{language}/llm-work/llm-checklist-{language}.md`
+   - **Action:** Copy this and update it throughout implementation
+   - **Time:** 5 minutes to review structure
+   - **Key Takeaway:** This is YOUR plan - update as you progress
 
-4. **`specification/09-development-loop.md`**
+5. **`specification/09-development-loop.md`**
    - 4-step iterative workflow
    - Validation-first approach
+   - **Time:** 5 minutes
+   - **Key Takeaway:** Write → Test → Validate → Iterate
 
-5. **`specification/01-api-contract.md`**
+6. **`specification/01-api-contract.md`**
    - 8 API functions you must implement
+   - **Time:** 5 minutes
+   - **Key Takeaway:** All 8 functions required, not optional
 
-6. **`specification/00-design-principles.md`**
+7. **`specification/00-design-principles.md`**
    - Core philosophy
+   - **Time:** 5 minutes
+   - **Key Takeaway:** Developer-centric, zero-config, validation-first
+
+**Total Reading Time:** ~45 minutes (DO NOT SKIP THIS)
+
+**After reading, confirm you understand:**
+- [ ] How to run commands using `in-devcontainer.sh`
+- [ ] The 8-step validation sequence
+- [ ] When to use Grafana instead of CLI tools (answer: always if kubectl fails)
+- [ ] Critical differences for your target language from 10-otel-sdk.md
+- [ ] That metric names MUST use underscores not dots
 
 ### Study Reference Implementations
 
