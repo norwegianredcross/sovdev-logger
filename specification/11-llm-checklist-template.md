@@ -47,6 +47,47 @@
 
 ---
 
+### Verify Reference Implementation Works (MANDATORY - BEFORE CODING)
+
+**⛔ CRITICAL:** Before implementing a new language, verify the monitoring stack is working correctly by running TypeScript validation.
+
+- [ ] Run TypeScript E2E test:
+  ```bash
+  ./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript/test/e2e/company-lookup && ./run-test.sh"
+  ```
+  - [ ] Test ran without errors
+  - [ ] Log files created in `typescript/test/e2e/company-lookup/logs/`
+
+- [ ] Run TypeScript full validation:
+  ```bash
+  ./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh typescript"
+  ```
+  - [ ] Step 1: File validation ✅
+  - [ ] Step 2: Logs in Loki ✅
+  - [ ] Step 3: Metrics in Prometheus ✅
+  - [ ] Step 4: Traces in Tempo ✅
+  - [ ] Step 5: Grafana-Loki connection ✅
+  - [ ] Step 6: Grafana-Prometheus connection ✅
+  - [ ] Step 7: Grafana-Tempo connection ✅
+  - [ ] Step 8: Grafana dashboard shows TypeScript data ✅
+
+- [ ] Verified Grafana dashboard at http://grafana.localhost:
+  - [ ] Navigated to "Structured Logging Testing Dashboard"
+  - [ ] Panel 1 (Total Operations) shows TypeScript data
+  - [ ] Panel 2 (Error Rate) shows TypeScript data
+  - [ ] Panel 3 (Average Operation Duration) shows TypeScript data
+
+**⛔ CRITICAL:** If TypeScript validation fails, DO NOT start implementing new language. Fix the monitoring stack first.
+
+**Why this step matters:** This verifies the observability stack (Loki, Grafana, Tempo, Prometheus) is operational BEFORE you start coding. Any failures are environment issues, NOT language-specific issues. This prevents wasting time investigating SDK problems when the real issue is the monitoring stack.
+
+**Validation result:**
+```
+[Document result: ALL PASS ✅ / Which steps failed ❌]
+```
+
+---
+
 ### Language Toolchain
 - [ ] Checked if language is installed: `<language-command> --version`
 - [ ] If not installed: Ran `.devcontainer/additions/install-dev-<language>.sh`
@@ -54,9 +95,19 @@
 
 ### OpenTelemetry SDK Verification
 - [ ] Visited https://opentelemetry.io/docs/languages/
-- [ ] Verified SDK exists for language: **[SDK Status: Stable/Beta/Alpha]**
-- [ ] Verified SDK supports: Logs ✅ Metrics ✅ Traces ✅
-- [ ] If Beta/Alpha: Documented limitations
+- [ ] Found language in the list: **[Language Name]**
+- [ ] Checked status table for maturity levels:
+  - [ ] Traces: **[Stable/Beta/Development]**
+  - [ ] Metrics: **[Stable/Beta/Development]**
+  - [ ] Logs: **[Stable/Beta/Development]**
+- [ ] Found language-specific documentation link
+- [ ] Found GitHub repository: https://github.com/open-telemetry/opentelemetry-**[language]**
+- [ ] If Beta/Development: Documented known limitations
+
+**SDK Status Summary:**
+```
+[Document SDK maturity and any known limitations]
+```
 
 ### Anti-Patterns Review
 - [ ] Read `specification/07-anti-patterns.md` completely
@@ -92,11 +143,22 @@
   - [ ] Specifies histogram unit (`unit: 'ms'`)
 
 ### Target Language SDK Study
-- [ ] Read Getting Started guide for language
+
+**From https://opentelemetry.io/docs/languages/[language]/:**
+- [ ] Read Getting Started guide
+- [ ] Read Instrumentation approaches
 - [ ] Read Logs API documentation
 - [ ] Read Metrics API documentation
 - [ ] Read Traces API documentation
 - [ ] Read OTLP HTTP Exporter documentation
+- [ ] Read Configuration options
+
+**From https://github.com/open-telemetry/opentelemetry-[language]:**
+- [ ] Reviewed `/examples/` directory - found working code samples
+- [ ] Reviewed `/exporters/` directory - found OTLP HTTP exporter implementation
+- [ ] Reviewed exporter documentation for HTTP client configuration
+- [ ] **CRITICAL:** Investigated how to set custom HTTP headers (required for `Host: otel.localhost`)
+- [ ] Documented any differences from TypeScript SDK patterns
 
 ### Critical Questions Answered
 

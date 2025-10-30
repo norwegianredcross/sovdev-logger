@@ -8,7 +8,11 @@
       "Bash(cp:*)",
       "Bash(chmod:*)",
       "Bash(./specification/tools/in-devcontainer.sh -e \"cd /workspace/python/test/e2e/company-lookup && ./run-test.sh\")",
-      "Bash(./specification/tools/in-devcontainer.sh:*)"
+      "Bash(./specification/tools/in-devcontainer.sh:*)",
+      "Skill(implement-language)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:opentelemetry.io)"
     ],
     "deny": [],
     "ask": []

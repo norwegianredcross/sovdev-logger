@@ -923,13 +923,18 @@ sovdev_log("info", ...)  # Also works (string literal)
 ## Language-Specific Adaptations
 
 ### Naming Conventions
+
+**ALL languages MUST use snake_case for function names to ensure cross-language consistency.**
+
 - **TypeScript/JavaScript**: snake_case (sovdev_log, sovdev_flush)
 - **Python**: snake_case (sovdev_log, sovdev_flush)
-- **Go**: snake_case for exported functions (sovdev_log, sovdev_flush) or PascalCase wrappers
-- **Java**: snake_case (sovdev_log, sovdev_flush) or camelCase wrappers
-- **C#**: snake_case (sovdev_log, sovdev_flush) or PascalCase wrappers
-- **PHP**: snake_case (sovdev_log, sovdev_flush) per PSR standards
+- **Go**: snake_case (sovdev_log, sovdev_flush)
+- **Java**: snake_case (sovdev_log, sovdev_flush)
+- **C#**: snake_case (sovdev_log, sovdev_flush)
+- **PHP**: snake_case (sovdev_log, sovdev_flush)
 - **Rust**: snake_case (sovdev_log, sovdev_flush)
+
+**Note**: Even if your language convention prefers PascalCase (Go, C#) or camelCase (Java), you MUST use snake_case for the public API to maintain consistency across all language implementations.
 
 ### Optional Parameters
 - **TypeScript**: `param?: Type`

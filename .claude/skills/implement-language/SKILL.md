@@ -118,6 +118,47 @@ Now proceed with Phase 0...
 - [ ] Critical differences for your target language from 10-otel-sdk.md
 - [ ] That metric names MUST use underscores not dots
 
+---
+
+### Verify Reference Implementation Works (MANDATORY - BEFORE CODING)
+
+**⛔ CRITICAL: Before implementing a new language, verify the monitoring stack is working correctly by running TypeScript validation.**
+
+This ensures:
+- The observability stack (Loki, Grafana, Tempo, Prometheus) is operational
+- OTLP endpoints are accessible
+- Any failures are environment issues, NOT language-specific issues
+
+**Run TypeScript E2E test:**
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/typescript/test/e2e/company-lookup && ./run-test.sh"
+```
+**Expected:** Test runs without errors and creates log files.
+
+**Run TypeScript full validation:**
+```bash
+./specification/tools/in-devcontainer.sh -e "cd /workspace/specification/tools && ./run-full-validation.sh typescript"
+```
+**Expected:** ALL 8 validation steps PASS for TypeScript:
+- ✅ Step 1: File validation
+- ✅ Step 2: Logs in Loki
+- ✅ Step 3: Metrics in Prometheus
+- ✅ Step 4: Traces in Tempo
+- ✅ Step 5: Grafana-Loki connection
+- ✅ Step 6: Grafana-Prometheus connection
+- ✅ Step 7: Grafana-Tempo connection
+- ✅ Step 8: Grafana dashboard shows TypeScript data
+
+**⛔ If TypeScript validation fails:**
+- DO NOT start implementing the new language
+- Fix the monitoring stack first (restart services, check configuration)
+- Ask the user for help if environment issues persist
+- Only proceed when TypeScript validation fully passes
+
+**Why this matters:** During the Go implementation, we spent significant time investigating OTLP 404 errors. If we had verified TypeScript worked first, we would have immediately known the monitoring stack was working and the issue was Go SDK-specific.
+
+---
+
 ### Study Reference Implementations
 
 **TypeScript (source of truth):**
@@ -127,7 +168,17 @@ Now proceed with Phase 0...
 - `go/` - Example implementation
 - `python/` - Example implementation (if exists)
 
+**OpenTelemetry SDK Study (3-step approach):**
+
+1. **Verify SDK availability and maturity** at https://opentelemetry.io/docs/languages/
+2. **Study language-specific documentation** (Getting Started, API, SDK, Configuration)
+3. **Review source code and working examples** at https://github.com/open-telemetry
+
+**CRITICAL:** Find how to set custom HTTP headers (required for `Host: otel.localhost`)
+
 **Study BOTH the TypeScript AND the target language OTEL SDK before writing code.**
+
+**AUTHORITATIVE CHECKLIST:** `specification/11-llm-checklist-template.md` → **Phase 0: OpenTelemetry SDK Verification** and **Phase 0: Target Language SDK Study**
 
 ## ⚠️ MANDATORY VALIDATION LOOP - DO NOT SKIP ⚠️
 
