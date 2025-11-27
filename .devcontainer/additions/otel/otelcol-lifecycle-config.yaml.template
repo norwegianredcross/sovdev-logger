@@ -66,10 +66,10 @@ processors:
 exporters:
   # OTLP HTTP exporter - sends telemetry to k8s cluster via nginx proxy
   otlphttp:
-    endpoint: http://localhost:8081
+    endpoint: http://localhost:NGINX_OTEL_PORT
     headers:
       Host: otel.localhost
-    # Note: Routes through nginx reverse proxy on localhost:8081
+    # Note: Routes through nginx reverse proxy on localhost:NGINX_OTEL_PORT
     # Nginx forwards to backend infrastructure with Host header for Traefik routing
     compression: gzip
     timeout: 10s

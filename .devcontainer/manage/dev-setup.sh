@@ -1,5 +1,5 @@
 #!/bin/bash
-# file: .devcontainer/dev-setup.sh
+# File: .devcontainer/manage/dev-setup.sh
 # Description: Simple development environment setup and tool selection
 # Purpose: Central setup script for devcontainer development tools and templates
 #
@@ -18,16 +18,26 @@ set -e
 # Script metadata
 SCRIPT_VERSION="3.4.0"
 SCRIPT_NAME="DevContainer Setup"
-DEVCONTAINER_DIR=".devcontainer"
+
+# Get script directory and calculate absolute paths
+# Resolve symlinks to get actual script location
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_SOURCE" ]; do
+    SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+    SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+    [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+DEVCONTAINER_DIR="$(dirname "$SCRIPT_DIR")"
 ADDITIONS_DIR="$DEVCONTAINER_DIR/additions"
-DEV_TEMPLATE_SCRIPT="$DEVCONTAINER_DIR/dev/dev-template.sh"
+DEV_TEMPLATE_SCRIPT="$SCRIPT_DIR/dev-template.sh"
 
 # Source component scanner library
-LIB_DIR="$DEVCONTAINER_DIR/additions/lib"
+LIB_DIR="$ADDITIONS_DIR/lib"
 if [[ -f "$LIB_DIR/component-scanner.sh" ]]; then
     source "$LIB_DIR/component-scanner.sh"
 else
-    echo "Error: component-scanner.sh library not found" >&2
+    echo "Error: component-scanner.sh library not found at $LIB_DIR" >&2
     exit 1
 fi
 
@@ -54,9 +64,7 @@ declare -a AVAILABLE_SERVICES=()
 declare -a SERVICE_SCRIPTS=()
 declare -a SERVICE_DESCRIPTIONS=()
 declare -a SERVICE_CATEGORIES=()
-declare -a SERVICE_START_SCRIPTS=()
-declare -a SERVICE_STOP_SCRIPTS=()
-declare -a SERVICE_CHECK_COMMANDS=()
+declare -a SERVICE_PREREQUISITE_CONFIGS=()
 
 # Service category organization
 declare -A SERVICES_BY_CATEGORY  # Maps category to comma-separated service indices
@@ -188,9 +196,7 @@ scan_available_services() {
     SERVICE_SCRIPTS=()
     SERVICE_DESCRIPTIONS=()
     SERVICE_CATEGORIES=()
-    SERVICE_START_SCRIPTS=()
-    SERVICE_STOP_SCRIPTS=()
-    SERVICE_CHECK_COMMANDS=()
+    SERVICE_PREREQUISITE_CONFIGS=()
 
     # Reset category organization
     SERVICES_BY_CATEGORY=()
@@ -204,16 +210,14 @@ scan_available_services() {
 
     local found=0
 
-    # Use library to scan service scripts
-    while IFS=$'\t' read -r start_script stop_script service_name service_description service_category check_running_command; do
+    # Scan for service-*.sh scripts
+    while IFS=$'\t' read -r script_basename service_name service_description service_category script_path prerequisite_configs; do
         # Add to arrays
         AVAILABLE_SERVICES+=("$service_name")
-        SERVICE_SCRIPTS+=("$start_script")
+        SERVICE_SCRIPTS+=("$script_basename")
         SERVICE_DESCRIPTIONS+=("$service_description")
         SERVICE_CATEGORIES+=("$service_category")
-        SERVICE_START_SCRIPTS+=("$start_script")
-        SERVICE_STOP_SCRIPTS+=("$stop_script")
-        SERVICE_CHECK_COMMANDS+=("$check_running_command")
+        SERVICE_PREREQUISITE_CONFIGS+=("$prerequisite_configs")
 
         # Track service index by category
         local service_index=$found
@@ -227,7 +231,7 @@ scan_available_services() {
         SERVICE_CATEGORY_COUNTS[$service_category]=$((${SERVICE_CATEGORY_COUNTS[$service_category]:-0} + 1))
 
         ((found++))
-    done < <(scan_service_scripts "$ADDITIONS_DIR")
+    done < <(scan_service_scripts_new "$ADDITIONS_DIR")
 
     if [[ $found -eq 0 ]]; then
         dialog --title "No Services Found" --msgbox "No services found in $ADDITIONS_DIR" $DIALOG_HEIGHT $DIALOG_WIDTH
@@ -236,20 +240,6 @@ scan_available_services() {
     fi
 
     return 0
-}
-
-check_service_running() {
-    local service_index=$1
-    local check_command="${SERVICE_CHECK_COMMANDS[$service_index]}"
-
-    # If no check command, assume not running
-    if [[ -z "$check_command" ]]; then
-        return 1
-    fi
-
-    # Execute the check command
-    eval "$check_command" 2>/dev/null
-    return $?
 }
 
 #------------------------------------------------------------------------------
@@ -322,6 +312,63 @@ check_config_configured() {
 }
 
 #------------------------------------------------------------------------------
+# CMD script discovery and management
+#------------------------------------------------------------------------------
+
+scan_available_cmds() {
+    AVAILABLE_CMDS=()
+    CMD_SCRIPTS=()
+    CMD_DESCRIPTIONS=()
+    CMD_CATEGORIES=()
+    CMD_SCRIPT_PATHS=()
+    CMD_PREREQUISITE_CONFIGS=()
+
+    # Reset category organization
+    CMDS_BY_CATEGORY=()
+    CMD_CATEGORY_COUNTS=()
+
+    if [[ ! -d "$ADDITIONS_DIR" ]]; then
+        dialog --title "Error" --msgbox "Commands directory not found: $ADDITIONS_DIR" $DIALOG_HEIGHT $DIALOG_WIDTH
+        clear
+        return 1
+    fi
+
+    local found=0
+
+    # Use library to scan cmd scripts
+    while IFS=$'\t' read -r script_basename cmd_name cmd_description cmd_category script_path prerequisite_configs; do
+        # Add to arrays
+        AVAILABLE_CMDS+=("$cmd_name")
+        CMD_SCRIPTS+=("$script_basename")
+        CMD_DESCRIPTIONS+=("$cmd_description")
+        CMD_CATEGORIES+=("$cmd_category")
+        CMD_SCRIPT_PATHS+=("$script_path")
+        CMD_PREREQUISITE_CONFIGS+=("$prerequisite_configs")
+
+        # Track cmd index by category
+        local cmd_index=$found
+        if [[ -n "${CMDS_BY_CATEGORY[$cmd_category]}" ]]; then
+            CMDS_BY_CATEGORY[$cmd_category]="${CMDS_BY_CATEGORY[$cmd_category]},$cmd_index"
+        else
+            CMDS_BY_CATEGORY[$cmd_category]="$cmd_index"
+        fi
+
+        # Increment category count
+        CMD_CATEGORY_COUNTS[$cmd_category]=$((${CMD_CATEGORY_COUNTS[$cmd_category]:-0} + 1))
+
+        ((found++))
+    done < <(scan_cmd_scripts "$ADDITIONS_DIR")
+
+    if [[ $found -eq 0 ]]; then
+        dialog --title "No Command Scripts Found" --msgbox "No command scripts found in $ADDITIONS_DIR" $DIALOG_HEIGHT $DIALOG_WIDTH
+        clear
+        return 1
+    fi
+
+    return 0
+}
+
+#------------------------------------------------------------------------------
 # Service category menu
 #------------------------------------------------------------------------------
 
@@ -386,64 +433,162 @@ show_service_category_menu() {
 }
 
 #------------------------------------------------------------------------------
-# Services in category menu
+# Show all services in one menu with category emoji prefixes
 #------------------------------------------------------------------------------
 
-show_services_in_category() {
-    local category_key=$1
-    local category_name="${CATEGORIES[$category_key]}"
-
-    # Get service indices for this category
-    local service_indices="${SERVICES_BY_CATEGORY[$category_key]}"
-
-    if [[ -z "$service_indices" ]]; then
-        dialog --title "No Services" --msgbox "No services found in category: $category_name" $DIALOG_HEIGHT $DIALOG_WIDTH
-        clear
-        return 1
-    fi
-
+show_all_services_menu() {
     while true; do
-        # Build menu with services in this category
+        # Build menu with ALL services, grouped by category with emoji prefixes
         local menu_options=()
         local option_num=1
+        declare -A MENU_TO_SERVICE_INDEX
 
-        # Convert comma-separated indices to array
-        IFS=',' read -ra INDICES <<< "$service_indices"
+        # Define category prefix mapping (using text since some emojis don't render in dialog)
+        local -A CATEGORY_PREFIX=(
+            ["AI_TOOLS"]="[AI]"
+            ["LANGUAGE_DEV"]="[DEV]"
+            ["INFRA_CONFIG"]="[INFRA]"
+            ["DATA_ANALYTICS"]="[DATA]"
+            ["UNCATEGORIZED"]="[OTHER]"
+        )
 
-        for service_index in "${INDICES[@]}"; do
-            local service_name="${AVAILABLE_SERVICES[$service_index]}"
-            local service_description="${SERVICE_DESCRIPTIONS[$service_index]}"
+        # Iterate through categories in order
+        for category_key in "AI_TOOLS" "LANGUAGE_DEV" "INFRA_CONFIG" "DATA_ANALYTICS" "UNCATEGORIZED"; do
+            local service_indices="${SERVICES_BY_CATEGORY[$category_key]}"
 
-            # Check if service is running
-            local status_icon="⏸️"
-            if check_service_running "$service_index"; then
-                status_icon="✅"
+            # Skip empty categories
+            if [[ -z "$service_indices" ]]; then
+                continue
             fi
 
-            menu_options+=("$option_num" "$status_icon $service_name" "$service_description")
-            ((option_num++))
+            # Convert comma-separated indices to array
+            IFS=',' read -ra INDICES <<< "$service_indices"
+
+            # Add services from this category
+            for service_index in "${INDICES[@]}"; do
+                local service_name="${AVAILABLE_SERVICES[$service_index]}"
+                local service_description="${SERVICE_DESCRIPTIONS[$service_index]}"
+                local prefix="${CATEGORY_PREFIX[$category_key]}"
+
+                menu_options+=("$option_num" "$prefix $service_name" "$service_description")
+                MENU_TO_SERVICE_INDEX[$option_num]=$service_index
+                ((option_num++))
+            done
         done
 
-        # Show service selection menu with dynamic help
+        # If no services found
+        if [[ ${#menu_options[@]} -eq 0 ]]; then
+            dialog --title "No Services" --msgbox "No services found." $DIALOG_HEIGHT $DIALOG_WIDTH
+            clear
+            return 1
+        fi
+
+        # Show service selection menu
         local choice
         choice=$(dialog --clear \
             --item-help \
-            --title "Service Management - $category_name" \
-            --menu "Choose a service to manage (ESC to go back):" \
+            --title "Service Management" \
+            --menu "Choose a service to manage (ESC to go back):\n\n✅=Running  ⏸️=Stopped" \
             $DIALOG_HEIGHT $DIALOG_WIDTH $MENU_HEIGHT \
             "${menu_options[@]}" \
             2>&1 >/dev/tty)
 
-        # Check if user cancelled (ESC - go back to category menu)
+        # Check if user cancelled (ESC)
         if [[ $? -ne 0 ]]; then
             return 0
         fi
 
-        # Map choice to actual service index
-        local selected_service_index=${INDICES[$((choice - 1))]}
+        # Get the actual service index from the menu choice
+        local selected_service_index=${MENU_TO_SERVICE_INDEX[$choice]}
 
         # Show service details and actions
         show_service_details_and_actions "$selected_service_index"
+    done
+}
+
+#------------------------------------------------------------------------------
+# Service submenu - Show commands from selected service-*.sh script
+#------------------------------------------------------------------------------
+
+show_service_submenu() {
+    local service_index=$1
+    local service_name="${AVAILABLE_SERVICES[$service_index]}"
+    local script_name="${SERVICE_SCRIPTS[$service_index]}"
+    local script_path="$ADDITIONS_DIR/$script_name"
+    local prerequisite_configs="${SERVICE_PREREQUISITE_CONFIGS[$service_index]}"
+
+    # Check prerequisites first
+    if [[ -n "$prerequisite_configs" ]]; then
+        # Source prerequisite-check library
+        source "$ADDITIONS_DIR/lib/prerequisite-check.sh"
+
+        if ! check_prerequisite_configs "$prerequisite_configs" "$ADDITIONS_DIR"; then
+            # Show missing prerequisites
+            local missing_msg=$(show_missing_prerequisites "$prerequisite_configs" "$ADDITIONS_DIR")
+            dialog --title "Prerequisites Not Met" \
+                --msgbox "Cannot run $service_name. Prerequisites not met:\n\n$missing_msg\n\nPlease configure required items first." \
+                20 70
+            clear
+            return 1
+        fi
+    fi
+
+    while true; do
+        # Extract COMMANDS array from the script
+        local commands=()
+        while IFS= read -r cmd_def; do
+            commands+=("$cmd_def")
+        done < <(extract_service_commands "$script_path")
+
+        if [[ ${#commands[@]} -eq 0 ]]; then
+            dialog --title "No Commands" --msgbox "No commands found in $service_name" $DIALOG_HEIGHT $DIALOG_WIDTH
+            clear
+            return 1
+        fi
+
+        # Build menu with category prefixes (like cmd-*.sh display)
+        local menu_options=()
+        local menu_actions=()
+        local option_num=1
+
+        for cmd_def in "${commands[@]}"; do
+            IFS='|' read -r category flag description function requires_arg param_prompt <<< "$cmd_def"
+
+            # Add command with category prefix
+            local display_text="[$category] $description"
+            menu_options+=("$option_num" "$display_text" "$flag")
+            menu_actions[$option_num]="$flag|$requires_arg|$param_prompt"
+            ((option_num++))
+        done
+
+        # Add back option
+        menu_options+=("0" "Back to Service List" "")
+
+        # Show submenu
+        local choice
+        choice=$(dialog --clear \
+            --item-help \
+            --title "$service_name" \
+            --menu "Select a command (ESC to go back):" \
+            $DIALOG_HEIGHT $DIALOG_WIDTH $MENU_HEIGHT \
+            "${menu_options[@]}" \
+            2>&1 >/dev/tty)
+
+        # Check if user cancelled (ESC)
+        if [[ $? -ne 0 ]]; then
+            return 0
+        fi
+
+        # Handle back option
+        if [[ $choice -eq 0 || -z "$choice" ]]; then
+            return 0
+        fi
+
+        # Execute selected command
+        local action_def="${menu_actions[$choice]}"
+        if [[ -n "$action_def" ]]; then
+            execute_service_cmd_action "$script_path" "$action_def"
+        fi
     done
 }
 
@@ -453,179 +598,54 @@ show_services_in_category() {
 
 show_service_details_and_actions() {
     local service_index=$1
-    local service_name="${AVAILABLE_SERVICES[$service_index]}"
-    local service_description="${SERVICE_DESCRIPTIONS[$service_index]}"
-    local stop_script="${SERVICE_STOP_SCRIPTS[$service_index]}"
-
-    # Check if service is running
-    local is_running=false
-    if check_service_running "$service_index"; then
-        is_running=true
-    fi
-
-    # Build menu based on current state
-    local menu_options=()
-    local status_text
-
-    if [[ "$is_running" = true ]]; then
-        status_text="Status: Running ✅"
-        menu_options+=("1" "Stop service")
-
-        # Only show Restart if stop script exists
-        if [[ -n "$stop_script" ]]; then
-            menu_options+=("2" "Restart service")
-        fi
-
-        menu_options+=("3" "Back to service list")
-    else
-        status_text="Status: Stopped ⏸️"
-        menu_options+=("1" "Start service")
-        menu_options+=("2" "Back to service list")
-    fi
-
-    # Show service details with available actions
-    local user_choice
-    user_choice=$(dialog --clear \
-        --title "Service: $service_name" \
-        --menu "$service_description\n\n$status_text\n\nWhat would you like to do?" \
-        $DIALOG_HEIGHT $DIALOG_WIDTH 6 \
-        "${menu_options[@]}" \
-        2>&1 >/dev/tty)
-
-    # Handle user choice
-    if [[ $? -ne 0 ]]; then
-        # User pressed ESC - go back
-        return 0
-    fi
-
-    if [[ "$is_running" = true ]]; then
-        case $user_choice in
-            1)
-                execute_service_action "$service_index" "stop"
-                ;;
-            2)
-                if [[ -n "$stop_script" ]]; then
-                    execute_service_action "$service_index" "restart"
-                fi
-                ;;
-            3|"")
-                # Go back to service list
-                ;;
-        esac
-    else
-        case $user_choice in
-            1)
-                execute_service_action "$service_index" "start"
-                ;;
-            2|"")
-                # Go back to service list
-                ;;
-        esac
-    fi
+    # Show service-*.sh COMMANDS array menu
+    show_service_submenu "$service_index"
 }
 
-execute_service_action() {
-    local service_index=$1
-    local action=$2
-    local service_name="${AVAILABLE_SERVICES[$service_index]}"
-    local start_script="${SERVICE_START_SCRIPTS[$service_index]}"
-    local stop_script="${SERVICE_STOP_SCRIPTS[$service_index]}"
+execute_service_cmd_action() {
+    local script_path="$1"
+    local action_def="$2"
 
+    IFS='|' read -r flag requires_arg param_prompt <<< "$action_def"
+
+    local cmd_args=("$flag")
+
+    # Prompt for parameter if needed
+    if [[ "$requires_arg" = "true" ]]; then
+        local param_value
+        param_value=$(dialog --clear \
+            --title "Parameter Required" \
+            --inputbox "$param_prompt:" \
+            8 60 \
+            2>&1 >/dev/tty)
+
+        # Check if user cancelled
+        if [[ $? -ne 0 ]]; then
+            return 0
+        fi
+
+        if [[ -n "$param_value" ]]; then
+            cmd_args+=("$param_value")
+        else
+            dialog --msgbox "Parameter required - command cancelled" 6 40
+            clear
+            return 1
+        fi
+    fi
+
+    # Execute command
     clear
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Executing: $(basename "$script_path") ${cmd_args[*]}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
 
-    case $action in
-        start)
-            echo "Starting: $service_name"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-
-            local start_path="$ADDITIONS_DIR/$start_script"
-            if [[ ! -f "$start_path" ]]; then
-                echo "❌ Error: Start script not found: $start_path"
-            else
-                chmod +x "$start_path"
-                if bash "$start_path"; then
-                    echo ""
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    echo "✅ Successfully started: $service_name"
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                else
-                    echo ""
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    echo "❌ Failed to start: $service_name"
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                fi
-            fi
-            ;;
-        stop)
-            echo "Stopping: $service_name"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-
-            if [[ -z "$stop_script" ]]; then
-                echo "❌ Error: No stop script available for this service"
-            else
-                local stop_path="$ADDITIONS_DIR/$stop_script"
-                if [[ ! -f "$stop_path" ]]; then
-                    echo "❌ Error: Stop script not found: $stop_path"
-                else
-                    chmod +x "$stop_path"
-                    if bash "$stop_path"; then
-                        echo ""
-                        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                        echo "✅ Successfully stopped: $service_name"
-                        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    else
-                        echo ""
-                        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                        echo "❌ Failed to stop: $service_name"
-                        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    fi
-                fi
-            fi
-            ;;
-        restart)
-            echo "Restarting: $service_name"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-
-            if [[ -z "$stop_script" ]]; then
-                echo "❌ Error: No stop script available for restart"
-            else
-                local stop_path="$ADDITIONS_DIR/$stop_script"
-                local start_path="$ADDITIONS_DIR/$start_script"
-
-                # Stop first
-                echo "Stopping service..."
-                chmod +x "$stop_path"
-                bash "$stop_path"
-
-                echo ""
-                echo "Waiting 2 seconds..."
-                sleep 2
-                echo ""
-
-                # Then start
-                echo "Starting service..."
-                chmod +x "$start_path"
-                if bash "$start_path"; then
-                    echo ""
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    echo "✅ Successfully restarted: $service_name"
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                else
-                    echo ""
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    echo "❌ Failed to restart: $service_name"
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                fi
-            fi
-            ;;
-    esac
+    bash "$script_path" "${cmd_args[@]}"
 
     echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     read -p "Press Enter to continue..." -r
+    clear
 }
 
 #------------------------------------------------------------------------------
@@ -692,17 +712,8 @@ manage_services() {
 
         case $choice in
             1)
-                # Original service management flow
-                while true; do
-                    local selected_category
-                    selected_category=$(show_service_category_menu)
-
-                    if [[ $? -ne 0 || -z "$selected_category" ]]; then
-                        break
-                    fi
-
-                    show_services_in_category "$selected_category"
-                done
+                # Show all services in one menu with emoji category prefixes
+                show_all_services_menu
                 ;;
             2)
                 show_autostart_services
@@ -928,8 +939,188 @@ execute_config_script() {
 }
 
 #------------------------------------------------------------------------------
+# CMD submenu - Show commands from selected script
+#------------------------------------------------------------------------------
+
+show_cmd_submenu() {
+    local cmd_index=$1
+    local cmd_name="${AVAILABLE_CMDS[$cmd_index]}"
+    local script_path="${CMD_SCRIPT_PATHS[$cmd_index]}"
+    local prerequisite_configs="${CMD_PREREQUISITE_CONFIGS[$cmd_index]}"
+
+    # Check prerequisites first
+    if [[ -n "$prerequisite_configs" ]]; then
+        # Source prerequisite-check library
+        source "$ADDITIONS_DIR/lib/prerequisite-check.sh"
+
+        if ! check_prerequisite_configs "$prerequisite_configs" "$ADDITIONS_DIR"; then
+            # Show missing prerequisites
+            local missing_msg=$(show_missing_prerequisites "$prerequisite_configs" "$ADDITIONS_DIR")
+            dialog --title "Prerequisites Not Met" \
+                --msgbox "Cannot run $cmd_name. Prerequisites not met:\n\n$missing_msg\n\nPlease configure required items first." \
+                20 70
+            clear
+            return 1
+        fi
+    fi
+
+    while true; do
+        # Extract COMMANDS array from the script
+        local commands=()
+        while IFS= read -r cmd_def; do
+            commands+=("$cmd_def")
+        done < <(extract_cmd_commands "$script_path")
+
+        if [[ ${#commands[@]} -eq 0 ]]; then
+            dialog --title "No Commands" --msgbox "No commands found in $cmd_name" $DIALOG_HEIGHT $DIALOG_WIDTH
+            clear
+            return 1
+        fi
+
+        # Build menu with category prefixes (like services display)
+        local menu_options=()
+        local menu_actions=()
+        local option_num=1
+
+        for cmd_def in "${commands[@]}"; do
+            IFS='|' read -r category flag description function requires_arg param_prompt <<< "$cmd_def"
+
+            # Add command with category prefix
+            local display_text="[$category] $description"
+            menu_options+=("$option_num" "$display_text" "$flag")
+            menu_actions[$option_num]="$flag|$requires_arg|$param_prompt"
+            ((option_num++))
+        done
+
+        # Add back option
+        menu_options+=("0" "Back to Command Tools" "")
+
+        # Show submenu
+        local choice
+        choice=$(dialog --clear \
+            --item-help \
+            --title "$cmd_name" \
+            --menu "Select a command (ESC to go back):" \
+            $DIALOG_HEIGHT $DIALOG_WIDTH $MENU_HEIGHT \
+            "${menu_options[@]}" \
+            2>&1 >/dev/tty)
+
+        # Check if user cancelled (ESC)
+        if [[ $? -ne 0 ]]; then
+            return 0
+        fi
+
+        # Handle back option
+        if [[ $choice -eq 0 || -z "$choice" ]]; then
+            return 0
+        fi
+
+        # Execute selected command
+        local action_def="${menu_actions[$choice]}"
+        if [[ -n "$action_def" ]]; then
+            execute_cmd_action "$script_path" "$action_def"
+        fi
+    done
+}
+
+execute_cmd_action() {
+    local script_path="$1"
+    local action_def="$2"
+
+    IFS='|' read -r flag requires_arg param_prompt <<< "$action_def"
+
+    local cmd_args=("$flag")
+
+    # Prompt for parameter if needed
+    if [[ "$requires_arg" = "true" ]]; then
+        local param_value
+        param_value=$(dialog --clear \
+            --title "Parameter Required" \
+            --inputbox "$param_prompt:" \
+            8 60 \
+            2>&1 >/dev/tty)
+
+        # Check if user cancelled
+        if [[ $? -ne 0 ]]; then
+            return 0
+        fi
+
+        if [[ -n "$param_value" ]]; then
+            cmd_args+=("$param_value")
+        else
+            dialog --msgbox "Parameter required - command cancelled" 6 40
+            clear
+            return 1
+        fi
+    fi
+
+    # Execute command
+    clear
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Executing: $(basename "$script_path") ${cmd_args[*]}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    "$script_path" "${cmd_args[@]}"
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    read -p "Press Enter to continue..." -r
+    clear
+}
+
+#------------------------------------------------------------------------------
 # Config management main function
 #------------------------------------------------------------------------------
+
+manage_cmds() {
+    if ! scan_available_cmds; then
+        return 1
+    fi
+
+    while true; do
+        # Build menu with all cmd scripts
+        local menu_options=()
+        local option_num=1
+
+        for i in "${!AVAILABLE_CMDS[@]}"; do
+            local cmd_name="${AVAILABLE_CMDS[$i]}"
+            local cmd_description="${CMD_DESCRIPTIONS[$i]}"
+
+            menu_options+=("$option_num" "$cmd_name" "$cmd_description")
+            ((option_num++))
+        done
+
+        # Add back option
+        menu_options+=("0" "Back to Main Menu" "")
+
+        # Show command scripts menu
+        local choice
+        choice=$(dialog --clear \
+            --item-help \
+            --title "Command Tools" \
+            --menu "Select a command tool (ESC to return to main menu):" \
+            $DIALOG_HEIGHT $DIALOG_WIDTH $MENU_HEIGHT \
+            "${menu_options[@]}" \
+            2>&1 >/dev/tty)
+
+        # Check if user cancelled (ESC)
+        if [[ $? -ne 0 ]]; then
+            return 0
+        fi
+
+        # Handle back option
+        if [[ $choice -eq 0 ]]; then
+            return 0
+        fi
+
+        # Convert choice to array index (choice 1 = index 0)
+        local cmd_index=$((choice - 1))
+
+        # Show command submenu for selected script
+        show_cmd_submenu "$cmd_index"
+    done
+}
 
 manage_configs() {
     if ! scan_available_configs; then
@@ -1215,150 +1406,6 @@ check_tool_installed() {
     return $?
 }
 
-show_environment_info() {
-    clear
-    echo ""
-    echo "═══════════════════════════════════════════════════════════════════"
-    echo "                    ENVIRONMENT INFORMATION"
-    echo "═══════════════════════════════════════════════════════════════════"
-    echo ""
-
-    # System info
-    echo "System Information:"
-    echo "  • Container: $(whoami)@$(hostname)"
-    if [[ -f /etc/os-release ]]; then
-        echo "  • OS: $(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)"
-    fi
-    # System resources
-    local disk_info=$(df -h / | awk 'NR==2 {print $4 " free of " $2}')
-    echo "  • Disk Space: $disk_info"
-    echo ""
-
-    # Core tools - always installed
-    echo "Core Tools:"
-    command -v python3 >/dev/null && echo "  ✅ Python: $(python3 --version | cut -d' ' -f2)" || echo "  ❌ Python: not installed"
-    command -v node >/dev/null && echo "  ✅ Node.js: $(node --version | sed 's/v//')" || echo "  ❌ Node.js: not installed"
-    command -v npm >/dev/null && echo "  ✅ npm: $(npm --version)" || echo "  ❌ npm: not installed"
-    command -v az >/dev/null && echo "  ✅ Azure CLI: $(az version 2>/dev/null | grep -o '\"azure-cli\": \"[^\"]*\"' | cut -d'"' -f4)" || echo "  ❌ Azure CLI: not installed"
-    command -v pwsh >/dev/null && echo "  ✅ PowerShell: $(pwsh --version 2>/dev/null | cut -d' ' -f2)" || echo "  ❌ PowerShell: not installed"
-    echo ""
-
-    # Scan tools and services
-    local total_tools=0
-    local installed_count=0
-    local total_services=0
-    local running_services=0
-
-    # Available tools organized by category
-    if scan_available_tools >/dev/null 2>&1; then
-        echo "Available Tools (by category):"
-        echo ""
-
-        total_tools=${#AVAILABLE_TOOLS[@]}
-
-        # Iterate through categories in order
-        for category_key in "AI_TOOLS" "LANGUAGE_DEV" "INFRA_CONFIG" "DATA_ANALYTICS" "UNCATEGORIZED"; do
-            local count=${CATEGORY_COUNTS[$category_key]:-0}
-
-            # Skip empty categories
-            if [[ $count -eq 0 ]]; then
-                continue
-            fi
-
-            local category_name="${CATEGORIES[$category_key]}"
-            echo "$category_name:"
-
-            # Get tool indices for this category
-            local tool_indices="${TOOLS_BY_CATEGORY[$category_key]}"
-            IFS=',' read -ra INDICES <<< "$tool_indices"
-
-            # Display tools in this category
-            for tool_index in "${INDICES[@]}"; do
-                local tool_name="${AVAILABLE_TOOLS[$tool_index]}"
-                local script_name="${TOOL_SCRIPTS[$tool_index]}"
-
-                if check_tool_installed "$script_name"; then
-                    echo "  ✅ $tool_name"
-                    ((installed_count++))
-                else
-                    echo "  ❌ $tool_name"
-                fi
-            done
-            echo ""
-        done
-    fi
-
-    # Running services
-    if scan_available_services >/dev/null 2>&1; then
-        echo "Services:"
-        echo ""
-
-        total_services=${#AVAILABLE_SERVICES[@]}
-
-        if [[ $total_services -gt 0 ]]; then
-            for i in "${!AVAILABLE_SERVICES[@]}"; do
-                local service_name="${AVAILABLE_SERVICES[$i]}"
-
-                if check_service_running "$i"; then
-                    echo "  ✅ $service_name (running)"
-                    ((running_services++))
-                else
-                    echo "  ⏸️  $service_name (stopped)"
-                fi
-            done
-        else
-            echo "  No services available"
-        fi
-        echo ""
-    fi
-
-    # Configuration status
-    local total_configs=0
-    local configured_count=0
-
-    if scan_available_configs >/dev/null 2>&1; then
-        echo "Configurations:"
-        echo ""
-
-        total_configs=${#AVAILABLE_CONFIGS[@]}
-
-        if [[ $total_configs -gt 0 ]]; then
-            for i in "${!AVAILABLE_CONFIGS[@]}"; do
-                local config_name="${AVAILABLE_CONFIGS[$i]}"
-
-                if check_config_configured "$i"; then
-                    echo "  ✅ $config_name (configured)"
-                    ((configured_count++))
-                else
-                    echo "  ❌ $config_name (not configured)"
-                fi
-            done
-        else
-            echo "  No configurations available"
-        fi
-        echo ""
-    fi
-
-    # Summary statistics
-    echo "─────────────────────────────────────────────────────────────────"
-    echo "Summary:"
-    if [[ $total_tools -gt 0 ]]; then
-        local tools_pct=$((installed_count * 100 / total_tools))
-        echo "  • Tools: $installed_count of $total_tools installed ($tools_pct%)"
-    fi
-    if [[ $total_services -gt 0 ]]; then
-        echo "  • Services: $running_services of $total_services running"
-    fi
-    if [[ $total_configs -gt 0 ]]; then
-        local configs_pct=$((configured_count * 100 / total_configs))
-        echo "  • Configurations: $configured_count of $total_configs configured ($configs_pct%)"
-    fi
-    echo "═══════════════════════════════════════════════════════════════════"
-    echo ""
-    read -p "Press Enter to return to menu..." -r
-    clear
-}
-
 #------------------------------------------------------------------------------
 # Main menu and execution
 #------------------------------------------------------------------------------
@@ -1376,9 +1423,10 @@ show_main_menu() {
             "1" "Browse & Install Tools" \
             "2" "Manage Services" \
             "3" "Setup & Configuration" \
-            "4" "Create project from template" \
-            "5" "Show Environment Info" \
-            "6" "Exit" \
+            "4" "Command Tools" \
+            "5" "Create project from template" \
+            "6" "Show Environment Info" \
+            "7" "Exit" \
             2>&1 >/dev/tty)
 
         # Check if user cancelled (ESC or Cancel button)
@@ -1404,12 +1452,18 @@ show_main_menu() {
                 manage_configs
                 ;;
             4)
-                create_project_from_template
+                manage_cmds
                 ;;
             5)
-                show_environment_info
+                create_project_from_template
                 ;;
             6)
+                clear
+                bash "$ADDITIONS_DIR/show-environment.sh"
+                read -p "Press Enter to return to menu..." -r
+                clear
+                ;;
+            7)
                 clear
                 echo ""
                 echo "✅ Thanks for using $SCRIPT_NAME! 🚀"

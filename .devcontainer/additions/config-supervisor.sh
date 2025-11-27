@@ -10,7 +10,7 @@
 CONFIG_NAME="Supervisor Auto-Start"
 CONFIG_DESCRIPTION="Regenerate supervisor configuration from enabled services"
 CONFIG_CATEGORY="INFRA_CONFIG"
-CHECK_CONFIG_COMMAND="test -f /etc/supervisor/supervisord.conf"
+CHECK_CONFIGURED_COMMAND="test -f /etc/supervisor/supervisord.conf"
 
 #------------------------------------------------------------------------------
 
@@ -20,16 +20,6 @@ set -e
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib/logging.sh"
-
-# Colors
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-log_warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
 # Paths
 ADDITIONS_DIR="/workspace/.devcontainer/additions"
@@ -108,22 +98,24 @@ is_service_enabled() {
 discover_services() {
     log_info "Discovering services in $ADDITIONS_DIR..."
 
-    # Find all start-*.sh scripts
-    while IFS= read -r -d '' start_script; do
-        # Extract metadata
+    # Find all service-*.sh scripts (extensible pattern)
+    while IFS= read -r -d '' service_script; do
+        # Extract metadata from service-*.sh files
         local service_name
         local service_command
         local service_priority
         local service_depends
         local service_auto_restart
 
-        service_name=$(grep '^SERVICE_NAME=' "$start_script" 2>/dev/null | cut -d'"' -f2 || echo "")
-        service_command=$(grep '^SERVICE_COMMAND=' "$start_script" 2>/dev/null | cut -d'"' -f2 || echo "$start_script")
-        service_priority=$(grep '^SERVICE_PRIORITY=' "$start_script" 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "50")
-        service_depends=$(grep '^SERVICE_DEPENDS=' "$start_script" 2>/dev/null | cut -d'"' -f2 || echo "")
-        service_auto_restart=$(grep '^SERVICE_AUTO_RESTART=' "$start_script" 2>/dev/null | cut -d'"' -f2 || echo "true")
+        # Service scripts use SERVICE_SCRIPT_NAME instead of SERVICE_NAME
+        service_name=$(grep '^SERVICE_SCRIPT_NAME=' "$service_script" 2>/dev/null | cut -d'"' -f2 || echo "")
+        # Command is the script path with --start flag
+        service_command="bash $service_script --start"
+        service_priority=$(grep '^SERVICE_PRIORITY=' "$service_script" 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "50")
+        service_depends=$(grep '^SERVICE_DEPENDS=' "$service_script" 2>/dev/null | cut -d'"' -f2 || echo "")
+        service_auto_restart=$(grep '^SERVICE_AUTO_RESTART=' "$service_script" 2>/dev/null | cut -d'"' -f2 || echo "true")
 
-        # Only include if has SERVICE_NAME and is enabled
+        # Only include if has SERVICE_SCRIPT_NAME and is enabled
         if [[ -n "$service_name" ]]; then
             if is_service_enabled "$service_name"; then
                 SERVICE_NAMES+=("$service_name")
@@ -137,9 +129,9 @@ discover_services() {
                 log_info "  Found: $service_name (priority: $service_priority) ⏸️  disabled"
             fi
         fi
-    done < <(find "$ADDITIONS_DIR" -name "start-*.sh" -type f -print0)
+    done < <(find "$ADDITIONS_DIR" -name "service-*.sh" -type f -print0)
 
-    log_success "Discovered ${#SERVICE_NAMES[@]} services"
+    log_success "Discovered ${#SERVICE_NAMES[@]} enabled services"
 }
 
 #------------------------------------------------------------------------------
@@ -209,8 +201,9 @@ reload_supervisor() {
         log_success "Supervisor reloaded"
     else
         log_info "Supervisor not running - starting it now..."
-        sudo supervisord -c /etc/supervisor/supervisord.conf
-        sleep 2
+        # Start supervisord in background with output redirected
+        sudo supervisord -c /etc/supervisor/supervisord.conf > /dev/null 2>&1 &
+        sleep 3
         if pgrep supervisord > /dev/null; then
             log_success "Supervisor started and services are now running"
         else
@@ -266,22 +259,7 @@ main() {
     rm -rf "$TEMP_CONF_DIR"
 
     echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✅ Configuration Generation Complete"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "📋 Service Priority Order:"
-
-    # Sort and display services by priority
-    for i in "${!SERVICE_NAMES[@]}"; do
-        echo "   ${SERVICE_PRIORITIES[$i]}: ${SERVICE_NAMES[$i]}"
-    done | sort -n
-
-    echo ""
-    echo "🔧 Management:"
-    echo "   dev-services status          # Show all services"
-    echo "   dev-services restart <name>  # Restart a service"
-    echo "   dev-services logs <name>     # View service logs"
+    log_success "Supervisor configuration complete"
     echo ""
 }
 

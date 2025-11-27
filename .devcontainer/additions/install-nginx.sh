@@ -1,8 +1,11 @@
 #!/bin/bash
-# file: .devcontainer/additions/install-conf-script.sh
+# file: .devcontainer/additions/install-nginx.sh
 #
-# Usage: ./install-conf-script.sh [options]
-# 
+# DESCRIPTION: Install and configure nginx as reverse proxy for LiteLLM
+# PURPOSE: Handle Host header injection for Claude Code
+#
+# Usage: ./install-nginx.sh [options]
+#
 # Options:
 #   --debug     : Enable debug output for troubleshooting
 #   --uninstall : Remove installed components instead of installing them
@@ -12,87 +15,91 @@
 # CONFIGURATION - Modify this section for each new script
 #------------------------------------------------------------------------------
 
-# Script metadata - must be at the very top of the configuration section
-SCRIPT_NAME="Configuration Tools"
-SCRIPT_DESCRIPTION="Installs tools and extensions for Infrastructure as Code (Bicep) and configuration management (Ansible)"
+# Script metadata - Required for dev-setup.sh menu discovery
+SCRIPT_NAME="Nginx Reverse Proxy"
+SCRIPT_DESCRIPTION="Install nginx as reverse proxy for Claude Code → LiteLLM with Host header injection"
 SCRIPT_CATEGORY="INFRA_CONFIG"
-CHECK_INSTALLED_COMMAND="[ -f /usr/local/bin/ansible ] || [ -f /usr/bin/ansible ] || command -v ansible >/dev/null 2>&1"
+CHECK_INSTALLED_COMMAND="command -v nginx >/dev/null 2>&1"
 
 #------------------------------------------------------------------------------
 
-# Source auto-enable library
+# Source auto-enable library for automatic addition to enabled-tools.conf
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib/tool-auto-enable.sh"
 
-# Source logging library
+# Source logging library for automatic logging to /tmp/devcontainer-install/
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib/logging.sh"
 
 #------------------------------------------------------------------------------
+# INSTALLATION FUNCTIONS
+#------------------------------------------------------------------------------
 
-# Before running installation, we need to add any required repositories
+# Before running installation, we need to configure nginx
 pre_installation_setup() {
     if [ "${UNINSTALL_MODE}" -eq 1 ]; then
-        echo "🔧 Preparing for uninstallation..."
+        echo "🔧 Preparing for nginx uninstallation..."
+
+        # Stop nginx if running
+        if command -v nginx >/dev/null 2>&1; then
+            echo "→ Stopping nginx service..."
+            sudo service nginx stop 2>/dev/null || true
+        fi
     else
-        echo "🔧 Performing pre-installation setup..."
-        echo "No additional setup required for this script"
+        echo "🔧 Performing pre-installation setup for nginx..."
+        # Note: nginx.conf will be installed by nginx-light package
+        # Note: Proxy configs will be generated from templates by start-nginx.sh
+        echo "ℹ️  nginx.conf will be provided by nginx-light package"
+        echo "ℹ️  Proxy configurations will be generated from templates on first start"
     fi
 }
 
 # Define system packages
 SYSTEM_PACKAGES=(
-    "ansible"
-    "ansible-lint"
+    nginx-light
 )
 
-# Define Python packages for pip installation
+# No additional packages needed
+NODE_PACKAGES=()
 PYTHON_PACKAGES=()
+PWSH_MODULES=()
 
 # Define VS Code extensions
 declare -A EXTENSIONS
-EXTENSIONS["redhat.ansible"]="Ansible|Ansible language support and tools"
 
 # Define verification commands to run after installation
 VERIFY_COMMANDS=(
-    "command -v ansible >/dev/null && ansible --version | head -n1 || echo '❌ ansible not found'"
-    "command -v ansible-lint >/dev/null && ansible-lint --version || echo '❌ ansible-lint not found'"
-    "code --list-extensions | grep -q redhat.ansible && echo '✅ Ansible extension is installed' || echo '❌ Ansible extension is not installed'"
+    "nginx -v 2>&1 | head -1"
 )
 
 # Post-installation notes
 post_installation_message() {
-    local ansible_version
-    local lint_version
-    
-    if command -v ansible >/dev/null 2>&1; then
-        ansible_version=$(ansible --version | head -n1)
-    else
-        ansible_version="not installed"
-    fi
-
-    if command -v ansible-lint >/dev/null 2>&1; then
-        lint_version=$(ansible-lint --version 2>/dev/null)
-    else
-        lint_version="not installed"
+    if [ "${UNINSTALL_MODE}" -eq 1 ]; then
+        return
     fi
 
     echo
     echo "🎉 Installation process complete for: $SCRIPT_NAME!"
     echo "Purpose: $SCRIPT_DESCRIPTION"
     echo
-    echo "Important Notes:"
-    echo "1. Bicep CLI is installed and configured with the extension"
-    echo "2. Ansible $ansible_version"
-    echo "3. ansible-lint $lint_version"
+
+    # Remove default site (nginx-light installs one)
+    if [ -f /etc/nginx/sites-enabled/default ]; then
+        echo "→ Removing default nginx site..."
+        sudo rm -f /etc/nginx/sites-enabled/default
+    fi
+
     echo
-    echo "Documentation Links:"
-    echo "- Local Guide: .devcontainer/howto/howto-conf-script.md"
-    echo "- Bicep: https://docs.microsoft.com/azure/azure-resource-manager/bicep"
-    echo "- Ansible: https://docs.ansible.com"
-    echo "- VS Code Bicep Extension: https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-bicep"
-    echo "- VS Code Ansible Extension: https://marketplace.visualstudio.com/items?itemName=redhat.ansible"
+    echo "Next steps:"
+    echo "1. Configure backend: bash /workspace/.devcontainer/additions/config-nginx.sh"
+    echo "2. Start nginx: bash /workspace/.devcontainer/additions/start-nginx.sh"
+    echo "   (or nginx will auto-start via supervisord on next rebuild)"
+    echo
+    echo "Architecture:"
+    echo "  Claude Code → http://localhost:8080 → nginx → Traefik → LiteLLM"
+    echo "  OTEL Collector → http://localhost:8081 → nginx → Traefik → K8s OTel"
+    echo
 }
 
 # Post-uninstallation notes
@@ -100,22 +107,28 @@ post_uninstallation_message() {
     echo
     echo "🏁 Uninstallation process complete for: $SCRIPT_NAME!"
     echo
-    echo "Additional Notes:"
-    echo "1. Configuration files (.bicep, .yaml, etc.) remain unchanged"
-    echo "2. Any custom Ansible configurations in ~/.ansible remain in place"
-    echo "3. See the local guide for additional cleanup steps if needed:"
-    echo "   .devcontainer/howto/howto-conf-script.md"
-    
-    # Verify uninstallation
-    if command -v ansible >/dev/null || command -v ansible-lint >/dev/null; then
+    echo "Additional cleanup performed:"
+    echo "1. Removed nginx configuration files"
+    echo "2. Stopped nginx service"
+    echo
+
+    # Cleanup configuration files (both old and new formats)
+    echo "→ Cleaning up nginx configuration..."
+    sudo rm -f /etc/nginx/sites-available/litellm-proxy.conf
+    sudo rm -f /etc/nginx/sites-enabled/litellm-proxy.conf
+    sudo rm -f /etc/nginx/sites-available/otel-proxy.conf
+    sudo rm -f /etc/nginx/sites-enabled/otel-proxy.conf
+    # Old format (if any)
+    sudo rm -f /etc/nginx/sites-available/litellm-proxy
+    sudo rm -f /etc/nginx/sites-enabled/litellm-proxy
+
+    # Check if nginx is still installed
+    if command -v nginx >/dev/null; then
         echo
-        echo "⚠️  Warning: Some components may still be installed:"
-        command -v ansible >/dev/null && echo "- ansible is still present"
-        command -v ansible-lint >/dev/null && echo "- ansible-lint is still present"
-        echo "You may need to run with sudo or check package manager settings."
+        echo "⚠️  Note: nginx binary is still installed (system package)"
+        echo "   Run 'sudo apt-get remove nginx-light' to completely remove"
     fi
 }
-
 
 #------------------------------------------------------------------------------
 # STANDARD SCRIPT LOGIC - Do not modify anything below this line
@@ -173,6 +186,10 @@ process_installations() {
         process_node_packages "NODE_PACKAGES"
     fi
 
+    if [ ${#PYTHON_PACKAGES[@]} -gt 0 ]; then
+        process_python_packages "PYTHON_PACKAGES"
+    fi
+
     if [ ${#PWSH_MODULES[@]} -gt 0 ]; then
         process_pwsh_modules "PWSH_MODULES"
     fi
@@ -188,10 +205,8 @@ verify_installations() {
         echo
         echo "🔍 Verifying installations..."
         for cmd in "${VERIFY_COMMANDS[@]}"; do
-            echo "Running: $cmd"
-            if ! eval "$cmd"; then
-                echo "❌ Verification failed for: $cmd"
-            fi
+            # Run command silently - commands output their own status messages
+            eval "$cmd" || true
         done
     fi
 }
@@ -200,6 +215,7 @@ verify_installations() {
 if [ "${UNINSTALL_MODE}" -eq 1 ]; then
     echo "🔄 Starting uninstallation process for: $SCRIPT_NAME"
     echo "Purpose: $SCRIPT_DESCRIPTION"
+    pre_installation_setup
     process_installations
     if [ ${#EXTENSIONS[@]} -gt 0 ]; then
         for ext_id in "${!EXTENSIONS[@]}"; do
@@ -222,6 +238,7 @@ else
     fi
     post_installation_message
 
-    # Auto-enable for container rebuild
-    auto_enable_tool "configuration-tools" "Configuration Tools"
+    # Auto-enable this tool for container rebuild
+    TOOL_ID=$(echo "$SCRIPT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+    auto_enable_tool "$TOOL_ID" "$SCRIPT_NAME"
 fi

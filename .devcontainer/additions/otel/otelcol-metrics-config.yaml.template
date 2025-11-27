@@ -131,8 +131,8 @@ processors:
 exporters:
   # OTLP HTTP exporter: Send to Kubernetes cluster via nginx proxy
   otlphttp:
-    # Routes through nginx reverse proxy on localhost:8081
-    endpoint: http://localhost:8081
+    # Routes through nginx reverse proxy on localhost:NGINX_OTEL_PORT
+    endpoint: http://localhost:NGINX_OTEL_PORT
     headers:
       # Traefik routing header: Routes to k8s OTel Collector
       Host: otel.localhost
